@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:star_cities/features/auth/presentation/screens/sign_in/sign_in.dart';
 import 'package:star_cities/features/lobby/presentation/screens/lobby.dart';
+import 'package:star_cities/features/game/presentation/screens/game_board.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// A [Listenable] that notifies when the provided [Stream] emits a value.
@@ -35,13 +36,18 @@ final appRouter = GoRouter(
       path: '/',
       builder: (context, state) => const LobbyPage(),
     ),
+    GoRoute(
+      path: '/game',
+      builder: (context, state) => const GameBoard(),
+    ),
   ],
   redirect: (context, state) {
     final bool isGoingToLogin = state.uri.toString() == '/signin';
+    final bool isGoingToGame = state.uri.toString() == '/game';
     final bool isAuthenticated =
         Supabase.instance.client.auth.currentUser != null;
 
-    if (!isAuthenticated && !isGoingToLogin) {
+    if (!isAuthenticated && !isGoingToLogin && !isGoingToGame) {
       return '/signin'; // Redirect to sign in if not logged in
     }
 
