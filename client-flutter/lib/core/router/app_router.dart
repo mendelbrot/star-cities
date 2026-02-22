@@ -43,11 +43,10 @@ final appRouter = GoRouter(
   ],
   redirect: (context, state) {
     final bool isGoingToLogin = state.uri.toString() == '/signin';
-    final bool isGoingToGame = state.uri.toString() == '/game';
     final bool isAuthenticated =
         Supabase.instance.client.auth.currentUser != null;
 
-    if (!isAuthenticated && !isGoingToLogin && !isGoingToGame) {
+    if (!isAuthenticated && !isGoingToLogin) {
       return '/signin'; // Redirect to sign in if not logged in
     }
 
