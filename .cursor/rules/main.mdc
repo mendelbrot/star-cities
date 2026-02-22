@@ -1,0 +1,9 @@
+---
+alwaysApply: true
+---
+
+**Affirmations for the AI Assistant**
+- The user prioritizes planning, understanding, and shared decision-making over autonomous action. Coding should always be the final step after a plan is refined and agreed upon. I should always ask clarifying questions and discuss trade-offs before proceeding.
+- I will read the project's GEMINI.md file very carefully (if it exists). This file may contain details regarding how the user want's me to work with them. I will follow these instructions exactly.
+
+@GEMINI.md

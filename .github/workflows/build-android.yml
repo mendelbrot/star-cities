@@ -1,0 +1,44 @@
+name: Build Android
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'client-flutter/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./client-flutter
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Set up Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        channel: 'stable'
+
+    - name: Create .env file
+      run: echo "${{ secrets.FLUTTER_ENV_FILE }}" > .env
+
+    - name: Install dependencies
+      run: flutter pub get
+
+    - name: Build Android APK
+      run: flutter build apk --release --dart-define-from-file=.env
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: star-cities-android
+        path: client-flutter/build/app/outputs/flutter-apk/app-release.apk

@@ -1,0 +1,25 @@
+{
+  "name": "star-cities",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "mermaid": "bash ./notes-star-cities/scripts/mermaid.sh",
+    "flutter": "cd client-flutter && flutter run --dart-define-from-file=.env",
+    "flutter:analyze": "cd ./client-flutter && flutter analyze --no-pub",
+    "db:diff": "supabase db diff -f",
+    "create-user": "node scripts/create-user.js",
+    "log": "node ./notes-star-cities/scripts/dev-log.js"
+  },
+  "devDependencies": {
+    "@mermaid-js/mermaid-cli": "^11.12.0",
+    "supabase": "^2.72.4"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.90.1",
+    "dotenv": "^17.2.3"
+  }
+}
