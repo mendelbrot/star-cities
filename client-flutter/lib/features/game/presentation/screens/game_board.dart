@@ -36,9 +36,9 @@ class GameBoard extends StatefulWidget {
 
 class _GameBoardState extends State<GameBoard> {
   final List<Piece> _pieces = [
-    Piece(id: '1', x: 1, y: 1, type: 'Star City', color: Colors.blue),
+    Piece(id: '1', x: 2, y: 1, type: 'Star City', color: Colors.blue),
     Piece(id: '2', x: 1, y: 2, type: 'Ship', color: Colors.blue),
-    Piece(id: '3', x: 7, y: 7, type: 'Star City', color: Colors.red),
+    Piece(id: '3', x: 7, y: 8, type: 'Star City', color: Colors.red),
     Piece(id: '4', x: 6, y: 7, type: 'Ship', color: Colors.red),
   ];
 
@@ -63,16 +63,13 @@ class _GameBoardState extends State<GameBoard> {
         }
       } else {
         if (_isSelectedFromTray) {
-          // Check if tapped square is valid for placement
           if (_isValidPlacementSquare(x, y)) {
             _plannedMoves[_selectedPieceId!] = math.Point(x, y);
             _selectedPieceId = null;
           } else {
-            // Illegal square, cancel placement selection
             _selectedPieceId = null;
           }
         } else {
-          // Board piece move logic
           final selectedPiece = _pieces.firstWhere((p) => p.id == _selectedPieceId);
 
           if (tappedPiece != null && tappedPiece.id == _selectedPieceId) {
@@ -106,12 +103,10 @@ class _GameBoardState extends State<GameBoard> {
       }
 
       if (_plannedMoves.containsKey(tappedPiece.id)) {
-        // Clicking a greyed out piece removes the placement and selects it
         _plannedMoves.remove(tappedPiece.id);
         _selectedPieceId = tappedPiece.id;
         _isSelectedFromTray = true;
       } else if (_selectedPieceId == tappedPiece.id) {
-        // Toggle selection off if no placement exists
         _selectedPieceId = null;
       } else {
         _selectedPieceId = tappedPiece.id;
@@ -121,12 +116,10 @@ class _GameBoardState extends State<GameBoard> {
   }
 
   bool _isValidPlacementSquare(int x, int y) {
-    // Square must be empty (no piece and no other planned move/placement)
     final isOccupiedByPiece = _pieces.any((p) => p.x == x && p.y == y);
     final isOccupiedByPlan = _plannedMoves.values.any((p) => p.x == x && p.y == y);
     if (isOccupiedByPiece || isOccupiedByPlan) return false;
 
-    // Must be distance 1 from a blue star city
     final blueStarCities = _pieces.where((p) => p.type == 'Star City' && p.color == Colors.blue);
     for (final city in blueStarCities) {
       if (_isWithinDistance(city.x, city.y, x, y, 1)) {
@@ -144,8 +137,27 @@ class _GameBoardState extends State<GameBoard> {
     return math.max(dx, dy) <= distance && math.max(dx, dy) > 0;
   }
 
+  bool _isAdjacentToStar(int x, int y) {
+    final stars = [(1, 1), (3, 5), (6, 2), (7, 7), (2, 6), (5, 3)];
+    for (var star in stars) {
+      // beside distance 1 including diagonals, or ON the star
+      if ((x - star.$1).abs() <= 1 && (y - star.$2).abs() <= 1) return true;
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final selectedBoardPiece = !_isSelectedFromTray 
+      ? _pieces.where((p) => p.id == _selectedPieceId).firstOrNull
+      : null;
+
+    final showAnchor = selectedBoardPiece != null && 
+                       selectedBoardPiece.type == 'Star City' && 
+                       _isAdjacentToStar(selectedBoardPiece.x, selectedBoardPiece.y);
+    final showBombard = selectedBoardPiece != null && 
+                        selectedBoardPiece.type == 'Ship';
+
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
       appBar: AppBar(
@@ -198,7 +210,6 @@ class _GameBoardState extends State<GameBoard> {
                             selectedPieceId: _isSelectedFromTray ? null : _selectedPieceId,
                             plannedMoves: _plannedMoves,
                           ),
-                          // Ghost pieces for planned placements
                           PlannedPlacementOverlay(
                             trayPieces: _trayPieces,
                             plannedMoves: _plannedMoves,
@@ -212,6 +223,7 @@ class _GameBoardState extends State<GameBoard> {
             ),
           ),
           const SizedBox(height: 8),
+          // Pieces Tray
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: AspectRatio(
@@ -248,35 +260,73 @@ class _GameBoardState extends State<GameBoard> {
               ),
             ),
           ),
+          const Spacer(),
+          // Button Tray
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.5), width: 2),
+                borderRadius: BorderRadius.circular(12),
+                color: Colors.black.withValues(alpha: 0.2),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Left side: Contextual actions
+                  Row(
+                    children: [
+                      if (showAnchor)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: ElevatedButton(
+                            onPressed: () {}, 
+                            style: ElevatedButton.styleFrom(foregroundColor: const Color(0xFF0F172A)),
+                            child: const Text('Anchor'),
+                          ),
+                        ),
+                      if (showBombard)
+                        ElevatedButton(
+                          onPressed: () {}, 
+                          style: ElevatedButton.styleFrom(foregroundColor: const Color(0xFF0F172A)),
+                          child: const Text('Bombard'),
+                        ),
+                    ],
+                  ),
+                  // Right side: Reset and Done
+                  Row(
+                    children: [
+                      ElevatedButton(
+                        onPressed: () {
+                          setState(() {
+                            _plannedMoves.clear();
+                            _selectedPieceId = null;
+                            _isSelectedFromTray = false;
+                          });
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red.shade800,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text('Reset'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () {},
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green.shade800,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: const Text('Done'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
-      ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16),
-        color: Colors.black.withValues(alpha: 0.5),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            ElevatedButton(onPressed: () {}, child: const Text('Move')),
-            ElevatedButton(onPressed: () {}, child: const Text('Anchor')),
-            ElevatedButton(onPressed: () {}, child: const Text('Place Ship')),
-            ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  _plannedMoves.clear();
-                  _selectedPieceId = null;
-                  _isSelectedFromTray = false;
-                });
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade800),
-              child: const Text('Reset'),
-            ),
-            ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade800),
-              child: const Text('Done'),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -489,7 +539,6 @@ class ValidMoveMarkers extends StatelessWidget {
         List<Widget> markers = [];
 
         if (isSelectedFromTray) {
-          // Placement markers: distance 1 from blue star cities
           final blueStarCities = pieces.where((p) => p.type == 'Star City' && p.color == Colors.blue);
           final Set<math.Point<int>> validPoints = {};
 
@@ -502,7 +551,6 @@ class ValidMoveMarkers extends StatelessWidget {
                 if (tx < 0) tx += 9;
                 if (ty < 0) ty += 9;
 
-                // Check if occupied
                 final isOccupiedByPiece = pieces.any((p) => p.x == tx && p.y == ty);
                 final isOccupiedByPlan = plannedMoves.values.any((p) => p.x == tx && p.y == ty);
                 
@@ -517,7 +565,6 @@ class ValidMoveMarkers extends StatelessWidget {
             markers.add(_buildMarker(pt.x, pt.y, step));
           }
         } else {
-          // Regular move markers: distance 2 from piece
           for (int dx = -2; dx <= 2; dx++) {
             for (int dy = -2; dy <= 2; dy++) {
               if (dx == 0 && dy == 0) continue;
