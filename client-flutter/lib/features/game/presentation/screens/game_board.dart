@@ -42,7 +42,14 @@ class _GameBoardState extends State<GameBoard> {
     Piece(id: '4', x: 6, y: 7, type: 'Ship', color: Colors.red),
   ];
 
+  final List<Piece> _trayPieces = [
+    Piece(id: 't1', x: 0, y: 0, type: 'Ship', color: Colors.blue),
+    Piece(id: 't2', x: 1, y: 0, type: 'Ship', color: Colors.blue),
+    Piece(id: 't3', x: 2, y: 0, type: 'Star City', color: Colors.blue),
+  ];
+
   String? _selectedPieceId;
+  bool _isSelectedFromTray = false;
   final Map<String, math.Point<int>> _plannedMoves = {};
 
   void _onSquareTapped(int x, int y) {
@@ -50,50 +57,90 @@ class _GameBoardState extends State<GameBoard> {
       final tappedPiece = _pieces.where((p) => p.x == x && p.y == y).firstOrNull;
 
       if (_selectedPieceId == null) {
-        // Nothing selected, try to select a piece
         if (tappedPiece != null) {
           _selectedPieceId = tappedPiece.id;
+          _isSelectedFromTray = false;
         }
       } else {
-        // Something is selected
-        final selectedPiece = _pieces.firstWhere((p) => p.id == _selectedPieceId);
-
-        if (tappedPiece != null && tappedPiece.id == _selectedPieceId) {
-          // Tapped the selected piece again
-          if (_plannedMoves.containsKey(_selectedPieceId)) {
-            // If it had a move, clear it
-            _plannedMoves.remove(_selectedPieceId);
-          } else {
-            // Otherwise deselect
-            _selectedPieceId = null;
-          }
-        } else if (tappedPiece != null) {
-          // Tapped a different piece, switch selection
-          _selectedPieceId = tappedPiece.id;
-        } else {
-          // Tapped an empty square
-          if (_isWithinDistance(selectedPiece.x, selectedPiece.y, x, y, 2)) {
-            // Within move range, plan move and "deactivate" markers (deselect)
+        if (_isSelectedFromTray) {
+          // Check if tapped square is valid for placement
+          if (_isValidPlacementSquare(x, y)) {
             _plannedMoves[_selectedPieceId!] = math.Point(x, y);
             _selectedPieceId = null;
           } else {
-            // Outside range, just deselect
+            // Illegal square, cancel placement selection
             _selectedPieceId = null;
+          }
+        } else {
+          // Board piece move logic
+          final selectedPiece = _pieces.firstWhere((p) => p.id == _selectedPieceId);
+
+          if (tappedPiece != null && tappedPiece.id == _selectedPieceId) {
+            if (_plannedMoves.containsKey(_selectedPieceId)) {
+              _plannedMoves.remove(_selectedPieceId);
+            } else {
+              _selectedPieceId = null;
+            }
+          } else if (tappedPiece != null) {
+            _selectedPieceId = tappedPiece.id;
+            _isSelectedFromTray = false;
+          } else {
+            if (_isWithinDistance(selectedPiece.x, selectedPiece.y, x, y, 2)) {
+              _plannedMoves[_selectedPieceId!] = math.Point(x, y);
+              _selectedPieceId = null;
+            } else {
+              _selectedPieceId = null;
+            }
           }
         }
       }
     });
   }
 
+  void _onTraySquareTapped(int index) {
+    setState(() {
+      final tappedPiece = _trayPieces.where((p) => p.x == index).firstOrNull;
+      if (tappedPiece == null) {
+        _selectedPieceId = null;
+        return;
+      }
+
+      if (_plannedMoves.containsKey(tappedPiece.id)) {
+        // Clicking a greyed out piece removes the placement and selects it
+        _plannedMoves.remove(tappedPiece.id);
+        _selectedPieceId = tappedPiece.id;
+        _isSelectedFromTray = true;
+      } else if (_selectedPieceId == tappedPiece.id) {
+        // Toggle selection off if no placement exists
+        _selectedPieceId = null;
+      } else {
+        _selectedPieceId = tappedPiece.id;
+        _isSelectedFromTray = true;
+      }
+    });
+  }
+
+  bool _isValidPlacementSquare(int x, int y) {
+    // Square must be empty (no piece and no other planned move/placement)
+    final isOccupiedByPiece = _pieces.any((p) => p.x == x && p.y == y);
+    final isOccupiedByPlan = _plannedMoves.values.any((p) => p.x == x && p.y == y);
+    if (isOccupiedByPiece || isOccupiedByPlan) return false;
+
+    // Must be distance 1 from a blue star city
+    final blueStarCities = _pieces.where((p) => p.type == 'Star City' && p.color == Colors.blue);
+    for (final city in blueStarCities) {
+      if (_isWithinDistance(city.x, city.y, x, y, 1)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   bool _isWithinDistance(int x1, int y1, int x2, int y2, int distance) {
     int dx = (x1 - x2).abs();
     int dy = (y1 - y2).abs();
-    
-    // Torus wrapping
     dx = math.min(dx, 9 - dx);
     dy = math.min(dy, 9 - dy);
-    
-    // Chebyshev distance
     return math.max(dx, dy) <= distance && math.max(dx, dy) > 0;
   }
 
@@ -106,54 +153,102 @@ class _GameBoardState extends State<GameBoard> {
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: AspectRatio(
-            aspectRatio: 1,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final step = constraints.maxWidth / 9;
-                return GestureDetector(
-                  onTapUp: (details) {
-                    final x = details.localPosition.dx ~/ step;
-                    final y = details.localPosition.dy ~/ step;
-                    if (x >= 0 && x < 9 && y >= 0 && y < 9) {
-                      _onSquareTapped(x, y);
-                    }
-                  },
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.5), width: 2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Stack(
-                      children: [
-                        const SpaceGrid(),
-                        const StarOverlay(),
-                        // Valid Move Markers
-                        if (_selectedPieceId != null)
-                          ValidMoveMarkers(
-                            selectedPiece: _pieces.firstWhere((p) => p.id == _selectedPieceId),
+      body: Column(
+        children: [
+          // Game Board
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final step = constraints.maxWidth / 9;
+                  return GestureDetector(
+                    onTapUp: (details) {
+                      final x = details.localPosition.dx ~/ step;
+                      final y = details.localPosition.dy ~/ step;
+                      if (x >= 0 && x < 9 && y >= 0 && y < 9) {
+                        _onSquareTapped(x, y);
+                      }
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.5), width: 2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Stack(
+                        children: [
+                          const SpaceGrid(),
+                          const StarOverlay(),
+                          if (_selectedPieceId != null)
+                            ValidMoveMarkers(
+                              selectedPiece: _isSelectedFromTray 
+                                ? _trayPieces.firstWhere((p) => p.id == _selectedPieceId)
+                                : _pieces.firstWhere((p) => p.id == _selectedPieceId),
+                              isSelectedFromTray: _isSelectedFromTray,
+                              pieces: _pieces,
+                              plannedMoves: _plannedMoves,
+                            ),
+                          PlannedMoveArrows(
+                            pieces: _pieces,
+                            plannedMoves: _plannedMoves,
                           ),
-                        // Planned Move Arrows
-                        PlannedMoveArrows(
-                          pieces: _pieces,
-                          plannedMoves: _plannedMoves,
-                        ),
-                        // Pieces
-                        PieceOverlay(
-                          pieces: _pieces,
-                          selectedPieceId: _selectedPieceId,
-                        ),
-                      ],
+                          PieceOverlay(
+                            pieces: _pieces,
+                            selectedPieceId: _isSelectedFromTray ? null : _selectedPieceId,
+                            plannedMoves: _plannedMoves,
+                          ),
+                          // Ghost pieces for planned placements
+                          PlannedPlacementOverlay(
+                            trayPieces: _trayPieces,
+                            plannedMoves: _plannedMoves,
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                );
-              }
+                  );
+                }
+              ),
             ),
           ),
-        ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: AspectRatio(
+              aspectRatio: 9 / 1,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final step = constraints.maxWidth / 9;
+                  return GestureDetector(
+                    onTapUp: (details) {
+                      final x = details.localPosition.dx ~/ step;
+                      if (x >= 0 && x < 9) {
+                        _onTraySquareTapped(x);
+                      }
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.5), width: 2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Stack(
+                        children: [
+                          const SpaceGrid(rows: 1, cols: 9),
+                          PieceOverlay(
+                            pieces: _trayPieces,
+                            selectedPieceId: _isSelectedFromTray ? _selectedPieceId : null,
+                            rows: 1,
+                            plannedMoves: _plannedMoves,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(16),
@@ -169,6 +264,7 @@ class _GameBoardState extends State<GameBoard> {
                 setState(() {
                   _plannedMoves.clear();
                   _selectedPieceId = null;
+                  _isSelectedFromTray = false;
                 });
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade800),
@@ -187,29 +283,38 @@ class _GameBoardState extends State<GameBoard> {
 }
 
 class SpaceGrid extends StatelessWidget {
-  const SpaceGrid({super.key});
+  final int rows;
+  final int cols;
+  const SpaceGrid({super.key, this.rows = 9, this.cols = 9});
 
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
       size: Size.infinite,
-      painter: GridPainter(),
+      painter: GridPainter(rows: rows, cols: cols),
     );
   }
 }
 
 class GridPainter extends CustomPainter {
+  final int rows;
+  final int cols;
+  GridPainter({required this.rows, required this.cols});
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = Colors.blueAccent.withValues(alpha: 0.2)
       ..strokeWidth = 1;
 
-    final step = size.width / 9;
+    final stepX = size.width / cols;
+    final stepY = size.height / rows;
 
-    for (int i = 0; i <= 9; i++) {
-      canvas.drawLine(Offset(i * step, 0), Offset(i * step, size.height), paint);
-      canvas.drawLine(Offset(0, i * step), Offset(size.width, i * step), paint);
+    for (int i = 0; i <= cols; i++) {
+      canvas.drawLine(Offset(i * stepX, 0), Offset(i * stepX, size.height), paint);
+    }
+    for (int i = 0; i <= rows; i++) {
+      canvas.drawLine(Offset(0, i * stepY), Offset(size.width, i * stepY), paint);
     }
   }
 
@@ -262,38 +367,49 @@ class StarOverlay extends StatelessWidget {
 class PieceOverlay extends StatelessWidget {
   final List<Piece> pieces;
   final String? selectedPieceId;
+  final int rows;
+  final int cols;
+  final Map<String, math.Point<int>> plannedMoves;
 
   const PieceOverlay({
     super.key,
     required this.pieces,
     this.selectedPieceId,
+    this.rows = 9,
+    this.cols = 9,
+    required this.plannedMoves,
   });
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final step = constraints.maxWidth / 9;
+        final stepX = constraints.maxWidth / cols;
+        final stepY = constraints.maxHeight / rows;
         return Stack(
           children: [
             ...pieces.map((p) {
               final isSelected = p.id == selectedPieceId;
+              final hasPlan = plannedMoves.containsKey(p.id);
               return Positioned(
-                left: p.x * step,
-                top: p.y * step,
-                width: step,
-                height: step,
+                left: p.x * stepX,
+                top: p.y * stepY,
+                width: stepX,
+                height: stepY,
                 child: IgnorePointer(
-                  child: Container(
-                    padding: EdgeInsets.all(step * 0.2),
-                    decoration: isSelected ? BoxDecoration(
-                      border: Border.all(color: Colors.white, width: 2),
-                      borderRadius: BorderRadius.circular(8),
-                      color: Colors.white.withValues(alpha: 0.1),
-                    ) : null,
-                    child: p.type == 'Star City' 
-                      ? StarCityWidget(color: p.color)
-                      : ShipWidget(color: p.color),
+                  child: Opacity(
+                    opacity: hasPlan ? 0.3 : 1.0,
+                    child: Container(
+                      padding: EdgeInsets.all(stepX * 0.2),
+                      decoration: isSelected ? BoxDecoration(
+                        border: Border.all(color: Colors.white, width: 2),
+                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.white.withValues(alpha: 0.1),
+                      ) : null,
+                      child: p.type == 'Star City' 
+                        ? StarCityWidget(color: p.color)
+                        : ShipWidget(color: p.color),
+                    ),
                   ),
                 ),
               );
@@ -305,12 +421,64 @@ class PieceOverlay extends StatelessWidget {
   }
 }
 
+class PlannedPlacementOverlay extends StatelessWidget {
+  final List<Piece> trayPieces;
+  final Map<String, math.Point<int>> plannedMoves;
+
+  const PlannedPlacementOverlay({
+    super.key,
+    required this.trayPieces,
+    required this.plannedMoves,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final step = constraints.maxWidth / 9;
+        final widgets = <Widget>[];
+
+        plannedMoves.forEach((pieceId, target) {
+          final trayPiece = trayPieces.where((p) => p.id == pieceId).firstOrNull;
+          if (trayPiece != null) {
+            widgets.add(
+              Positioned(
+                left: target.x * step,
+                top: target.y * step,
+                width: step,
+                height: step,
+                child: Opacity(
+                  opacity: 0.5,
+                  child: Container(
+                    padding: EdgeInsets.all(step * 0.2),
+                    child: trayPiece.type == 'Star City' 
+                      ? StarCityWidget(color: trayPiece.color)
+                      : ShipWidget(color: trayPiece.color),
+                  ),
+                ),
+              ),
+            );
+          }
+        });
+
+        return Stack(children: widgets);
+      },
+    );
+  }
+}
+
 class ValidMoveMarkers extends StatelessWidget {
   final Piece selectedPiece;
+  final bool isSelectedFromTray;
+  final List<Piece> pieces;
+  final Map<String, math.Point<int>> plannedMoves;
 
   const ValidMoveMarkers({
     super.key,
     required this.selectedPiece,
+    required this.isSelectedFromTray,
+    required this.pieces,
+    required this.plannedMoves,
   });
 
   @override
@@ -320,40 +488,71 @@ class ValidMoveMarkers extends StatelessWidget {
         final step = constraints.maxWidth / 9;
         List<Widget> markers = [];
 
-        for (int dx = -2; dx <= 2; dx++) {
-          for (int dy = -2; dy <= 2; dy++) {
-            if (dx == 0 && dy == 0) continue;
+        if (isSelectedFromTray) {
+          // Placement markers: distance 1 from blue star cities
+          final blueStarCities = pieces.where((p) => p.type == 'Star City' && p.color == Colors.blue);
+          final Set<math.Point<int>> validPoints = {};
 
-            int targetX = (selectedPiece.x + dx) % 9;
-            int targetY = (selectedPiece.y + dy) % 9;
-            if (targetX < 0) targetX += 9;
-            if (targetY < 0) targetY += 9;
+          for (final city in blueStarCities) {
+            for (int dx = -1; dx <= 1; dx++) {
+              for (int dy = -1; dy <= 1; dy++) {
+                if (dx == 0 && dy == 0) continue;
+                int tx = (city.x + dx) % 9;
+                int ty = (city.y + dy) % 9;
+                if (tx < 0) tx += 9;
+                if (ty < 0) ty += 9;
 
-            markers.add(
-              Positioned(
-                left: targetX * step,
-                top: targetY * step,
-                width: step,
-                height: step,
-                child: IgnorePointer(
-                  child: Center(
-                    child: Container(
-                      width: step * 0.3,
-                      height: step * 0.3,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white.withValues(alpha: 0.3),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            );
+                // Check if occupied
+                final isOccupiedByPiece = pieces.any((p) => p.x == tx && p.y == ty);
+                final isOccupiedByPlan = plannedMoves.values.any((p) => p.x == tx && p.y == ty);
+                
+                if (!isOccupiedByPiece && !isOccupiedByPlan) {
+                  validPoints.add(math.Point(tx, ty));
+                }
+              }
+            }
+          }
+
+          for (final pt in validPoints) {
+            markers.add(_buildMarker(pt.x, pt.y, step));
+          }
+        } else {
+          // Regular move markers: distance 2 from piece
+          for (int dx = -2; dx <= 2; dx++) {
+            for (int dy = -2; dy <= 2; dy++) {
+              if (dx == 0 && dy == 0) continue;
+              int tx = (selectedPiece.x + dx) % 9;
+              int ty = (selectedPiece.y + dy) % 9;
+              if (tx < 0) tx += 9;
+              if (ty < 0) ty += 9;
+              markers.add(_buildMarker(tx, ty, step));
+            }
           }
         }
 
         return Stack(children: markers);
       },
+    );
+  }
+
+  Widget _buildMarker(int x, int y, double step) {
+    return Positioned(
+      left: x * step,
+      top: y * step,
+      width: step,
+      height: step,
+      child: IgnorePointer(
+        child: Center(
+          child: Container(
+            width: step * 0.3,
+            height: step * 0.3,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white.withValues(alpha: 0.3),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
