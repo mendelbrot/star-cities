@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "knowledge/actions_and_data_model.md",
+                "file": "docs/game_rules.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "actions_and_data_model"
+              "title": "game_rules"
             }
           }
         ]
@@ -182,9 +182,10 @@
   },
   "active": "f5c22695cf8a6bd2",
   "lastOpenFiles": [
+    "knowledge/actions_and_data_model.md",
+    "docs/actions_and_data_model.md",
     "docs/game_rules.md",
     "dev-logs/2026-02-22.md",
-    "knowledge/actions_and_data_model.md",
     "dev-logs/2026-02-22.03.log.md",
     "dev-logs/2026-02-22.02.log copy.md",
     "dev-logs/2026-02-22.01.log.md",
