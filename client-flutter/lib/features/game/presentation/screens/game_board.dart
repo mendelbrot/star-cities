@@ -266,11 +266,15 @@ class _GameBoardState extends State<GameBoard> {
   }
 
   bool _isValidMove(Piece piece, int x, int y) {
-    if (!_isWithinDistance(piece.x, piece.y, x, y, piece.type.movement))
+    if (!_isWithinDistance(piece.x, piece.y, x, y, piece.type.movement)) {
       return false;
-    if (_pieces.any((p) => p.x == x && p.y == y)) return false;
-    if (_plannedMoves.values.any((a) => a.target.x == x && a.target.y == y))
+    }
+    if (_pieces.any((p) => p.x == x && p.y == y)) {
       return false;
+    }
+    if (_plannedMoves.values.any((a) => a.target.x == x && a.target.y == y)) {
+      return false;
+    }
 
     final plannedTetherId = _plannedMoves[piece.id]?.tetherId;
     final cityId = plannedTetherId ?? piece.tetheredToId;
@@ -546,14 +550,18 @@ class _GameBoardState extends State<GameBoard> {
                           ),
                           PieceOverlay(
                             pieces: _pieces.where((p) {
-                              if (p.color == Colors.blue) return true;
+                              if (p.color == Colors.blue) {
+                                return true;
+                              }
                               final visibleSquares = _getVisibleSquares();
                               if (!visibleSquares.contains(
                                 math.Point(p.x, p.y),
-                              ))
+                              )) {
                                 return false;
-                              if (p.type == PieceType.neutrino)
+                              }
+                              if (p.type == PieceType.neutrino) {
                                 return false; // Cloaked
+                              }
                               return true;
                             }).toList(),
                             selectedPieceId: _isSelectedFromTray
@@ -1422,25 +1430,7 @@ class TetherPainter extends CustomPainter {
       ..style = PaintingStyle.stroke;
 
     final start = Offset((x1 + 0.5) * step, (y1 + 0.5) * step);
-    double targetX = x2.toDouble();
-    double targetY = y2.toDouble();
-
-    if ((targetX - x1).abs() > 4.5) {
-      if (targetX > x1) {
-        targetX -= 9;
-      } else {
-        targetX += 9;
-      }
-    }
-    if ((targetY - y1).abs() > 4.5) {
-      if (targetY > y1) {
-        targetY -= 9;
-      } else {
-        targetY += 9;
-      }
-    }
-
-    final end = Offset((targetX + 0.5) * step, (targetY + 0.5) * step);
+    final end = Offset((x2 + 0.5) * step, (y2 + 0.5) * step);
     canvas.drawLine(start, end, paint);
   }
 
@@ -1505,25 +1495,7 @@ class ArrowPainter extends CustomPainter {
       final ly2 = (action.target.y - viewCenter.y + 4 + 9) % 9;
 
       final start = Offset((lx1 + 0.5) * step, (ly1 + 0.5) * step);
-      double targetX = lx2.toDouble();
-      double targetY = ly2.toDouble();
-
-      if ((targetX - lx1).abs() > 4.5) {
-        if (targetX > lx1) {
-          targetX -= 9;
-        } else {
-          targetX += 9;
-        }
-      }
-      if ((targetY - ly1).abs() > 4.5) {
-        if (targetY > ly1) {
-          targetY -= 9;
-        } else {
-          targetY += 9;
-        }
-      }
-
-      final end = Offset((targetX + 0.5) * step, (targetY + 0.5) * step);
+      final end = Offset((lx2 + 0.5) * step, (ly2 + 0.5) * step);
       canvas.drawLine(start, end, paint);
 
       final angle = math.atan2(end.dy - start.dy, end.dx - start.dx);
