@@ -1,59 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
-
-enum PieceType {
-  starCity('Star City', 8, 1, 2, false),
-  neutrino('Neutrino', 2, 1, 1, false),
-  eclipse('Eclipse', 4, 1, 2, true),
-  parallax('Parallax', 6, 2, 2, true);
-
-  final String label;
-  final int strength;
-  final int movement;
-  final int vision;
-  final bool requiresTether;
-
-  const PieceType(this.label, this.strength, this.movement, this.vision, this.requiresTether);
-}
-
-class Piece {
-  final String id;
-  final int x;
-  final int y;
-  final PieceType type;
-  final Color color;
-  final String? tetheredToId;
-  final bool isAnchored;
-
-  Piece({
-    required this.id,
-    required this.x,
-    required this.y,
-    required this.type,
-    required this.color,
-    this.tetheredToId,
-    this.isAnchored = false,
-  });
-
-  Piece copyWith({int? x, int? y, String? tetheredToId, bool? isAnchored}) {
-    return Piece(
-      id: id,
-      x: x ?? this.x,
-      y: y ?? this.y,
-      type: type,
-      color: color,
-      tetheredToId: tetheredToId ?? this.tetheredToId,
-      isAnchored: isAnchored ?? this.isAnchored,
-    );
-  }
-}
-
-class PlannedAction {
-  final math.Point<int> target;
-  final String? tetherId;
-
-  PlannedAction({required this.target, this.tetherId});
-}
+import '../../domain/models/game_models.dart';
 
 class GameBoard extends StatefulWidget {
   const GameBoard({super.key});
@@ -64,12 +11,54 @@ class GameBoard extends StatefulWidget {
 
 class _GameBoardState extends State<GameBoard> {
   final List<Piece> _pieces = [
-    Piece(id: '1', x: 2, y: 1, type: PieceType.starCity, color: Colors.blue, isAnchored: true),
-    Piece(id: '2', x: 1, y: 2, type: PieceType.parallax, color: Colors.blue, tetheredToId: '1'),
-    Piece(id: '3', x: 7, y: 8, type: PieceType.starCity, color: Colors.red, isAnchored: true),
-    Piece(id: '4', x: 6, y: 7, type: PieceType.eclipse, color: Colors.red, tetheredToId: '3'),
-    Piece(id: '5', x: 5, y: 4, type: PieceType.starCity, color: Colors.blue, isAnchored: true),
-    Piece(id: '6', x: 4, y: 3, type: PieceType.eclipse, color: Colors.blue, tetheredToId: '5'),
+    Piece(
+      id: '1',
+      x: 2,
+      y: 1,
+      type: PieceType.starCity,
+      color: Colors.blue,
+      isAnchored: true,
+    ),
+    Piece(
+      id: '2',
+      x: 1,
+      y: 2,
+      type: PieceType.parallax,
+      color: Colors.blue,
+      tetheredToId: '1',
+    ),
+    Piece(
+      id: '3',
+      x: 7,
+      y: 8,
+      type: PieceType.starCity,
+      color: Colors.red,
+      isAnchored: true,
+    ),
+    Piece(
+      id: '4',
+      x: 6,
+      y: 7,
+      type: PieceType.eclipse,
+      color: Colors.red,
+      tetheredToId: '3',
+    ),
+    Piece(
+      id: '5',
+      x: 5,
+      y: 4,
+      type: PieceType.starCity,
+      color: Colors.blue,
+      isAnchored: true,
+    ),
+    Piece(
+      id: '6',
+      x: 3,
+      y: 2,
+      type: PieceType.eclipse,
+      color: Colors.blue,
+      tetheredToId: '5',
+    ),
     Piece(id: '7', x: 0, y: 8, type: PieceType.neutrino, color: Colors.blue),
   ];
 
@@ -81,27 +70,113 @@ class _GameBoardState extends State<GameBoard> {
 
   String? _selectedPieceId;
   bool _isSelectedFromTray = false;
+  bool _isReTethering = false;
   String? _selectedTetherCityId;
   final Map<String, PlannedAction> _plannedMoves = {};
 
+  math.Point<int> _viewCenter = const math.Point(1, 1); // Home Star
+
+  int _toWorld(int local, int center) {
+    return (local + center - 4 + 9) % 9;
+  }
+
+  Set<math.Point<int>> _getVisibleSquares() {
+    final visible = <math.Point<int>>{};
+    final bluePieces = _pieces.where((p) => p.color == Colors.blue);
+
+    for (final piece in bluePieces) {
+      final range = piece.type.vision;
+      for (int dx = -range; dx <= range; dx++) {
+        for (int dy = -range; dy <= range; dy++) {
+          int tx = (piece.x + dx) % 9;
+          int ty = (piece.y + dy) % 9;
+          if (tx < 0) tx += 9;
+          if (ty < 0) ty += 9;
+          visible.add(math.Point(tx, ty));
+        }
+      }
+    }
+    return visible;
+  }
+
   void _onSquareTapped(int x, int y) {
     setState(() {
-      final tappedPiece = _pieces.where((p) => p.x == x && p.y == y).firstOrNull;
+      final visibleSquares = _getVisibleSquares();
+      final tappedPiece = _pieces
+          .where((p) => p.x == x && p.y == y)
+          .firstOrNull;
+
+      // Filter tappedPiece if it is an enemy and not visible
+      final effectiveTappedPiece =
+          (tappedPiece != null &&
+              (tappedPiece.color == Colors.blue ||
+                  visibleSquares.contains(math.Point(x, y))))
+          ? tappedPiece
+          : null;
+
+      if (_isReTethering) {
+        if (effectiveTappedPiece != null &&
+            effectiveTappedPiece.type == PieceType.starCity &&
+            effectiveTappedPiece.color == Colors.blue &&
+            effectiveTappedPiece.isAnchored) {
+          // Verify distance and capacity
+          final ship = _pieces.firstWhere((p) => p.id == _selectedPieceId);
+          if (_isWithinDistance(
+            ship.x,
+            ship.y,
+            effectiveTappedPiece.x,
+            effectiveTappedPiece.y,
+            2,
+          )) {
+            final currentTethers = _pieces
+                .where((p) => p.tetheredToId == effectiveTappedPiece.id)
+                .length;
+            final plannedTethers = _plannedMoves.values
+                .where((a) => a.tetherId == effectiveTappedPiece.id)
+                .length;
+            if (currentTethers + plannedTethers < 6) {
+              final existingAction = _plannedMoves[_selectedPieceId];
+              _plannedMoves[_selectedPieceId!] = existingAction != null
+                  ? existingAction.copyWith(tetherId: effectiveTappedPiece.id)
+                  : PlannedAction(
+                      target: math.Point(ship.x, ship.y),
+                      tetherId: effectiveTappedPiece.id,
+                    );
+              _isReTethering = false;
+              _selectedPieceId = null;
+            }
+          }
+        } else {
+          _isReTethering = false;
+          _selectedPieceId = null;
+        }
+        return;
+      }
 
       if (_selectedPieceId == null) {
-        if (tappedPiece != null) {
-          _selectedPieceId = tappedPiece.id;
+        if (effectiveTappedPiece != null &&
+            effectiveTappedPiece.color == Colors.blue) {
+          _selectedPieceId = effectiveTappedPiece.id;
           _isSelectedFromTray = false;
         }
       } else if (_isSelectedFromTray) {
-        final trayPiece = _trayPieces.firstWhere((p) => p.id == _selectedPieceId);
+        final trayPiece = _trayPieces.firstWhere(
+          (p) => p.id == _selectedPieceId,
+        );
         if (trayPiece.type.requiresTether) {
           if (_selectedTetherCityId == null) {
-            if (tappedPiece != null && tappedPiece.type == PieceType.starCity && tappedPiece.color == Colors.blue) {
-              final currentTethers = _pieces.where((p) => p.tetheredToId == tappedPiece.id).length;
-              final plannedTethers = _plannedMoves.values.where((a) => a.tetherId == tappedPiece.id).length;
+            if (effectiveTappedPiece != null &&
+                effectiveTappedPiece.type == PieceType.starCity &&
+                effectiveTappedPiece.color == Colors.blue &&
+                effectiveTappedPiece.isAnchored) {
+              final currentTethers = _pieces
+                  .where((p) => p.tetheredToId == effectiveTappedPiece.id)
+                  .length;
+              final plannedTethers = _plannedMoves.values
+                  .where((a) => a.tetherId == effectiveTappedPiece.id)
+                  .length;
               if (currentTethers + plannedTethers < 6) {
-                _selectedTetherCityId = tappedPiece.id;
+                _selectedTetherCityId = effectiveTappedPiece.id;
               }
             } else {
               _selectedPieceId = null;
@@ -115,8 +190,11 @@ class _GameBoardState extends State<GameBoard> {
               _selectedPieceId = null;
               _selectedTetherCityId = null;
             } else {
-              if (tappedPiece != null && tappedPiece.type == PieceType.starCity && tappedPiece.color == Colors.blue) {
-                _selectedTetherCityId = tappedPiece.id;
+              if (effectiveTappedPiece != null &&
+                  effectiveTappedPiece.type == PieceType.starCity &&
+                  effectiveTappedPiece.color == Colors.blue &&
+                  effectiveTappedPiece.isAnchored) {
+                _selectedTetherCityId = effectiveTappedPiece.id;
               } else {
                 _selectedPieceId = null;
                 _selectedTetherCityId = null;
@@ -125,25 +203,34 @@ class _GameBoardState extends State<GameBoard> {
           }
         } else {
           if (_isValidIndependentPlacement(x, y)) {
-            _plannedMoves[_selectedPieceId!] = PlannedAction(target: math.Point(x, y));
+            _plannedMoves[_selectedPieceId!] = PlannedAction(
+              target: math.Point(x, y),
+            );
             _selectedPieceId = null;
           } else {
             _selectedPieceId = null;
           }
         }
       } else {
-        final selectedPiece = _pieces.firstWhere((p) => p.id == _selectedPieceId);
-        if (tappedPiece != null && tappedPiece.id == _selectedPieceId) {
+        final selectedPiece = _pieces.firstWhere(
+          (p) => p.id == _selectedPieceId,
+        );
+        if (effectiveTappedPiece != null &&
+            effectiveTappedPiece.id == _selectedPieceId) {
           if (_plannedMoves.containsKey(_selectedPieceId)) {
             _plannedMoves.remove(_selectedPieceId);
           } else {
             _selectedPieceId = null;
           }
-        } else if (tappedPiece != null) {
-          _selectedPieceId = tappedPiece.id;
+        } else if (effectiveTappedPiece != null &&
+            effectiveTappedPiece.color == Colors.blue) {
+          _selectedPieceId = effectiveTappedPiece.id;
         } else {
           if (_isValidMove(selectedPiece, x, y)) {
-            _plannedMoves[_selectedPieceId!] = PlannedAction(target: math.Point(x, y));
+            final existingAction = _plannedMoves[_selectedPieceId];
+            _plannedMoves[_selectedPieceId!] = existingAction != null
+                ? existingAction.copyWith(target: math.Point(x, y))
+                : PlannedAction(target: math.Point(x, y));
             _selectedPieceId = null;
           } else {
             _selectedPieceId = null;
@@ -155,6 +242,7 @@ class _GameBoardState extends State<GameBoard> {
 
   void _onTraySquareTapped(int index) {
     setState(() {
+      _isReTethering = false;
       final tappedPiece = _trayPieces.where((p) => p.x == index).firstOrNull;
       if (tappedPiece == null) {
         _selectedPieceId = null;
@@ -178,12 +266,17 @@ class _GameBoardState extends State<GameBoard> {
   }
 
   bool _isValidMove(Piece piece, int x, int y) {
-    if (!_isWithinDistance(piece.x, piece.y, x, y, piece.type.movement)) return false;
+    if (!_isWithinDistance(piece.x, piece.y, x, y, piece.type.movement))
+      return false;
     if (_pieces.any((p) => p.x == x && p.y == y)) return false;
-    if (_plannedMoves.values.any((a) => a.target.x == x && a.target.y == y)) return false;
+    if (_plannedMoves.values.any((a) => a.target.x == x && a.target.y == y))
+      return false;
 
-    if (piece.type.requiresTether && piece.tetheredToId != null) {
-      final city = _pieces.firstWhere((p) => p.id == piece.tetheredToId);
+    final plannedTetherId = _plannedMoves[piece.id]?.tetherId;
+    final cityId = plannedTetherId ?? piece.tetheredToId;
+
+    if (piece.type.requiresTether && cityId != null) {
+      final city = _pieces.firstWhere((p) => p.id == cityId);
       int dx = (x - city.x).abs();
       int dy = (y - city.y).abs();
       dx = math.min(dx, 9 - dx);
@@ -204,16 +297,25 @@ class _GameBoardState extends State<GameBoard> {
   bool _isValidPlacementSquare(int x, int y, String tetherCityId) {
     final city = _pieces.firstWhere((p) => p.id == tetherCityId);
     final isOccupiedByPiece = _pieces.any((p) => p.x == x && p.y == y);
-    final isOccupiedByPlan = _plannedMoves.values.any((p) => p.target.x == x && p.target.y == y);
+    final isOccupiedByPlan = _plannedMoves.values.any(
+      (p) => p.target.x == x && p.target.y == y,
+    );
     if (isOccupiedByPiece || isOccupiedByPlan) return false;
     return _isWithinDistance(city.x, city.y, x, y, 1);
   }
 
   bool _isValidIndependentPlacement(int x, int y) {
     final isOccupiedByPiece = _pieces.any((p) => p.x == x && p.y == y);
-    final isOccupiedByPlan = _plannedMoves.values.any((p) => p.target.x == x && p.target.y == y);
+    final isOccupiedByPlan = _plannedMoves.values.any(
+      (p) => p.target.x == x && p.target.y == y,
+    );
     if (isOccupiedByPiece || isOccupiedByPlan) return false;
-    final blueCities = _pieces.where((p) => p.type == PieceType.starCity && p.color == Colors.blue);
+    final blueCities = _pieces.where(
+      (p) =>
+          p.type == PieceType.starCity &&
+          p.color == Colors.blue &&
+          p.isAnchored,
+    );
     for (final city in blueCities) {
       if (_isWithinDistance(city.x, city.y, x, y, 1)) return true;
     }
@@ -238,15 +340,88 @@ class _GameBoardState extends State<GameBoard> {
 
   @override
   Widget build(BuildContext context) {
-    final selectedBoardPiece = !_isSelectedFromTray 
-      ? _pieces.where((p) => p.id == _selectedPieceId).firstOrNull
-      : null;
+    final selectedBoardPiece = !_isSelectedFromTray
+        ? _pieces.where((p) => p.id == _selectedPieceId).firstOrNull
+        : null;
 
-    final showAnchor = selectedBoardPiece != null && 
-                       selectedBoardPiece.type == PieceType.starCity && 
-                       _isAdjacentToStar(selectedBoardPiece.x, selectedBoardPiece.y);
-    final showBombard = selectedBoardPiece != null && 
-                        selectedBoardPiece.type == PieceType.eclipse;
+    final isBesideStar =
+        selectedBoardPiece != null &&
+        _isAdjacentToStar(selectedBoardPiece.x, selectedBoardPiece.y);
+
+    // Calculate effective tethers accounting for planned re-tethers and placements
+    int effectiveTethers = 0;
+    if (selectedBoardPiece != null) {
+      effectiveTethers =
+          _pieces.where((p) {
+            final plannedAction = _plannedMoves[p.id];
+            final tetherId = plannedAction?.tetherId ?? p.tetheredToId;
+            return tetherId == selectedBoardPiece.id;
+          }).length +
+          _trayPieces.where((p) {
+            final plannedAction = _plannedMoves[p.id];
+            return plannedAction?.tetherId == selectedBoardPiece.id;
+          }).length;
+    }
+
+    final showAnchor =
+        selectedBoardPiece != null &&
+        selectedBoardPiece.type == PieceType.starCity &&
+        !selectedBoardPiece.isAnchored &&
+        isBesideStar;
+
+    final showDeAnchor =
+        selectedBoardPiece != null &&
+        selectedBoardPiece.type == PieceType.starCity &&
+        selectedBoardPiece.isAnchored &&
+        effectiveTethers == 0;
+
+    final showBombard =
+        selectedBoardPiece != null &&
+        selectedBoardPiece.type == PieceType.eclipse;
+
+    // Show Re-tether if piece is a ship and there are other anchored cities in range 2 with capacity
+    bool showReTether = false;
+    if (selectedBoardPiece != null &&
+        selectedBoardPiece.type != PieceType.starCity &&
+        selectedBoardPiece.type.requiresTether) {
+      final effectiveTetherId =
+          _plannedMoves[selectedBoardPiece.id]?.tetherId ??
+          selectedBoardPiece.tetheredToId;
+
+      final otherAnchoredCities = _pieces.where(
+        (p) =>
+            p.type == PieceType.starCity &&
+            p.color == Colors.blue &&
+            p.isAnchored &&
+            p.id != effectiveTetherId,
+      );
+
+      for (final city in otherAnchoredCities) {
+        if (_isWithinDistance(
+          selectedBoardPiece.x,
+          selectedBoardPiece.y,
+          city.x,
+          city.y,
+          2,
+        )) {
+          // Calculate effective tethers for this city
+          int cityEffectiveTethers =
+              _pieces.where((p) {
+                final plannedTetherId =
+                    _plannedMoves[p.id]?.tetherId ?? p.tetheredToId;
+                return plannedTetherId == city.id;
+              }).length +
+              _trayPieces.where((p) {
+                return _plannedMoves[p.id]?.tetherId == city.id;
+              }).length;
+
+          if (cityEffectiveTethers < 6) {
+            showReTether = true;
+            break;
+          }
+        }
+      }
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
@@ -258,6 +433,56 @@ class _GameBoardState extends State<GameBoard> {
       body: Column(
         children: [
           Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  onPressed: () => setState(
+                    () => _viewCenter = math.Point(
+                      (_viewCenter.x - 1 + 9) % 9,
+                      _viewCenter.y,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.arrow_downward, color: Colors.white),
+                  onPressed: () => setState(
+                    () => _viewCenter = math.Point(
+                      _viewCenter.x,
+                      (_viewCenter.y + 1 + 9) % 9,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.auto_awesome, color: Colors.yellow),
+                  onPressed: () =>
+                      setState(() => _viewCenter = const math.Point(1, 1)),
+                ),
+
+                IconButton(
+                  icon: const Icon(Icons.arrow_upward, color: Colors.white),
+                  onPressed: () => setState(
+                    () => _viewCenter = math.Point(
+                      _viewCenter.x,
+                      (_viewCenter.y - 1 + 9) % 9,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.arrow_forward, color: Colors.white),
+                  onPressed: () => setState(
+                    () => _viewCenter = math.Point(
+                      (_viewCenter.x + 1 + 9) % 9,
+                      _viewCenter.y,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
             padding: const EdgeInsets.all(16.0),
             child: AspectRatio(
               aspectRatio: 1,
@@ -266,57 +491,91 @@ class _GameBoardState extends State<GameBoard> {
                   final step = constraints.maxWidth / 9;
                   return GestureDetector(
                     onTapUp: (details) {
-                      final x = details.localPosition.dx ~/ step;
-                      final y = details.localPosition.dy ~/ step;
-                      if (x >= 0 && x < 9 && y >= 0 && y < 9) {
+                      final lx = details.localPosition.dx ~/ step;
+                      final ly = details.localPosition.dy ~/ step;
+                      if (lx >= 0 && lx < 9 && ly >= 0 && ly < 9) {
+                        final x = _toWorld(lx, _viewCenter.x);
+                        final y = _toWorld(ly, _viewCenter.y);
                         _onSquareTapped(x, y);
                       }
                     },
                     child: Container(
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.5), width: 2),
+                        border: Border.all(
+                          color: Colors.blueAccent.withValues(alpha: 0.5),
+                          width: 2,
+                        ),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Stack(
                         children: [
                           const SpaceGrid(),
-                          const StarOverlay(),
+                          StarOverlay(viewCenter: _viewCenter),
                           TetherOverlay(
                             pieces: _pieces,
                             plannedMoves: _plannedMoves,
                             trayPieces: _trayPieces,
+                            viewCenter: _viewCenter,
                           ),
                           if (_selectedPieceId != null)
                             ValidMoveMarkers(
-                              selectedPiece: _isSelectedFromTray 
-                                ? _trayPieces.firstWhere((p) => p.id == _selectedPieceId)
-                                : _pieces.firstWhere((p) => p.id == _selectedPieceId),
+                              selectedPiece: _isSelectedFromTray
+                                  ? _trayPieces.firstWhere(
+                                      (p) => p.id == _selectedPieceId,
+                                    )
+                                  : _pieces.firstWhere(
+                                      (p) => p.id == _selectedPieceId,
+                                    ),
                               isSelectedFromTray: _isSelectedFromTray,
+                              isReTethering: _isReTethering,
                               selectedTetherCityId: _selectedTetherCityId,
                               pieces: _pieces,
+                              trayPieces: _trayPieces,
                               plannedMoves: _plannedMoves,
+                              viewCenter: _viewCenter,
                               isValidMove: (p, x, y) => _isValidMove(p, x, y),
-                              isValidPlacement: (x, y, tId) => _isValidPlacementSquare(x, y, tId),
-                              isValidIndependent: (x, y) => _isValidIndependentPlacement(x, y),
+                              isValidPlacement: (x, y, tId) =>
+                                  _isValidPlacementSquare(x, y, tId),
+                              isValidIndependent: (x, y) =>
+                                  _isValidIndependentPlacement(x, y),
                             ),
                           PlannedMoveArrows(
                             pieces: _pieces,
                             plannedMoves: _plannedMoves,
+                            viewCenter: _viewCenter,
                           ),
                           PieceOverlay(
-                            pieces: _pieces,
-                            selectedPieceId: _isSelectedFromTray ? null : _selectedPieceId,
+                            pieces: _pieces.where((p) {
+                              if (p.color == Colors.blue) return true;
+                              final visibleSquares = _getVisibleSquares();
+                              if (!visibleSquares.contains(
+                                math.Point(p.x, p.y),
+                              ))
+                                return false;
+                              if (p.type == PieceType.neutrino)
+                                return false; // Cloaked
+                              return true;
+                            }).toList(),
+                            selectedPieceId: _isSelectedFromTray
+                                ? null
+                                : _selectedPieceId,
                             plannedMoves: _plannedMoves,
+                            viewCenter: _viewCenter,
+                          ),
+                          FogOverlay(
+                            visibleSquares: _getVisibleSquares(),
+                            viewCenter: _viewCenter,
                           ),
                           PlannedPlacementOverlay(
                             trayPieces: _trayPieces,
                             plannedMoves: _plannedMoves,
+                            viewCenter: _viewCenter,
                           ),
                         ],
                       ),
                     ),
                   );
-                }
+                },
               ),
             ),
           ),
@@ -337,7 +596,10 @@ class _GameBoardState extends State<GameBoard> {
                     },
                     child: Container(
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.5), width: 2),
+                        border: Border.all(
+                          color: Colors.blueAccent.withValues(alpha: 0.5),
+                          width: 2,
+                        ),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Stack(
@@ -345,7 +607,9 @@ class _GameBoardState extends State<GameBoard> {
                           const SpaceGrid(rows: 1, cols: 9),
                           PieceOverlay(
                             pieces: _trayPieces,
-                            selectedPieceId: _isSelectedFromTray ? _selectedPieceId : null,
+                            selectedPieceId: _isSelectedFromTray
+                                ? _selectedPieceId
+                                : null,
                             rows: 1,
                             plannedMoves: _plannedMoves,
                           ),
@@ -359,11 +623,14 @@ class _GameBoardState extends State<GameBoard> {
           ),
           const Spacer(),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
+            padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 8.0),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.5), width: 2),
+                border: Border.all(
+                  color: Colors.blueAccent.withValues(alpha: 0.5),
+                  width: 2,
+                ),
                 borderRadius: BorderRadius.circular(12),
                 color: Colors.black.withValues(alpha: 0.2),
               ),
@@ -376,15 +643,66 @@ class _GameBoardState extends State<GameBoard> {
                         Padding(
                           padding: const EdgeInsets.only(right: 8.0),
                           child: ElevatedButton(
-                            onPressed: () {}, 
-                            style: ElevatedButton.styleFrom(foregroundColor: const Color(0xFF0F172A)),
+                            onPressed: () {
+                              setState(() {
+                                final index = _pieces.indexWhere(
+                                  (p) => p.id == _selectedPieceId,
+                                );
+                                _pieces[index] = _pieces[index].copyWith(
+                                  isAnchored: true,
+                                );
+                              });
+                            },
+                            style: ElevatedButton.styleFrom(
+                              foregroundColor: const Color(0xFF0F172A),
+                            ),
                             child: const Text('Anchor'),
+                          ),
+                        ),
+                      if (showDeAnchor)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                final index = _pieces.indexWhere(
+                                  (p) => p.id == _selectedPieceId,
+                                );
+                                _pieces[index] = _pieces[index].copyWith(
+                                  isAnchored: false,
+                                );
+                              });
+                            },
+                            style: ElevatedButton.styleFrom(
+                              foregroundColor: const Color(0xFF0F172A),
+                            ),
+                            child: const Text('De-anchor'),
+                          ),
+                        ),
+                      if (showReTether)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: ElevatedButton(
+                            onPressed: () {
+                              setState(() {
+                                _isReTethering = true;
+                              });
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _isReTethering
+                                  ? Colors.yellow
+                                  : null,
+                              foregroundColor: const Color(0xFF0F172A),
+                            ),
+                            child: const Text('Re-tether'),
                           ),
                         ),
                       if (showBombard)
                         ElevatedButton(
-                          onPressed: () {}, 
-                          style: ElevatedButton.styleFrom(foregroundColor: const Color(0xFF0F172A)),
+                          onPressed: () {},
+                          style: ElevatedButton.styleFrom(
+                            foregroundColor: const Color(0xFF0F172A),
+                          ),
                           child: const Text('Bombard'),
                         ),
                     ],
@@ -398,6 +716,7 @@ class _GameBoardState extends State<GameBoard> {
                             _selectedPieceId = null;
                             _isSelectedFromTray = false;
                             _selectedTetherCityId = null;
+                            _isReTethering = false;
                           });
                         },
                         style: ElevatedButton.styleFrom(
@@ -456,10 +775,18 @@ class GridPainter extends CustomPainter {
     final stepY = size.height / rows;
 
     for (int i = 0; i <= cols; i++) {
-      canvas.drawLine(Offset(i * stepX, 0), Offset(i * stepX, size.height), paint);
+      canvas.drawLine(
+        Offset(i * stepX, 0),
+        Offset(i * stepX, size.height),
+        paint,
+      );
     }
     for (int i = 0; i <= rows; i++) {
-      canvas.drawLine(Offset(0, i * stepY), Offset(size.width, i * stepY), paint);
+      canvas.drawLine(
+        Offset(0, i * stepY),
+        Offset(size.width, i * stepY),
+        paint,
+      );
     }
   }
 
@@ -468,22 +795,23 @@ class GridPainter extends CustomPainter {
 }
 
 class StarOverlay extends StatelessWidget {
-  const StarOverlay({super.key});
+  final math.Point<int> viewCenter;
+  const StarOverlay({super.key, required this.viewCenter});
 
   @override
   Widget build(BuildContext context) {
-    final stars = [
-      (1, 1), (3, 5), (6, 2), (7, 7), (2, 6), (5, 3)
-    ];
+    final stars = [(1, 1), (3, 5), (6, 2), (7, 7), (2, 6), (5, 3)];
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final step = constraints.maxWidth / 9;
         return Stack(
           children: stars.map((pos) {
+            final lx = (pos.$1 - viewCenter.x + 4 + 9) % 9;
+            final ly = (pos.$2 - viewCenter.y + 4 + 9) % 9;
             return Positioned(
-              left: pos.$1 * step + step * 0.1,
-              top: pos.$2 * step + step * 0.1,
+              left: lx * step + step * 0.1,
+              top: ly * step + step * 0.1,
               width: step * 0.8,
               height: step * 0.8,
               child: Container(
@@ -515,6 +843,7 @@ class PieceOverlay extends StatelessWidget {
   final int rows;
   final int cols;
   final Map<String, PlannedAction> plannedMoves;
+  final math.Point<int> viewCenter;
 
   const PieceOverlay({
     super.key,
@@ -523,6 +852,10 @@ class PieceOverlay extends StatelessWidget {
     this.rows = 9,
     this.cols = 9,
     this.plannedMoves = const {},
+    this.viewCenter = const math.Point(
+      4,
+      4,
+    ), // Default center if not board view
   });
 
   @override
@@ -536,9 +869,13 @@ class PieceOverlay extends StatelessWidget {
             ...pieces.map((p) {
               final isSelected = p.id == selectedPieceId;
               final hasPlan = plannedMoves.containsKey(p.id);
+
+              final lx = (p.x - viewCenter.x + 4 + 9) % 9;
+              final ly = (p.y - viewCenter.y + 4 + 9) % 9;
+
               return Positioned(
-                left: p.x * stepX,
-                top: p.y * stepY,
+                left: (rows == 1 ? p.x : lx) * stepX,
+                top: (rows == 1 ? p.y : ly) * stepY,
                 width: stepX,
                 height: stepY,
                 child: IgnorePointer(
@@ -546,13 +883,15 @@ class PieceOverlay extends StatelessWidget {
                     opacity: hasPlan ? 0.3 : 1.0,
                     child: Container(
                       padding: EdgeInsets.all(stepX * 0.2),
-                      decoration: isSelected ? BoxDecoration(
-                        border: Border.all(color: Colors.white, width: 2),
-                        borderRadius: BorderRadius.circular(8),
-                        color: Colors.white.withValues(alpha: 0.1),
-                      ) : null,
+                      decoration: isSelected
+                          ? BoxDecoration(
+                              border: Border.all(color: Colors.white, width: 2),
+                              borderRadius: BorderRadius.circular(8),
+                              color: Colors.white.withValues(alpha: 0.1),
+                            )
+                          : null,
                       child: PieceWidget(
-                        type: p.type, 
+                        type: p.type,
                         color: p.color,
                         isAnchored: p.isAnchored,
                       ),
@@ -574,8 +913,8 @@ class PieceWidget extends StatelessWidget {
   final bool isAnchored;
 
   const PieceWidget({
-    super.key, 
-    required this.type, 
+    super.key,
+    required this.type,
     required this.color,
     this.isAnchored = false,
   });
@@ -596,8 +935,8 @@ class StarCityWidget extends StatelessWidget {
   final bool isAnchored;
 
   const StarCityWidget({
-    super.key, 
-    required this.color, 
+    super.key,
+    required this.color,
     required this.isAnchored,
   });
 
@@ -608,13 +947,15 @@ class StarCityWidget extends StatelessWidget {
         color: color.withValues(alpha: 0.8),
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: Colors.white, width: 2),
-        boxShadow: isAnchored ? [
-          BoxShadow(
-            color: color.withValues(alpha: 0.6),
-            blurRadius: 8,
-            spreadRadius: 2,
-          ),
-        ] : null,
+        boxShadow: isAnchored
+            ? [
+                BoxShadow(
+                  color: color.withValues(alpha: 0.6),
+                  blurRadius: 8,
+                  spreadRadius: 2,
+                ),
+              ]
+            : null,
       ),
       child: Stack(
         clipBehavior: Clip.none,
@@ -631,9 +972,7 @@ class StarCityWidget extends StatelessWidget {
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(color: Colors.black26, blurRadius: 2),
-                  ],
+                  boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 2)],
                 ),
                 child: Icon(Icons.anchor, color: color, size: 12),
               ),
@@ -689,14 +1028,59 @@ class ShipPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
+class FogOverlay extends StatelessWidget {
+  final Set<math.Point<int>> visibleSquares;
+  final math.Point<int> viewCenter;
+  const FogOverlay({
+    super.key,
+    required this.visibleSquares,
+    required this.viewCenter,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final step = constraints.maxWidth / 9;
+        final List<Widget> fogSquares = [];
+
+        for (int x = 0; x < 9; x++) {
+          for (int y = 0; y < 9; y++) {
+            if (!visibleSquares.contains(math.Point(x, y))) {
+              final lx = (x - viewCenter.x + 4 + 9) % 9;
+              final ly = (y - viewCenter.y + 4 + 9) % 9;
+              fogSquares.add(
+                Positioned(
+                  left: lx * step,
+                  top: ly * step,
+                  width: step,
+                  height: step,
+                  child: IgnorePointer(
+                    child: Container(
+                      color: Colors.black.withValues(alpha: 0.4),
+                    ),
+                  ),
+                ),
+              );
+            }
+          }
+        }
+        return Stack(children: fogSquares);
+      },
+    );
+  }
+}
+
 class PlannedPlacementOverlay extends StatelessWidget {
   final List<Piece> trayPieces;
   final Map<String, PlannedAction> plannedMoves;
+  final math.Point<int> viewCenter;
 
   const PlannedPlacementOverlay({
     super.key,
     required this.trayPieces,
     required this.plannedMoves,
+    required this.viewCenter,
   });
 
   @override
@@ -707,12 +1091,16 @@ class PlannedPlacementOverlay extends StatelessWidget {
         final widgets = <Widget>[];
 
         plannedMoves.forEach((pieceId, action) {
-          final trayPiece = trayPieces.where((p) => p.id == pieceId).firstOrNull;
+          final trayPiece = trayPieces
+              .where((p) => p.id == pieceId)
+              .firstOrNull;
           if (trayPiece != null) {
+            final lx = (action.target.x - viewCenter.x + 4 + 9) % 9;
+            final ly = (action.target.y - viewCenter.y + 4 + 9) % 9;
             widgets.add(
               Positioned(
-                left: action.target.x * step,
-                top: action.target.y * step,
+                left: lx * step,
+                top: ly * step,
                 width: step,
                 height: step,
                 child: Opacity(
@@ -720,7 +1108,7 @@ class PlannedPlacementOverlay extends StatelessWidget {
                   child: Container(
                     padding: EdgeInsets.all(step * 0.2),
                     child: PieceWidget(
-                      type: trayPiece.type, 
+                      type: trayPiece.type,
                       color: trayPiece.color,
                       isAnchored: trayPiece.isAnchored,
                     ),
@@ -740,9 +1128,12 @@ class PlannedPlacementOverlay extends StatelessWidget {
 class ValidMoveMarkers extends StatelessWidget {
   final Piece selectedPiece;
   final bool isSelectedFromTray;
+  final bool isReTethering;
   final String? selectedTetherCityId;
   final List<Piece> pieces;
+  final List<Piece> trayPieces;
   final Map<String, PlannedAction> plannedMoves;
+  final math.Point<int> viewCenter;
   final bool Function(Piece, int, int) isValidMove;
   final bool Function(int, int, String) isValidPlacement;
   final bool Function(int, int) isValidIndependent;
@@ -751,9 +1142,12 @@ class ValidMoveMarkers extends StatelessWidget {
     super.key,
     required this.selectedPiece,
     required this.isSelectedFromTray,
+    this.isReTethering = false,
     this.selectedTetherCityId,
     required this.pieces,
+    required this.trayPieces,
     required this.plannedMoves,
+    required this.viewCenter,
     required this.isValidMove,
     required this.isValidPlacement,
     required this.isValidIndependent,
@@ -766,18 +1160,84 @@ class ValidMoveMarkers extends StatelessWidget {
         final step = constraints.maxWidth / 9;
         List<Widget> markers = [];
 
-        if (isSelectedFromTray) {
+        if (isReTethering) {
+          final effectiveTetherId =
+              plannedMoves[selectedPiece.id]?.tetherId ??
+              selectedPiece.tetheredToId;
+
+          final otherAnchoredCities = pieces.where(
+            (p) =>
+                p.type == PieceType.starCity &&
+                p.color == Colors.blue &&
+                p.isAnchored &&
+                p.id != effectiveTetherId,
+          );
+          for (final city in otherAnchoredCities) {
+            int dx = (city.x - selectedPiece.x).abs();
+            int dy = (city.y - selectedPiece.y).abs();
+            dx = math.min(dx, 9 - dx);
+            dy = math.min(dy, 9 - dy);
+
+            if (math.max(dx, dy) <= 2) {
+              int cityEffectiveTethers =
+                  pieces.where((p) {
+                    final plannedTetherId =
+                        plannedMoves[p.id]?.tetherId ?? p.tetheredToId;
+                    return plannedTetherId == city.id;
+                  }).length +
+                  trayPieces.where((p) {
+                    return plannedMoves[p.id]?.tetherId == city.id;
+                  }).length;
+
+              if (cityEffectiveTethers < 6) {
+                final lx = (city.x - viewCenter.x + 4 + 9) % 9;
+                final ly = (city.y - viewCenter.y + 4 + 9) % 9;
+                markers.add(
+                  Positioned(
+                    left: lx * step,
+                    top: ly * step,
+                    width: step,
+                    height: step,
+                    child: IgnorePointer(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.yellow, width: 3),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }
+            }
+          }
+        } else if (isSelectedFromTray) {
           if (selectedPiece.type.requiresTether) {
             if (selectedTetherCityId == null) {
-              final blueCities = pieces.where((p) => p.type == PieceType.starCity && p.color == Colors.blue);
+              final blueCities = pieces.where(
+                (p) =>
+                    p.type == PieceType.starCity &&
+                    p.color == Colors.blue &&
+                    p.isAnchored,
+              );
               for (final city in blueCities) {
-                final current = pieces.where((p) => p.tetheredToId == city.id).length;
-                final planned = plannedMoves.values.where((a) => a.tetherId == city.id).length;
-                if (current + planned < 6) {
+                int cityEffectiveTethers =
+                    pieces.where((p) {
+                      final plannedTetherId =
+                          plannedMoves[p.id]?.tetherId ?? p.tetheredToId;
+                      return plannedTetherId == city.id;
+                    }).length +
+                    trayPieces.where((p) {
+                      return plannedMoves[p.id]?.tetherId == city.id;
+                    }).length;
+
+                if (cityEffectiveTethers < 6) {
+                  final lx = (city.x - viewCenter.x + 4 + 9) % 9;
+                  final ly = (city.y - viewCenter.y + 4 + 9) % 9;
                   markers.add(
                     Positioned(
-                      left: city.x * step,
-                      top: city.y * step,
+                      left: lx * step,
+                      top: ly * step,
                       width: step,
                       height: step,
                       child: IgnorePointer(
@@ -793,7 +1253,9 @@ class ValidMoveMarkers extends StatelessWidget {
                 }
               }
             } else {
-              final city = pieces.firstWhere((p) => p.id == selectedTetherCityId);
+              final city = pieces.firstWhere(
+                (p) => p.id == selectedTetherCityId,
+              );
               for (int dx = -1; dx <= 1; dx++) {
                 for (int dy = -1; dy <= 1; dy++) {
                   if (dx == 0 && dy == 0) continue;
@@ -802,7 +1264,9 @@ class ValidMoveMarkers extends StatelessWidget {
                   if (tx < 0) tx += 9;
                   if (ty < 0) ty += 9;
                   if (isValidPlacement(tx, ty, selectedTetherCityId!)) {
-                    markers.add(_buildMarker(tx, ty, step));
+                    final lx = (tx - viewCenter.x + 4 + 9) % 9;
+                    final ly = (ty - viewCenter.y + 4 + 9) % 9;
+                    markers.add(_buildMarker(lx, ly, step));
                   }
                 }
               }
@@ -811,7 +1275,9 @@ class ValidMoveMarkers extends StatelessWidget {
             for (int x = 0; x < 9; x++) {
               for (int y = 0; y < 9; y++) {
                 if (isValidIndependent(x, y)) {
-                  markers.add(_buildMarker(x, y, step));
+                  final lx = (x - viewCenter.x + 4 + 9) % 9;
+                  final ly = (y - viewCenter.y + 4 + 9) % 9;
+                  markers.add(_buildMarker(lx, ly, step));
                 }
               }
             }
@@ -826,7 +1292,9 @@ class ValidMoveMarkers extends StatelessWidget {
               if (tx < 0) tx += 9;
               if (ty < 0) ty += 9;
               if (isValidMove(selectedPiece, tx, ty)) {
-                markers.add(_buildMarker(tx, ty, step));
+                final lx = (tx - viewCenter.x + 4 + 9) % 9;
+                final ly = (ty - viewCenter.y + 4 + 9) % 9;
+                markers.add(_buildMarker(lx, ly, step));
               }
             }
           }
@@ -863,12 +1331,14 @@ class TetherOverlay extends StatelessWidget {
   final List<Piece> pieces;
   final List<Piece> trayPieces;
   final Map<String, PlannedAction> plannedMoves;
+  final math.Point<int> viewCenter;
 
   const TetherOverlay({
     super.key,
     required this.pieces,
     required this.trayPieces,
     required this.plannedMoves,
+    required this.viewCenter,
   });
 
   @override
@@ -879,6 +1349,7 @@ class TetherOverlay extends StatelessWidget {
         pieces: pieces,
         trayPieces: trayPieces,
         plannedMoves: plannedMoves,
+        viewCenter: viewCenter,
       ),
     );
   }
@@ -888,11 +1359,13 @@ class TetherPainter extends CustomPainter {
   final List<Piece> pieces;
   final List<Piece> trayPieces;
   final Map<String, PlannedAction> plannedMoves;
+  final math.Point<int> viewCenter;
 
   TetherPainter({
     required this.pieces,
     required this.trayPieces,
     required this.plannedMoves,
+    required this.viewCenter,
   });
 
   @override
@@ -900,26 +1373,51 @@ class TetherPainter extends CustomPainter {
     final step = size.width / 9;
 
     for (final piece in pieces) {
-      if (piece.tetheredToId != null) {
-        final city = pieces.where((p) => p.id == piece.tetheredToId).firstOrNull;
+      final plannedTetherId = plannedMoves[piece.id]?.tetherId;
+      final cityId = piece.tetheredToId;
+
+      if (cityId != null && plannedTetherId == null) {
+        final city = pieces.where((p) => p.id == cityId).firstOrNull;
         if (city != null) {
-          _drawTether(canvas, piece.x, piece.y, city.x, city.y, piece.color, step, false);
+          final lx1 = (piece.x - viewCenter.x + 4 + 9) % 9;
+          final ly1 = (piece.y - viewCenter.y + 4 + 9) % 9;
+          final lx2 = (city.x - viewCenter.x + 4 + 9) % 9;
+          final ly2 = (city.y - viewCenter.y + 4 + 9) % 9;
+          _drawTether(canvas, lx1, ly1, lx2, ly2, piece.color, step, false);
         }
       }
     }
 
     plannedMoves.forEach((pieceId, action) {
       if (action.tetherId != null) {
-        final trayPiece = trayPieces.firstWhere((p) => p.id == pieceId);
-        final city = pieces.firstWhere((p) => p.id == action.tetherId);
-        _drawTether(canvas, action.target.x, action.target.y, city.x, city.y, trayPiece.color, step, true);
+        final trayPiece = trayPieces.where((p) => p.id == pieceId).firstOrNull;
+        final boardPiece = pieces.where((p) => p.id == pieceId).firstOrNull;
+        final color = trayPiece?.color ?? boardPiece?.color ?? Colors.white;
+
+        final city = pieces.where((p) => p.id == action.tetherId).firstOrNull;
+        if (city != null) {
+          final lx1 = (action.target.x - viewCenter.x + 4 + 9) % 9;
+          final ly1 = (action.target.y - viewCenter.y + 4 + 9) % 9;
+          final lx2 = (city.x - viewCenter.x + 4 + 9) % 9;
+          final ly2 = (city.y - viewCenter.y + 4 + 9) % 9;
+          _drawTether(canvas, lx1, ly1, lx2, ly2, color, step, true);
+        }
       }
     });
   }
 
-  void _drawTether(Canvas canvas, int x1, int y1, int x2, int y2, Color color, double step, bool isPlanned) {
+  void _drawTether(
+    Canvas canvas,
+    int x1,
+    int y1,
+    int x2,
+    int y2,
+    Color color,
+    double step,
+    bool isPlanned,
+  ) {
     final paint = Paint()
-      ..color = color.withValues(alpha: isPlanned ? 0.3 : 0.6)
+      ..color = color.withValues(alpha: 0.6)
       ..strokeWidth = 1
       ..style = PaintingStyle.stroke;
 
@@ -953,11 +1451,13 @@ class TetherPainter extends CustomPainter {
 class PlannedMoveArrows extends StatelessWidget {
   final List<Piece> pieces;
   final Map<String, PlannedAction> plannedMoves;
+  final math.Point<int> viewCenter;
 
   const PlannedMoveArrows({
     super.key,
     required this.pieces,
     required this.plannedMoves,
+    required this.viewCenter,
   });
 
   @override
@@ -967,6 +1467,7 @@ class PlannedMoveArrows extends StatelessWidget {
       painter: ArrowPainter(
         pieces: pieces,
         plannedMoves: plannedMoves,
+        viewCenter: viewCenter,
       ),
     );
   }
@@ -975,8 +1476,13 @@ class PlannedMoveArrows extends StatelessWidget {
 class ArrowPainter extends CustomPainter {
   final List<Piece> pieces;
   final Map<String, PlannedAction> plannedMoves;
+  final math.Point<int> viewCenter;
 
-  ArrowPainter({required this.pieces, required this.plannedMoves});
+  ArrowPainter({
+    required this.pieces,
+    required this.plannedMoves,
+    required this.viewCenter,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -990,20 +1496,27 @@ class ArrowPainter extends CustomPainter {
     plannedMoves.forEach((pieceId, action) {
       final piece = pieces.where((p) => p.id == pieceId).firstOrNull;
       if (piece == null) return;
-      
-      final start = Offset((piece.x + 0.5) * step, (piece.y + 0.5) * step);
-      double targetX = action.target.x.toDouble();
-      double targetY = action.target.y.toDouble();
 
-      if ((targetX - piece.x).abs() > 4.5) {
-        if (targetX > piece.x) {
+      if (action.target.x == piece.x && action.target.y == piece.y) return;
+
+      final lx1 = (piece.x - viewCenter.x + 4 + 9) % 9;
+      final ly1 = (piece.y - viewCenter.y + 4 + 9) % 9;
+      final lx2 = (action.target.x - viewCenter.x + 4 + 9) % 9;
+      final ly2 = (action.target.y - viewCenter.y + 4 + 9) % 9;
+
+      final start = Offset((lx1 + 0.5) * step, (ly1 + 0.5) * step);
+      double targetX = lx2.toDouble();
+      double targetY = ly2.toDouble();
+
+      if ((targetX - lx1).abs() > 4.5) {
+        if (targetX > lx1) {
           targetX -= 9;
         } else {
           targetX += 9;
         }
       }
-      if ((targetY - piece.y).abs() > 4.5) {
-        if (targetY > piece.y) {
+      if ((targetY - ly1).abs() > 4.5) {
+        if (targetY > ly1) {
           targetY -= 9;
         } else {
           targetY += 9;

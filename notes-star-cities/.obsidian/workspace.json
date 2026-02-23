@@ -11,14 +11,10 @@
             "id": "f5c22695cf8a6bd2",
             "type": "leaf",
             "state": {
-              "type": "markdown",
-              "state": {
-                "file": "dev-logs/2026-02-22.md",
-                "mode": "source",
-                "source": false
-              },
+              "type": "empty",
+              "state": {},
               "icon": "lucide-file",
-              "title": "2026-02-22"
+              "title": "New tab"
             }
           }
         ]
@@ -180,10 +176,17 @@
       "bases:Create new base": false
     }
   },
-  "active": "f5c22695cf8a6bd2",
+  "active": "0d53bcc11c899a78",
   "lastOpenFiles": [
+    "dev-logs/2026-02-22.03.log.md",
+    "dev-logs/2026-02-22.02.log copy.md",
+    "dev-logs/2026-02-22.01.log.md",
+    "dev-logs/2026-02-22.02.log.md",
+    "dev-logs/2026-02-22.00.log.md",
+    "dev-logs/2026-02-22-continued-2.md",
+    "dev-logs/2026-02-22continued-2.md",
+    "dev-logs/2026-02-22 copy.md",
     "docs/game_rules.md",
-    "dev-logs/2026-02-22-continued-1.md",
-    "dev-logs/2026-02-22 copy.md"
+    "dev-logs/2026-02-22-continued-1.md"
   ]
 }

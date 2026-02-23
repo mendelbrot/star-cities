@@ -7,7 +7,7 @@ const path = require('path');
  */
 
 const today = new Date().toISOString().split('T')[0];
-const fileName = `${today}.md`;
+const fileName = `${today}.00.log.md`;
 const logDir = path.resolve(__dirname, '../dev-logs');
 const filePath = path.join(logDir, fileName);
 
