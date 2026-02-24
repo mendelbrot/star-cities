@@ -4,7 +4,8 @@
 Star Cities is a simultaneous-move, turn-based strategy game played on a 9x9 grid with a topological torus structure (the edges wrap around). The game supports 2 to 4 players.
 
 ## Objective & Victory
-Have Star Cities anchored by three distinct stars on the board more than any other faction.
+A faction wins if it is anchored to 3 or more distinct stars AND has more stars than any other faction.
+ If only one non-eliminated faction remains, that faction wins.
 
 ## The Board
 - **Grid:** 9x9 squares.

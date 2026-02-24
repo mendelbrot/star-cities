@@ -3,33 +3,61 @@
 
 ## 1. Tables
 
+### Table: `games`
+The primary record for a game instance.
+- **Fields**:
+    - `id`: UUID (Primary Key)
+    - `status`: `WAITING | PLANNING | RESOLVING | FINISHED`
+    - `turn_number`: Integer (Current turn)
+    - `grid_size`: Integer (Default 9)
+    - `stars`: JSONB (List of `{x, y}` coordinates)
+    - `created_at`: TIMESTAMPTZ
+    - `updated_at`: TIMESTAMPTZ
+    - `winner`: player_id | null,
+
+### Table: `players`
+Links users to games and assigns their faction.
+- **Fields**:
+    - `id`: UUID (Primary Key)
+    - `game_id`: UUID (Foreign Key to `games`)
+    - `user_id`: UUID (Foreign Key to auth users)
+    - `faction`: `BLUE | RED | YELLOW | GREEN`
+    - `home_star`: JSONB (`{x, y}` coordinates)
+    - `is_ready`: Boolean (Used during planning phase)
+    - `is_eliminated`: Boolean
+    - `eliminated_on_turn` Integer | null
+    - `is_winner`: Boolean
+
 ### Table: `turn_states`
 Records the starting position of all pieces for a given turn.
 - **Created by**: The Server (at the end of resolution for the *next* turn).
 - **Fields**:
-    - `game_id`
-    - `turn_number`
+    - `id`: UUID (Primary Key)
+    - `game_id` UUID
+    - `turn_number` Integer
     - `state` (JSONB)
-    - `created_at`
+    - `created_at` TIMESTAMPTZ
 
 ### Table: `turn_planned_actions`
 Records the intents submitted by players during the planning phase.
 - **Created by**: The Client (one row per player, per turn).
 - **Fields**:
-    - `game_id`
-    - `turn_number`
-    - `player_id`
+    - `id`: UUID (Primary Key)
+    - `game_id` UUID
+    - `turn_number` Integer
+    - `player_id` UUID
     - `actions` (JSONB)
-    - `submitted_at`
+    - `submitted_at` TIMESTAMPTZ
 
 ### Table: `turn_events`
 Records the resolved outcomes that occurred during the transition between turns.
 - **Created by**: The Server (once all players are ready or timer expires).
 - **Fields**:
-    - `game_id`
-    - `turn_number`
+    - `id`: UUID (Primary Key)
+    - `game_id` UUID
+    - `turn_number` Integer
     - `events` (JSONB)
-    - `created_at`
+    - `created_at` TIMESTAMPTZ
 
 ---
 
@@ -351,7 +379,24 @@ Actions are applied in a specific order, in phases to ensure consistent resoluti
                 - update the working state and indexes
 
 5. Check win condition and eliminated factions
-TODO
+    - **Identify Eliminated Factions**:
+        - A faction is eliminated if it has no star cities on the board (star cities in the tray do not count).
+        - For each newly eliminated faction:
+            - Create and push a `FACTION_ELIMINATED` event.
+            - Remove all of the factions pieces in the working state and indexes.
+            - Mark the faction's is_eliminated and eliminated_on_turn fields.
+    - **Check for Winner**:
+        - Count the number of distinct stars each faction's Star Cities are currently anchored to.
+        - A faction wins if it is anchored to 3 or more distinct stars AND has more stars than any other faction.
+        - If only one non-eliminated faction remains, that faction wins.
+        - If no winner is found:
+            - If zero non-eliminated factions remain:
+                - Create and push a `GAME_OVER` event with `did_someone_win: false`.
+                - Update game status to `FINISHED`.
+        - If a winner is found:
+            - Create and push a `GAME_OVER` event with `winner: faction` and `did_someone_win: true`.
+            - Update game status to `FINISHED`.
+            - Update the player is_winner field to true.
 
 6. players acquire ships
   - for each player:
@@ -362,3 +407,14 @@ TODO
 
 7. save the list of events and the working state to the database, update the turn.
 
+
+### The `lossCascade` function
+When a Star City is destroyed or captured, the ships tethered to it may be lost.
+
+- **Input**: `lost_city_id`
+- **Logic**:
+    - if the input id is not a star city or doesn't exist, exit.
+    - Identify all ships where `tether_id == lost_city_id`.
+    - For each ship found:
+        - Create and push a `SHIP_LOST_TETHER` event.
+        - update the working state and indexes
