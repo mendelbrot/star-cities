@@ -47,7 +47,8 @@ The `state` field in `turn_states` is a list of piece objects.
   "tether_id": "UUID", // ID of the Star City this ship is tethered to
   "is_anchored": false,
   "is_stunned": false,
-  "is_visible": true 
+  "is_visible": true,
+  "is_in_tray": false
 }
 ```
 
@@ -95,7 +96,7 @@ The `events` field in `turn_events` is a list of event objects. The server gener
     "faction": "RED",
     "piece_id": "UUID",
     "from": { "x": 1, "y": 3 },
-    "to": { "x": 2, "y": 3 }
+    "to": { "x": 2, "y": 3 },
   },
   {
     "type": "TETHER",
@@ -129,17 +130,18 @@ The `events` field in `turn_events` is a list of event objects. The server gener
     "is_destroyed": false
   },
   {
-    "type": "TETHER_LOST",
+    "type": "SHIP_LOST_TETHER",
     "faction": "RED",
     "piece_id": "UUID",
   },
   {
     "type": "BATTLE_COLLISION",
     "coord": { "x": 3, "y": 3 },
-    "participants": [
+    "entering_participants": [
       { "piece_id": "UUID", "piece_type": "PARALLAX", "faction": "BLUE" },
       { "piece_id": "UUID", "piece_type": "ECLIPSE", "faction": "RED" }
     ],
+    "defending_participant": null,
     "supporting_participants": [
       { "piece_id": "UUID", "piece_type": "PARALLAX", "faction": "BLUE" },
       { "piece_id": "UUID", "piece_type": "STAR_CITY", "faction": "RED" },
@@ -150,7 +152,7 @@ The `events` field in `turn_events` is a list of event objects. The server gener
     ]
     "calculated_strengths": [
       {"faction": "BLUE", "strength": 9.0 },
-      {"faction": "RED", "strength": 10.0 },
+      {"faction": "RED", "strength": 11.0 },
     ],
     "winning_faction": "BLUE",
     "result": "CAPTURE | DESTROY"
@@ -166,12 +168,6 @@ The `events` field in `turn_events` is a list of event objects. The server gener
     "city_id": "UUID",
     "from_faction": "RED",
     "to_faction": "BLUE"
-  },
-  {
-    "type": "UNSUPPORTED_SHIP_LOST",
-    "piece_id": "UUID", 
-    "piece_type": "PARALLAX", 
-    "faction": "BLUE"
   },
   {
     "type": "SHIP_DESTROYED_IN_BATTLE",
@@ -192,6 +188,7 @@ The `events` field in `turn_events` is a list of event objects. The server gener
   {
     "type": "GAME_OVER",
     "winner": "BLUE",
+    "did_someone_win": true,
   },
 ]
 ```
@@ -219,7 +216,8 @@ The `events` field in `turn_events` is a list of event objects. The server gener
 Before processing actions, the server indexes the current turn's `state` (Turn N) for efficient lookup:
 - **Piece Map**: `id -> Piece` (for quick retrieval of piece attributes).
 - **Coordinate Map**: `(x, y) -> piece_id` (for collision checks and adjacency lookups).
-- **Faction Map**: `faction -> list of piece_ids` (for calculating vision or counting units).
+- **Faction Placed PiecesMap**: `faction -> list of piece_ids` (for calculating vision or counting units - only the units placed on the map are included).
+- **Faction Tray Map** `faction -> list of piece_ids` (for checking the pieces on the tray).
 - **Tether Map**: `city_id -> list of ship_ids` (for range checks and tether loss propagation).
 
 *Note: All coordinate lookups MUST account for the 9x9 torus wrap-around logic.*
@@ -238,7 +236,7 @@ Each action in `turn_planned_actions` must pass these checks. Invalid actions ar
 - **`MOVE_ACT`**:
     - Target `to` must be within the piece's `movement` range.
     - Target `to` must not be a "Star" (stars are permanent obstacles).
-    - Target `to` must not be a friendly ship.
+    - There must not be a piece of the same faction moving to the same square
     - If the piece is a Star City, it must not be `is_anchored`.
     - If the piece requires a tether (Eclipse, Parallax), the target `to` must be within range (2) of its current `tether_id`.
 
@@ -268,89 +266,99 @@ Each action in `turn_planned_actions` must pass these checks. Invalid actions ar
     - The `target` coordinate must not be a ship.
 
 
-### Event Order
-1. anchor/de-anchor star cities
-2. place ships
-3. tether ships
-4. bombard
-5. move (for non-conflicting ie. non-battle moves)
-6. battle
-7. ship loss
-8. acquire ships
+
+### Resolving State + Actions to Next State + Events
+
+The server starts with a copy of the current game state, and gradually updates it to the next state while creating a list Events during this process. Let's call this copy of the state the "working state".
+
+Actions are applied in a specific order, in phases to ensure consistent resolution. Each phase is based on a type of action and is run through for all in a way that ensures the result is independent of processing order. The 7 phases are listed below.
+
+1. Copy the state to the working state
+    - set is_stunned=false for all ships
+    - set is_visible=false for all NEUTRINO ships
+
+2. Run through all PLACE_ACT, TETHER_ACT, and ANCHOR_ACT actions in the sequence they are given in each faction's actions list. 
+    - validate against the working state and indexes, discard invalid actions
+    - create the events add push them to the events list
+    - update the working state
+    - update the indexes
+
+3. Resolve BOMBARD_ACT actions:
+    - validate all bombardments against the working state and indexes, discard invalid actions
+    - build an index (map) of target coordinate -> BOMBARD event, filling in the attackers and defender, then:
+
+    - for each bombard event:
+        - calculate is_destroyed with weighted probability 
+        - push the events list
+        - update is_stunned=true for the bombarded ship
+        - if the ship is destroyed:
+            - create and push a SHIP_DESTROYED_IN_BOMBARDMENT event
+            - update the working state and indexes
+            - put it through the lossCascade function (this function will be explained in detail later, it removes tethers and untethered ships from the working state)
+
+4. Resolve MOVE_ACT actions
+    - overview: this phase will be done in 4 steps:
+        - in step 1 we will resolve all moves that can be made without conflict. this will require make a second list of moves that couldn't be resolved in this step, for the next step.
+        - in step 2 we will resolve all battles
+        - in step 3 we will destroy ships and transfer captured star cities
+        - in step 4 we will move all surviving ships
+
+    - Step 1
+        - validate all moves against the working state and indexes, discard invalid actions
+        - store the validated move actions in a way such that they can be marked as applied (true/false)
+        - make a list of ships where it that ship the only ship moving to its target coordinate (the target coordinate may be currently occupied or not), (to do this, you may first build a map of coordinate -> list of ships moving there and then build the list from the items with just one ship)
+        - loop through the following loop until it runs through with no moves made:
+            - declare a list of ships that couldn't be moved in the last iteration of the below loop
+            - declare a boolean flag stating if a ship was moved this loop, initially false
+            - for each ship in the list
+                - if the target coordinate is empty:
+                    - push a new MOVE event 
+                    - update the working state and indexes
+                    - mark the move action for this ship as applied
+                    - set the flag to true
+                - otherwise
+                    - push to the list of ships for the next loop
+            - exit the upper loop if the flag is false
+    
+    - Step 2
+        - from the un-applied moves, build a map of build a map of coordinate -> BATTLE_COLLISION events, filling the moving ships as entering participants
+        - for each battle:
+            - fill in all of the remaining fields
+            - resolve the winner with a weighted probability
+            - if the defending_participant is a star_city and its faction != the winning faction, set result=CAPTURE, otherwise set result=DESTROY
+            - push the battle to the events list
+    
+    - Step 3
+        - start a set list of destroyed ships
+        - for each battle:
+            - set is_visible=true for all NEUTRINO ships that are directly involved or are supporting ships
+            - push all attacking ships not belonging to the winning faction to the set of destroyed ships
+            - if result=DESTROY and the defending ship isn't of the winning faction, push it to the set of destroyed ships
+        - for each destroyed ship:
+            - create and push a SHIP_DESTROYED_IN_BATTLE event
+            - update the working state and indexes
+            - put it through the lossCascade function
+        - for each battle
+            - if result=CAPTURE and the captured star city still exists
+                - create and push a CITY_CAPTURED event
+                - update the working state and indexes to transfer ownership
+                - put the lost city through the lossCascade function
+
+    - Step 4
+        - refer to the un-applied moves again (that were referred to at the beginning of step 2). for each move:
+            - if the moving piece still exists:
+                - create and push a MOVE event
+                - update the working state and indexes
+
+5. Check win condition and eliminated factions
+TODO
+
+6. players acquire ships
+  - for each player:
+      - if their tray has less than 9 ships
+          - based on the weighted probability create and push a PIECE_ACQUIRED event
+          - update working state and indexes
 
 
-### Resolving Actions to Events
+7. save the list of events and the working state to the database, update the turn.
 
-Events are generated from validated actions in a specific order to ensure consistent resolution.
-
-1. **ANCHOR/DE-ANCHOR**:
-    - For each `ANCHOR_ACT`, generate an `ANCHOR` event. 
-    - *If de-anchoring:* Update the city's `is_anchored` status immediately. If the city had any tethers, this should have been caught during validation.
-
-2. **PLACE**:
-    - For each `PLACE_ACT`, generate a `PLACE` event.
-    - Note: Placement is always successful if the target square is empty at the start of the turn.
-
-3. **TETHER**:
-    - For each `TETHER_ACT`, generate a `TETHER` event.
-    - Updates the `tether_id` of the ship for the rest of the resolution.
-
-4. **BOMBARD**:
-    - For each `BOMBARD_ACT`, generate a `BOMBARD` event.
-    - Calculated strength is fixed at 2 for an Eclipse.
-    - The target piece is flagged as `is_stunned` for the *next* turn.
-    - If the target is a Star City and the `attack_strength >= target_strength`, the city is destroyed.
-
-5. **MOVE (Non-Conflicting)**:
-    - If a single piece moves to an empty square that no other piece is moving to, generate a `MOVE` event.
-    - Update the piece's coordinates immediately.
-
-6. **BATTLE (Conflicting Moves)**:
-    - A `BATTLE_COLLISION` occurs when:
-        - Multiple pieces from different factions attempt to move to the same square.
-        - A piece moves to a square currently occupied by an enemy piece.
-    - **Resolution**:
-        - Calculate the `Winning Faction` using the weighted probability:
-          `Weight = Unit Strength + (0.5 * Strength of Support Units)`
-        - *Support Units:* Friendly units adjacent (dist 1) to the battle square.
-    - **Outcome (Losing Faction)**:
-        - All losing pieces involved in the collision are **destroyed**.
-    - **Outcome (Winning Faction)**:
-        - If the target square was **empty or occupied by enemy ships**: The winning piece occupies the target square.
-        - If the target square was **occupied by an enemy Star City**: 
-            - The Star City is **captured** (changes `faction`).
-            - The winning piece **remains in its original starting square**.
-            - All existing tethers to the city are lost (`TETHER_LOST` events for those ships).
-    - Generate a `BATTLE_COLLISION` event with the winning faction and the resulting action (CAPTURE or DESTROY).
-
-7. **ACQUIRE**:
-    - For each player, calculate the random acquisition of a new piece based on the rules.
-    - Generate a `PIECE_ACQUIRED` event for any new piece added to a player's tray.
-
-8. **GAME STATE**:
-    - Check if any faction's Star Cities are all captured/destroyed. Generate `FACTION_ELIMINATED`.
-    - Check if a player has Star Cities anchored to 3 distinct stars. Generate `GAME_OVER`.
-
-
-### Resolving State + Events to Next State
-
-After all events for Turn N are resolved, the Server calculates Turn N+1's `state`:
-
-1.  **Copy Turn N State**: Start with the `state` from `turn_states` for Turn N.
-2.  **Apply Events**: Iteratively update the state based on the sequence of `turn_events`:
-    - `MOVE`: Update `x`, `y`.
-    - `ANCHOR`: Update `is_anchored`.
-    - `TETHER`: Update `tether_id`.
-    - `PLACE`: Create a new piece object with the given coordinates.
-    - `BOMBARD`: If `is_destroyed` is true, remove the piece. If not, set `is_stunned` to true.
-    - `BATTLE_COLLISION`: 
-        - Remove all losing pieces (if DESTROY).
-        - Update `faction` of Star City (if CAPTURE).
-        - Winning piece stays in its *starting* square (if it was a collision with a city).
-    - `TETHER_LOST`: The piece is **destroyed** (removed from state), unless it is a piece type that does not require a tether (e.g., Neutrino).
-    - `PIECE_ACQUIRED`: Add a new piece to the state (with null `x`, `y` for the tray).
-3.  **Post-Process State**:
-    - **Tether Range Check**: For any piece requiring a tether (Eclipse, Parallax), if its `tether_id` is null, belongs to a different faction, or is out of range (dist > 2), the piece is destroyed (removed from state).
-    - **Stun Reset**: For all pieces that were `is_stunned` at the start of Turn N, set `is_stunned` to false (unless they were just hit by a new `BOMBARD` event in step 2).
-    - **Visibility**: Calculate `is_visible` for each piece for the start of Turn N+1 (Fog of War).
-4.  **Save State**: Insert the final Turn N+1 state into the `turn_states` table.
