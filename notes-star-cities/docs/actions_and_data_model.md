@@ -7,13 +7,13 @@
 The primary record for a game instance.
 - **Fields**:
     - `id`: UUID (Primary Key)
-    - `status`: `WAITING | PLANNING | RESOLVING | FINISHED`
-    - `turn_number`: Integer (Current turn)
-    - `grid_size`: Integer (Default 9)
-    - `stars`: JSONB (List of `{x, y}` coordinates)
+    - `status`: `game_status` (`WAITING | STARTING | PLANNING | RESOLVING | FINISHED`)
+    - `turn_number`: Integer (Default 1)
+    - `player_count`: Integer (Default 4)
+    - `stars`: JSONB (`[{x, y}]` coordinates list)
+    - `game_parameters`: JSONB (the game parameters JSON schema)
     - `created_at`: TIMESTAMPTZ
     - `updated_at`: TIMESTAMPTZ
-    - `winner`: player_id | null,
 
 ### Table: `players`
 Links users to games and assigns their faction.
@@ -21,12 +21,12 @@ Links users to games and assigns their faction.
     - `id`: UUID (Primary Key)
     - `game_id`: UUID (Foreign Key to `games`)
     - `user_id`: UUID (Foreign Key to auth users)
-    - `faction`: `BLUE | RED | YELLOW | GREEN`
+    - `faction`: `faction` (`BLUE | RED | PURPLE | GREEN`)
     - `home_star`: JSONB (`{x, y}` coordinates)
-    - `is_ready`: Boolean (Used during planning phase)
-    - `is_eliminated`: Boolean
-    - `eliminated_on_turn` Integer | null
-    - `is_winner`: Boolean
+    - `is_ready`: Boolean (Default FALSE)
+    - `is_eliminated`: Boolean (Default FALSE)
+    - `eliminated_on_turn`: Integer (Null if not eliminated)
+    - `is_winner`: Boolean (Default FALSE)
 
 ### Table: `turn_states`
 Records the starting position of all pieces for a given turn.
@@ -63,12 +63,23 @@ Records the resolved outcomes that occurred during the transition between turns.
 
 ## 2. JSON Schemas: 
 
+## Game Parameters
+
+```json
+{
+  "grid_size": 9,
+  "stars": [],
+  "star_count_to_win": 3,
+  "max_ships_per_city": 5,
+}
+```
+
 ### Turn State
 The `state` field in `turn_states` is a list of piece objects.
 ```json
 {
   "id": "UUID",
-  "faction": "BLUE | RED | YELLOW | GREEN",
+  "faction": "BLUE | RED | PURPLE | GREEN",
   "type": "STAR_CITY | NEUTRINO | ECLIPSE | PARALLAX",
   "x": 0,         // 0-8, null if in tray
   "y": 0,         // 0-8, null if in tray
@@ -222,19 +233,12 @@ The `events` field in `turn_events` is a list of event objects. The server gener
 ```
 
 
-## 3. Turn Phases
+## 3. Turn Phases for turn N
 
-0. **Initial State**: 
-  - The state of turn N in `turn_states` was calculated in phase 3 of turn N-1.
-1. **Planned Actions (Players)**: 
-  - Each player inserts a row into `turn_planned_actions` for `turn_number: N` containing their list of actions. 
-2. **Event resolution (Server)**: 
-  - Server gathers the latest `turn_planned_actions` for all players in the game.
-  - Server calculates the outcomes and inserts a row into `turn_events`.
-3. **State resolution (Server)**: 
-  - Server increments the game's `current_turn_number`
-  - The server calculates the `state` of turn N+1 based on the state and events of turn N.
-
+1. Players review the turn N-1 state and events
+2. Players see the state of turn N
+3. Players submit their actions for turn N
+4. The game server resolves the turn N state and events
 
 
 ## 4. Server-Side Event + State Resolution Logic
@@ -276,7 +280,7 @@ Each action in `turn_planned_actions` must pass these checks. Invalid actions ar
 - **`TETHER_ACT`**:
     - The `ship_id` must be an ECLIPSE or PARALLAX.
     - The `city_id` must be an anchored friendly Star City.
-    - The `city_id` must not have more than five ships tethered to it.
+    - The `city_id` must not have more than four ships tethered to it.
     - The `ship_id`'s current position must be within range (2) of the `city_id`.
 
 - **`ANCHOR_ACT`**:
@@ -325,11 +329,12 @@ Actions are applied in a specific order, in phases to ensure consistent resoluti
             - put it through the lossCascade function (this function will be explained in detail later, it removes tethers and untethered ships from the working state)
 
 4. Resolve MOVE_ACT actions
-    - overview: this phase will be done in 4 steps:
+    - overview: this phase will be done in 5 steps:
         - in step 1 we will resolve all moves that can be made without conflict. this will require make a second list of moves that couldn't be resolved in this step, for the next step.
         - in step 2 we will resolve all battles
         - in step 3 we will destroy ships and transfer captured star cities
-        - in step 4 we will move all surviving ships
+        - in step 4 we will move all surviving ships,
+        - in step 5 we will again do double loop as in step 1 to make the remaining non-conflicting moves conflict after battles have cleared some squares
 
     - Step 1
         - validate all moves against the working state and indexes, discard invalid actions
@@ -378,6 +383,11 @@ Actions are applied in a specific order, in phases to ensure consistent resoluti
                 - create and push a MOVE event
                 - update the working state and indexes
 
+    - Step 5
+        - take the list of un-applied moves that was used at the beginning of step 2
+        - filter out all moves of ships that no longer exist
+        - perform the nested loop at the end of step one until no more moves can be applied
+
 5. Check win condition and eliminated factions
     - **Identify Eliminated Factions**:
         - A faction is eliminated if it has no star cities on the board (star cities in the tray do not count).
@@ -397,6 +407,7 @@ Actions are applied in a specific order, in phases to ensure consistent resoluti
             - Create and push a `GAME_OVER` event with `winner: faction` and `did_someone_win: true`.
             - Update game status to `FINISHED`.
             - Update the player is_winner field to true.
+            - Update the game winner field to the player id.
 
 6. players acquire ships
   - for each player:

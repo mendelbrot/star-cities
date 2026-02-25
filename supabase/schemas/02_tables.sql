@@ -1,14 +1,15 @@
 -- Enums
-CREATE TYPE game_status AS ENUM ('WAITING', 'PLANNING', 'RESOLVING', 'FINISHED');
-CREATE TYPE faction AS ENUM ('BLUE', 'RED', 'YELLOW', 'GREEN');
+CREATE TYPE game_status AS ENUM ('WAITING', 'STARTING', 'PLANNING', 'RESOLVING', 'FINISHED');
+CREATE TYPE faction AS ENUM ('BLUE', 'RED', 'PURPLE', 'GREEN');
 
 -- Games
 CREATE TABLE games (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     status game_status NOT NULL DEFAULT 'WAITING',
-    current_turn_number INTEGER NOT NULL DEFAULT 1,
-    grid_size INTEGER NOT NULL DEFAULT 9,
-    stars JSONB NOT NULL DEFAULT '[]', -- List of {x, y}
+    turn_number INTEGER NOT NULL DEFAULT 1,
+    player_count INTEGER NOT NULL DEFAULT 4,
+    stars JSONB -- [{x, y}]
+    game_parameters JSONB NOT NULL DEFAULT '{ "grid_size": 9, "star_count_to_win": 3, "max_ships_per_city": 5 }',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -21,6 +22,9 @@ CREATE TABLE players (
     faction faction NOT NULL,
     home_star JSONB, -- {x, y}
     is_ready BOOLEAN NOT NULL DEFAULT FALSE,
+    is_eliminated BOOLEAN NOT NULL DEFAULT FALSE,
+    eliminated_on_turn INTEGER,
+    is_winner BOOLEAN NOT NULL DEFAULT FALSE,
     UNIQUE(game_id, user_id),
     UNIQUE(game_id, faction)
 );
