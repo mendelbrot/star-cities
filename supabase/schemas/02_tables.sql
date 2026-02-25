@@ -17,7 +17,7 @@ CREATE TABLE games (
     status game_status NOT NULL DEFAULT 'WAITING',
     turn_number INTEGER NOT NULL DEFAULT 1,
     player_count INTEGER NOT NULL DEFAULT 4,
-    stars JSONB -- [{x, y}]
+    stars JSONB, -- [{x, y}]
     game_parameters JSONB NOT NULL DEFAULT '{ "grid_size": 9, "star_count_to_win": 3, "max_ships_per_city": 5 }',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
