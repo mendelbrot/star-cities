@@ -4,12 +4,12 @@ Star Cities is a cross-platform turn based simultaneous move strategy game. Thin
 
 - **Frontend:** Flutter (`client-flutter/`)
 - **Database Backend:** Supabase/PostgreSQL (`supabase/`)
-- **Game Server Backend** Go (`server-go`)
+- **Game Server Backend** Not yet created, will likely be supabase edge functions
 - **Knowledge Base:** ('notes-star-cities/`)
 
 ### Flutter Frontend Guidelines (`client-flutter/`)
 - NEVER run the app to verify changes (the user handles this). 
-- ALWAYS check for compile errors after tasks, by running `npm run flutter:analyze`.
+- Check for compile errors after Flutter coding tasks by running `npm run flutter:analyze`.
 
 ### Supabase/PostgreSQL Backend Guidelines (`supabase/`)
 - NEVER create migration files. We use declarative schema. Edit the schemas in `supabase/schemas/` directly.
@@ -38,6 +38,10 @@ Currently I favor small tasks over big plans. Generally, add a sentence for each
 
 Think of these logs as a kind of memory. Read the most recent log file to get up to speed on the project.
 
-As the first thing that you do, please read the latest two dev log files to get up tp speed on the project.
 
+## Agent's initial instructions
+As the first thing that you do, please get up to speed on the project:
+  - read the latest two dev log files in `notes-star-cities/dev-logs/`
+  - learn the game rules: `notes-star-cities/docs/game_rules.md`
+  - learn the data models and detailed game mechanics: `notes-star-cities/docs/data_models_and_game_logic.md`
 

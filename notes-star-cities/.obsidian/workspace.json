@@ -182,6 +182,12 @@
   },
   "active": "f5c22695cf8a6bd2",
   "lastOpenFiles": [
+    "knowledge/game_server_architecture.md",
+    "dev-logs/2026-02-24.01.log.md",
+    "dev-logs/2026-02-24.01.md",
+    "dev-logs/2026-02-24.00.log copy.md",
+    "docs/data_models_and_game_logic.md",
+    "docs/data_models_and_turn_processing_logic.md",
     "dev-logs/2026-02-24.00.log.md",
     "dev-logs/2026-02-23.00.log.md",
     "knowledge/actions_and_data_model.md",
