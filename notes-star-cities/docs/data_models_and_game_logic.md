@@ -26,17 +26,23 @@ The primary record for a game instance.
     - `updated_at`: TIMESTAMPTZ
 
 ### Table: `players`
-Links users to games and assigns their faction.
+Links users or bots to games and assigns their faction.
 - **Fields**:
     - `id`: UUID (Primary Key)
     - `game_id`: UUID (Foreign Key to `games`)
-    - `user_id`: UUID (Foreign Key to auth users)
+    - `user_id`: UUID (Foreign Key to auth users, null if `is_bot` is true)
+    - `is_bot`: Boolean (Default FALSE)
+    - `bot_name`: TEXT (Friendly name for the bot, null for human players)
     - `faction`: `faction` (`BLUE | RED | PURPLE | GREEN`)
     - `home_star`: JSONB (`{x, y}` coordinates)
     - `is_ready`: Boolean (Default FALSE)
     - `is_eliminated`: Boolean (Default FALSE)
     - `eliminated_on_turn`: Integer (Null if not eliminated)
     - `is_winner`: Boolean (Default FALSE)
+- **Constraints**:
+    - `player_identity`: Ensure either `user_id` is present OR `is_bot` is true.
+    - `idx_unique_human_player_per_game`: A real user can only join a game once.
+    - `UNIQUE(game_id, faction)`: Each faction is assigned once per game.
 
 ### Table: `turn_states`
 Records the starting position of all pieces for a given turn.
@@ -78,9 +84,10 @@ Records the resolved outcomes that occurred during the transition between turns.
 ```json
 {
   "grid_size": 9,
-  "stars": [],
+  "star_count": 6,
   "star_count_to_win": 3,
   "max_ships_per_city": 5,
+  "starting_ships": ["NEUTRINO", "NEUTRINO", "PARALLAX", "ECLIPSE"]
 }
 ```
 

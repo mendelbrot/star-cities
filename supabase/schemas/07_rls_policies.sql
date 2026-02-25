@@ -21,7 +21,10 @@ CREATE POLICY "Authenticated users can see all games" ON games
     FOR SELECT TO authenticated USING (true);
 
 CREATE POLICY "Authenticated users can create games" ON games
-    FOR INSERT TO authenticated WITH CHECK (true);
+    FOR INSERT TO authenticated WITH CHECK (
+        status = 'WAITING' AND
+        turn_number = 1
+    );
 
 -- Players policies
 CREATE POLICY "Authenticated users can see all players" ON players
