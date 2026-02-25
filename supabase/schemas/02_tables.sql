@@ -2,6 +2,15 @@
 CREATE TYPE game_status AS ENUM ('WAITING', 'STARTING', 'PLANNING', 'RESOLVING', 'FINISHED');
 CREATE TYPE faction AS ENUM ('BLUE', 'RED', 'PURPLE', 'GREEN');
 
+-- User Profiles (Publicly visible user info)
+CREATE TABLE user_profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    username TEXT UNIQUE NOT NULL,
+    profile_icon TEXT NOT NULL DEFAULT 'default_icon',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Games
 CREATE TABLE games (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -28,6 +37,9 @@ CREATE TABLE players (
     UNIQUE(game_id, user_id),
     UNIQUE(game_id, faction)
 );
+
+-- Add winner reference after players table exists 
+ALTER TABLE games ADD COLUMN winner UUID REFERENCES players(id);
 
 -- Turn States (Snapshots of the board at the START of a turn)
 CREATE TABLE turn_states (

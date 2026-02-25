@@ -1,9 +1,20 @@
 -- Enable RLS for all tables
+ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE games ENABLE ROW LEVEL SECURITY;
 ALTER TABLE players ENABLE ROW LEVEL SECURITY;
 ALTER TABLE turn_states ENABLE ROW LEVEL SECURITY;
 ALTER TABLE turn_planned_actions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE turn_events ENABLE ROW LEVEL SECURITY;
+
+-- User Profiles policies
+CREATE POLICY "Anyone can view user profiles" ON user_profiles
+    FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "Users can insert their own profile" ON user_profiles
+    FOR INSERT TO authenticated WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "Users can update their own profile" ON user_profiles
+    FOR UPDATE TO authenticated USING (auth.uid() = id);
 
 -- Games policies
 CREATE POLICY "Authenticated users can see all games" ON games

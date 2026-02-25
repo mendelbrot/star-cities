@@ -3,6 +3,15 @@
 
 ## 1. Tables
 
+### Table: `user_profiles`
+Publicly visible profile information for each user.
+- **Fields**:
+    - `id`: UUID (Primary Key, references `auth.users.id`)
+    - `username`: TEXT (Unique)
+    - `profile_icon`: TEXT (A string identifier for the selected icon)
+    - `created_at`: TIMESTAMPTZ
+    - `updated_at`: TIMESTAMPTZ
+
 ### Table: `games`
 The primary record for a game instance.
 - **Fields**:
@@ -12,6 +21,7 @@ The primary record for a game instance.
     - `player_count`: Integer (Default 4)
     - `stars`: JSONB (`[{x, y}]` coordinates list)
     - `game_parameters`: JSONB (the game parameters JSON schema)
+    - `winner`: UUID (Foreign Key to `players.id`, null if no winner)
     - `created_at`: TIMESTAMPTZ
     - `updated_at`: TIMESTAMPTZ
 
