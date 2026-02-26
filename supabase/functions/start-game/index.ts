@@ -1,12 +1,29 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { sql } from "../_shared/db.ts";
-import { Faction, GameParameters, Piece } from "../_shared/types.ts";
+import { Coordinate, Faction, GameParameters, Piece } from "../_shared/types.ts";
 import { generateStars, getAdjacentCoordinates } from "./map.ts";
 import { ServerError } from "../_shared/server-error.ts";
 
+interface WebhookPayload {
+  record: {
+    id: string;
+    status: string;
+  };
+}
+
+interface GameRow {
+  status: string;
+  game_parameters: GameParameters;
+}
+
+interface PlayerRow {
+  id: string;
+  faction: Faction;
+}
+
 serve(async (req) => {
   try {
-    const body = await req.json();
+    const body: WebhookPayload = await req.json();
     const { record } = body;
     const { id: game_id, status } = record;
 
@@ -14,13 +31,13 @@ serve(async (req) => {
       return new Response( null, { status: 200 } );
     }
 
-    console.log(`STARTING game: ${game_id}`);
+    console.log(`Game STARTING: ${game_id}`);
 
     // Fetch game parameters and players in a transaction
-    const result = await sql.begin(async (sql) => {
+    await sql.begin(async (sql) => {
       // 1. Fetch Game and Players
       const [game] =
-        await sql`SELECT status, game_parameters FROM games WHERE id = ${game_id} FOR UPDATE`;
+        await sql<GameRow[]>`SELECT status, game_parameters FROM games WHERE id = ${game_id} FOR UPDATE`;
 
       if (!game) {
         throw new ServerError(`Game not found: ${game_id}`, 400);
@@ -31,9 +48,9 @@ serve(async (req) => {
       }
 
       const players =
-        await sql`SELECT id, faction FROM players WHERE game_id = ${game_id}`;
+        await sql<PlayerRow[]>`SELECT id, faction FROM players WHERE game_id = ${game_id}`;
 
-      const params = game.game_parameters as GameParameters;
+      const params = game.game_parameters;
       const size = params.grid_size;
 
       // 2. Generate Stars
@@ -41,7 +58,7 @@ serve(async (req) => {
 
       // 3. Initialize Turn 1 State
       const pieces: Piece[] = [];
-      const updatedPlayers: { id: string; home_star: any }[] = [];
+      const updatedPlayers: { id: string; home_star: Coordinate }[] = [];
 
       // Assign each player to a different star (if enough stars exist)
       for (let i = 0; i < players.length; i++) {
@@ -68,7 +85,7 @@ serve(async (req) => {
 
         const city: Piece = {
           id: crypto.randomUUID(),
-          faction: player.faction as Faction,
+          faction: player.faction,
           type: "STAR_CITY",
           x: cityPos.x,
           y: cityPos.y,
@@ -84,8 +101,8 @@ serve(async (req) => {
         for (const shipType of params.starting_ships) {
           pieces.push({
             id: crypto.randomUUID(),
-            faction: player.faction as Faction,
-            type: shipType as any,
+            faction: player.faction,
+            type: shipType,
             x: null,
             y: null,
             tether_id: null,
@@ -101,7 +118,7 @@ serve(async (req) => {
       // Update Game status and stars
       await sql`
         UPDATE games 
-        SET status = 'PLANNING', stars = ${sql.json(stars as any)}
+        SET status = 'PLANNING', stars = ${sql.json(stars)}
         WHERE id = ${game_id}
       `;
 
@@ -109,7 +126,7 @@ serve(async (req) => {
       for (const p of updatedPlayers) {
         await sql`
           UPDATE players 
-          SET home_star = ${sql.json(p.home_star as any)}
+          SET home_star = ${sql.json(p.home_star)}
           WHERE id = ${p.id}
         `;
       }
@@ -117,7 +134,7 @@ serve(async (req) => {
       // Insert Turn 1 State
       await sql`
         INSERT INTO turn_states (game_id, turn_number, state)
-        VALUES (${game_id}, 1, ${sql.json(pieces as any)})
+        VALUES (${game_id}, 1, ${sql.json(pieces)})
       `;
     });
 

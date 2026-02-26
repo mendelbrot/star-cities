@@ -1,22 +1,23 @@
 export type Faction = "BLUE" | "RED" | "PURPLE" | "GREEN";
+export type PieceType = "STAR_CITY" | "NEUTRINO" | "ECLIPSE" | "PARALLAX";
 
-export interface GameParameters {
+export type GameParameters = {
   grid_size: number;
   star_count: number;
   star_count_to_win: number;
   max_ships_per_city: number;
-  starting_ships: string[];
-}
+  starting_ships: PieceType[];
+};
 
-export interface Coordinate {
+export type Coordinate = {
   x: number;
   y: number;
-}
+};
 
-export interface Piece {
+export type Piece = {
   id: string;
   faction: Faction;
-  type: "STAR_CITY" | "NEUTRINO" | "ECLIPSE" | "PARALLAX";
+  type: PieceType;
   x: number | null;
   y: number | null;
   tether_id: string | null;
@@ -24,4 +25,4 @@ export interface Piece {
   is_stunned: boolean;
   is_visible: boolean;
   is_in_tray: boolean;
-}
+};
