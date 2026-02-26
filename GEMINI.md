@@ -4,7 +4,7 @@ Star Cities is a cross-platform turn based simultaneous move strategy game. Thin
 
 - **Frontend:** Flutter (`client-flutter/`)
 - **Database Backend:** Supabase/PostgreSQL (`supabase/`)
-- **Game Server Backend** Not yet created, will likely be supabase edge functions
+- **Game Server Backend** (`supabase/functions`) Deno Supabase edge functions
 - **Knowledge Base:** ('notes-star-cities/`)
 
 ### Flutter Frontend Guidelines (`client-flutter/`)

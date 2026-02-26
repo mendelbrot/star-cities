@@ -1,9 +1,13 @@
 {
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": false,
+  "editor.formatOnSave": true,
   "deno.enable": true,
-  "deno.enablePaths": ["supabase/functions"],
-  "deno.lint": true,
-  "deno.path": "~/.deno/bin/deno",
+  "deno.enablePaths": [
+    "supabase/functions"
+  ],
   "[typescript]": {
-    "editor.defaultFormatter": "denoland.vscode-deno"
+    "editor.defaultFormatter": "denoland.vscode-deno",
   }
 }
