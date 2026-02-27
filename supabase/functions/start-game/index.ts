@@ -44,7 +44,7 @@ serve(async (req) => {
       }
 
       if (game.status !== "STARTING") {
-        throw new ServerError(`Game status externally changed to ${game.status}. Was another function invoked?`, 400);
+        throw new ServerError(`Game status changed to ${game.status}. Was another function invoked?`, 400);
       }
 
       const players =

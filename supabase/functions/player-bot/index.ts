@@ -1,31 +1,68 @@
-// Supabase Edge Function: player-bot
-// This function acts as a simple automated player to fill game slots or for testing.
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { sql } from "../_shared/db.ts";
+import { ServerError } from "../_shared/server-error.ts";
+import { PlannedAction } from "../_shared/types.ts";
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+interface WebhookPayload {
+  record: {
+    id: string;
+    status: string;
+    turn_number: number;
+  };
+}
 
-console.log("Hello from player-bot!")
+interface PlayerRow {
+  id: string;
+}
 
 serve(async (req) => {
   try {
-    const { game_id, player_id } = await req.json()
+    const body: WebhookPayload = await req.json();
+    const { record } = body;
+    const { id: game_id, status, turn_number } = record;
 
-    console.log(`Bot processing move for player: ${player_id} in game: ${game_id}`)
+    if (status !== "PLANNING") {
+      return new Response( null, { status: 200 } );
+    }
 
-    // TODO: Implement simple bot logic
-    // 1. Analyze current visible state
-    // 2. Decide on movements/actions
-    // 3. Submit turn_planned_actions to the database
-    // 4. Mark player as 'is_ready'
+    // Fetch all active bots for this game
+    const bots = await sql<PlayerRow[]>`
+      SELECT id 
+      FROM players 
+      WHERE game_id = ${game_id} 
+        AND is_bot = TRUE 
+        AND is_eliminated = FALSE
+    `;
 
-    return new Response(
-      JSON.stringify({ message: "Bot turn planned.", game_id, player_id }),
-      { headers: { "Content-Type": "application/json" }, status: 200 },
-    )
+    if (bots.length === 0) {
+      return new Response( null, { status: 200 } );
+    }
+
+    // Process each bot
+    await sql.begin(async (sql) => {
+      for (const bot of bots) {
+        // TODO: Implement actual AI logic here to populate 'actions'.
+        const actions: PlannedAction[] = [];
+
+        // 1. Submit planned actions for the current turn
+        await sql`
+          INSERT INTO turn_planned_actions (game_id, player_id, turn_number, actions)
+          VALUES (${game_id}, ${bot.id}, ${turn_number}, ${sql.json(actions)})
+        `;
+
+        // 2. Mark bot as ready
+        await sql`
+          UPDATE players 
+          SET is_ready = TRUE 
+          WHERE id = ${bot.id}
+        `;
+      }
+    });
+
+    return new Response( null, { status: 200 } );
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred"
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { headers: { "Content-Type": "application/json" }, status: 400 },
-    )
+    console.error(error);
+    const status = error instanceof ServerError ? error.statusCode : 500;
+    return new Response( null, { status } );
   }
-})
+});
