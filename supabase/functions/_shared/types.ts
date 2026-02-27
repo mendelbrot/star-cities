@@ -64,3 +64,116 @@ export type PlannedAction =
   | TetherAction 
   | AnchorAction 
   | PlaceAction;
+
+// Event Types
+export type MoveEvent = {
+  type: "MOVE";
+  faction: Faction;
+  piece_id: string;
+  from: Coordinate;
+  to: Coordinate;
+};
+
+export type TetherEvent = {
+  type: "TETHER";
+  faction: Faction;
+  ship_id: string;
+  city_id: string;
+};
+
+export type AnchorEvent = {
+  type: "ANCHOR";
+  faction: Faction;
+  piece_id: string;
+  is_anchored: boolean;
+};
+
+export type PlaceEvent = {
+  type: "PLACE";
+  faction: Faction;
+  tray_piece_id: string;
+  city_id: string | null;
+  target: Coordinate;
+};
+
+export type BombardEvent = {
+  type: "BOMBARD";
+  coord: Coordinate;
+  attacking_pieces: { piece_id: string; piece_type: PieceType; faction: Faction }[];
+  target: { piece_id: string; piece_type: PieceType; faction: Faction };
+  attack_strength: number;
+  target_strength: number;
+  is_destroyed: boolean;
+};
+
+export type ShipLostTetherEvent = {
+  type: "SHIP_LOST_TETHER";
+  faction: Faction;
+  piece_id: string;
+};
+
+export type BattleCollisionEvent = {
+  type: "BATTLE_COLLISION";
+  coord: Coordinate;
+  entering_participants: { piece_id: string; piece_type: PieceType; faction: Faction }[];
+  defending_participant: { piece_id: string; piece_type: PieceType; faction: Faction } | null;
+  supporting_participants: { piece_id: string; piece_type: PieceType; faction: Faction }[];
+  supporting_bombardments: { piece_id: string; piece_type: PieceType; faction: Faction }[];
+  calculated_strengths: { faction: Faction; strength: number }[];
+  winning_faction: Faction;
+  result: "CAPTURE" | "DESTROY";
+};
+
+export type PieceAcquiredEvent = {
+  type: "PIECE_ACQUIRED";
+  faction: Faction;
+  piece_type: PieceType;
+  new_piece_id: string;
+};
+
+export type CityCapturedEvent = {
+  type: "CITY_CAPTURED";
+  city_id: string;
+  from_faction: Faction;
+  to_faction: Faction;
+};
+
+export type ShipDestroyedInBattleEvent = {
+  type: "SHIP_DESTROYED_IN_BATTLE";
+  piece_id: string;
+  piece_type: PieceType;
+  faction: Faction;
+};
+
+export type ShipDestroyedInBombardmentEvent = {
+  type: "SHIP_DESTROYED_IN_BOMBARDMENT";
+  piece_id: string;
+  piece_type: PieceType;
+  faction: Faction;
+};
+
+export type FactionEliminatedEvent = {
+  type: "FACTION_ELIMINATED";
+  faction: Faction;
+};
+
+export type GameOverEvent = {
+  type: "GAME_OVER";
+  winner: Faction | null;
+  did_someone_win: boolean;
+};
+
+export type GameEvent =
+  | MoveEvent
+  | TetherEvent
+  | AnchorEvent
+  | PlaceEvent
+  | BombardEvent
+  | ShipLostTetherEvent
+  | BattleCollisionEvent
+  | PieceAcquiredEvent
+  | CityCapturedEvent
+  | ShipDestroyedInBattleEvent
+  | ShipDestroyedInBombardmentEvent
+  | FactionEliminatedEvent
+  | GameOverEvent;

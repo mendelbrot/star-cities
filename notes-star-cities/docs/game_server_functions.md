@@ -36,14 +36,14 @@ This document outlines the high-level logic, database interactions, and triggers
     *   `games`: Current turn number and status.
     *   `turn_states`: The starting state of the board for Turn N.
     *   `turn_planned_actions`: All actions submitted by players for Turn N.
-*   **Logic (7-Phase Engine):**
-    1.  **Index:** Build spatial maps (CoordinateMap, PieceMap).
-    2.  **Validate:** Filter out illegal actions (e.g., moving too far, moving stunned units).
-    3.  **Phase 1-2 (Static):** Apply Place, Tether, and Anchor actions.
-    4.  **Phase 3 (Bombard):** Resolve Eclipse bombardments and potential destruction/stuns.
-    5.  **Phase 4 (Move/Battle):** Execute movement and resolve collisions via weighted probabilities.
-    6.  **Phase 5 (Cleanup):** Check win conditions, eliminate factions, and run `lossCascade`.
-    7.  **Phase 6 (Economy):** Randomly acquire new ships for player trays.
+*   **Logic:**
+      // Phase 1: Indexing state
+      // Phase 2: Resolve non-conflict actions (PLACE, TETHER, ANCHOR)
+      // Phase 3: Resolve BOMBARD actions
+      // Phase 4: Resolve MOVE actions and Battles
+      // Phase 5: Check win condition and eliminated factions
+      // Phase 6: Players acquire ships
+      // Phase 7: Save next turn state and events
 *   **Database Writes (Transaction):**
     1.  Insert `turn_events`: The sequence of events for Turn N (to be replayed by clients).
     2.  Insert `turn_states`: The resulting board state for Turn N+1.

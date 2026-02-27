@@ -320,7 +320,7 @@ Each action in `turn_planned_actions` must pass these checks. Invalid actions ar
 
 The server starts with a copy of the current game state, and gradually updates it to the next state while creating a list Events during this process. Let's call this copy of the state the "working state".
 
-Actions are applied in a specific order, in phases to ensure consistent resolution. Each phase is based on a type of action and is run through for all in a way that ensures the result is independent of processing order. The 7 phases are listed below.
+Actions are applied in a specific order, in phases to ensure consistent resolution. Each phase is based on a type of action and is run through for all in a way that ensures the result is independent of processing order. The phases are listed below.
 
 1. Copy the state to the working state
     - set is_stunned=false for all ships
@@ -346,12 +346,11 @@ Actions are applied in a specific order, in phases to ensure consistent resoluti
             - put it through the lossCascade function (this function will be explained in detail later, it removes tethers and untethered ships from the working state)
 
 4. Resolve MOVE_ACT actions
-    - overview: this phase will be done in 5 steps:
+    - overview: this phase will be done in steps:
         - in step 1 we will resolve all moves that can be made without conflict. this will require make a second list of moves that couldn't be resolved in this step, for the next step.
         - in step 2 we will resolve all battles
         - in step 3 we will destroy ships and transfer captured star cities
-        - in step 4 we will move all surviving ships,
-        - in step 5 we will again do double loop as in step 1 to make the remaining non-conflicting moves conflict after battles have cleared some squares
+        - in step 4 we will again do double loop as in step 1 to make the remaining non-conflicting moves after battles have cleared some squares
 
     - Step 1
         - validate all moves against the working state and indexes, discard invalid actions
@@ -395,12 +394,6 @@ Actions are applied in a specific order, in phases to ensure consistent resoluti
                 - put the lost city through the lossCascade function
 
     - Step 4
-        - refer to the un-applied moves again (that were referred to at the beginning of step 2). for each move:
-            - if the moving piece still exists:
-                - create and push a MOVE event
-                - update the working state and indexes
-
-    - Step 5
         - take the list of un-applied moves that was used at the beginning of step 2
         - filter out all moves of ships that no longer exist
         - perform the nested loop at the end of step one until no more moves can be applied

@@ -38,6 +38,8 @@ serve(async (req) => {
       return new Response( null, { status: 200 } );
     }
 
+    console.log(`Playing as ${bots.length} bot(s) for game ${game_id}`)
+
     // Process each bot
     await sql.begin(async (sql) => {
       for (const bot of bots) {
