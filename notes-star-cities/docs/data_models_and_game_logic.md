@@ -268,6 +268,7 @@ Before processing actions, the server indexes the current turn's `state` (Turn N
 - **Faction Placed PiecesMap**: `faction -> list of piece_ids` (for calculating vision or counting units - only the units placed on the map are included).
 - **Faction Tray Map** `faction -> list of piece_ids` (for checking the pieces on the tray).
 - **Tether Map**: `city_id -> list of ship_ids` (for range checks and tether loss propagation).
+- **Piece Contexts Map**: `piece_id -> PieceTurnContext` (for tracking temporary turn state like `wasJustPlaced` or `wasJustDeanchored`).
 
 *Note: All coordinate lookups MUST account for the 9x9 torus wrap-around logic.*
 
@@ -285,8 +286,10 @@ Each action in `turn_planned_actions` must pass these checks. Invalid actions ar
 - **`MOVE_ACT`**:
     - Target `to` must be within the piece's `movement` range.
     - Target `to` must not be a "Star" (stars are permanent obstacles).
-    - There must not be a piece of the same faction moving to the same square
-    - If the piece is a Star City, it must not be `is_anchored`.
+    - There must not be a piece of the same faction moving to the same square.
+    - The piece must not have `wasJustPlaced: true` in its context.
+    - If the piece is a Star City, it must not be `is_anchored` AND must not have `wasJustDeanchored: true` in its context.
+    - The target `to` must not be occupied by a ship that has `wasJustPlaced: true` in its context.
     - If the piece requires a tether (Eclipse, Parallax), the target `to` must be within range (2) of its current `tether_id`.
 
 - **`BOMBARD_ACT`**:
@@ -313,6 +316,7 @@ Each action in `turn_planned_actions` must pass these checks. Invalid actions ar
     - If the ship is `STAR_CITY` or `NEUTRINO`, the `target` coordinate must be adjacent (dist 1) to any city of that player.
     - The `target` coordinate must not be a "Star".
     - The `target` coordinate must not be a ship.
+    - The `target` coordinate must not be the target of a `MOVE_ACT` by a friendly ship.
 
 
 

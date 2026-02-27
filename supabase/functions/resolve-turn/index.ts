@@ -32,6 +32,11 @@ interface TurnPlannedActionsRow {
   actions: PlannedAction[];
 }
 
+interface PieceTurnContext {
+  wasJustPlaced?: boolean;
+  wasJustDeanchored?: boolean;
+}
+
 serve(async (req) => {
   try {
     const body: WebhookPayload = await req.json();
@@ -94,6 +99,7 @@ serve(async (req) => {
       const factionPlacedPiecesMap = new Map<string, string[]>(); // faction -> list of piece_ids
       const factionTrayMap = new Map<string, string[]>(); // faction -> list of piece_ids
       const tetherMap = new Map<string, string[]>(); // city_id -> list of ship_ids
+      const pieceContexts = new Map<string, PieceTurnContext>(); // piece_id -> PieceTurnContext
 
       // Initialize maps for each faction
       players.forEach((p) => {
@@ -121,6 +127,20 @@ serve(async (req) => {
 
       // Initialize events list
       const events: GameEvent[] = [];
+
+      // Pre-calculate move targets for each faction for validation
+      const factionMoveTargetsMap = new Map<string, Set<string>>(); // faction -> Set of "x,y"
+      for (const row of plannedActions) {
+        const player = players.find(p => p.id === row.player_id);
+        if (!player) continue;
+        const targets = new Set<string>();
+        for (const action of row.actions) {
+          if (action.type === "MOVE_ACT") {
+            targets.add(`${action.to.x},${action.to.y}`);
+          }
+        }
+        factionMoveTargetsMap.set(player.faction, targets);
+      }
 
       const UNIT_STRENGTH: Record<string, number> = {
         STAR_CITY: 8,
@@ -164,7 +184,8 @@ serve(async (req) => {
 
             const isStar = game.stars.some((s) => isSameCoordinate(s, action.target));
             const isOccupied = coordinateMap.has(`${action.target.x},${action.target.y}`);
-            if (isStar || isOccupied) continue;
+            const isMoveTarget = factionMoveTargetsMap.get(player.faction)?.has(`${action.target.x},${action.target.y}`);
+            if (isStar || isOccupied || isMoveTarget) continue;
 
             // Check proximity to city
             let isNearValidCity = false;
@@ -207,6 +228,10 @@ serve(async (req) => {
             const idx = tray.indexOf(piece.id);
             if (idx !== -1) tray.splice(idx, 1);
             factionPlacedPiecesMap.get(player.faction)?.push(piece.id);
+
+            // Update piece context
+            const context = pieceContexts.get(piece.id) || {};
+            pieceContexts.set(piece.id, { ...context, wasJustPlaced: true });
 
             events.push({
               type: "PLACE",
@@ -265,7 +290,13 @@ serve(async (req) => {
             }
 
             // Apply ANCHOR
+            const wasAnchored = city.is_anchored;
             city.is_anchored = action.is_anchored;
+
+            if (wasAnchored && !action.is_anchored) {
+              const context = pieceContexts.get(city.id) || {};
+              pieceContexts.set(city.id, { ...context, wasJustDeanchored: true });
+            }
 
             events.push({
               type: "ANCHOR",
