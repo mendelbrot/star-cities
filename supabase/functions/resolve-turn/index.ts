@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { sql } from "../_shared/db.ts";
-import { Coordinate, Faction, GameEvent, GameParameters, Piece, PlannedAction } from "../_shared/types.ts";
+import { BombardEvent, Coordinate, Faction, GameEvent, GameParameters, Piece, PlannedAction } from "../_shared/types.ts";
 import { ServerError } from "../_shared/server-error.ts";
 import { getAdjacentCoordinates, getTorusDistance, isSameCoordinate } from "../_shared/map.ts";
 
@@ -121,6 +121,36 @@ serve(async (req) => {
 
       // Initialize events list
       const events: GameEvent[] = [];
+
+      const UNIT_STRENGTH: Record<string, number> = {
+        STAR_CITY: 8,
+        NEUTRINO: 2,
+        ECLIPSE: 4,
+        PARALLAX: 6,
+      };
+
+      const lossCascade = (lost_city_id: string) => {
+        const tetheredShips = tetherMap.get(lost_city_id) || [];
+        for (const shipId of tetheredShips) {
+          const ship = pieceMap.get(shipId);
+          if (ship) {
+            events.push({
+              type: "SHIP_LOST_TETHER",
+              faction: ship.faction,
+              piece_id: ship.id,
+            });
+
+            if (ship.x !== null && ship.y !== null) {
+              coordinateMap.delete(`${ship.x},${ship.y}`);
+            }
+            const factionPlaced = factionPlacedPiecesMap.get(ship.faction) || [];
+            factionPlacedPiecesMap.set(ship.faction, factionPlaced.filter((id) => id !== ship.id));
+
+            pieceMap.delete(shipId);
+          }
+        }
+        tetherMap.delete(lost_city_id);
+      };
 
       // Phase 2: Resolve non-conflict actions (PLACE, TETHER, ANCHOR)
       for (const playerActionRow of plannedActions) {
@@ -248,6 +278,86 @@ serve(async (req) => {
       }
 
       // Phase 3: Resolve BOMBARD actions
+      const bombardEventsMap = new Map<string, BombardEvent>(); // target_id -> BombardEvent
+
+      for (const playerActionRow of plannedActions) {
+        const player = players.find((p) => p.id === playerActionRow.player_id);
+        if (!player) continue;
+
+        for (const action of playerActionRow.actions) {
+          if (action.type === "BOMBARD_ACT") {
+            const attacker = pieceMap.get(action.piece_id);
+            if (!attacker || attacker.type !== "ECLIPSE" || attacker.faction !== player.faction || attacker.is_stunned || attacker.is_in_tray) continue;
+
+            const target = pieceMap.get(action.target_id);
+            if (!target || target.faction === player.faction || target.is_in_tray) continue;
+
+            const dist = getTorusDistance(attacker as Coordinate, target as Coordinate, size);
+            if (dist > 2) continue;
+
+            let event = bombardEventsMap.get(target.id);
+            if (!event) {
+              event = {
+                type: "BOMBARD",
+                coord: { x: target.x!, y: target.y! },
+                attacking_pieces: [],
+                target: { piece_id: target.id, piece_type: target.type, faction: target.faction },
+                attack_strength: 0,
+                target_strength: UNIT_STRENGTH[target.type],
+                is_destroyed: false,
+              };
+              bombardEventsMap.set(target.id, event);
+            }
+
+            event.attacking_pieces.push({
+              piece_id: attacker.id,
+              piece_type: attacker.type,
+              faction: attacker.faction,
+            });
+            event.attack_strength += 2; // Eclipse bombardment strength is 2
+          }
+        }
+      }
+
+      for (const event of bombardEventsMap.values()) {
+        const totalStrength = event.attack_strength + event.target_strength;
+        const roll = Math.random() * totalStrength;
+        event.is_destroyed = roll < event.attack_strength;
+
+        events.push(event);
+
+        const target = pieceMap.get(event.target.piece_id);
+        if (target) {
+          target.is_stunned = true;
+
+          if (event.is_destroyed) {
+            events.push({
+              type: "SHIP_DESTROYED_IN_BOMBARDMENT",
+              piece_id: target.id,
+              piece_type: target.type,
+              faction: target.faction,
+            });
+
+            // Update state and indexes
+            if (target.x !== null && target.y !== null) {
+              coordinateMap.delete(`${target.x},${target.y}`);
+            }
+            const factionPlaced = factionPlacedPiecesMap.get(target.faction) || [];
+            factionPlacedPiecesMap.set(target.faction, factionPlaced.filter((id) => id !== target.id));
+
+            // If it's a star city, cascade
+            if (target.type === "STAR_CITY") {
+              lossCascade(target.id);
+            } else if (target.tether_id) {
+              // Remove from tether map
+              const ships = tetherMap.get(target.tether_id) || [];
+              tetherMap.set(target.tether_id, ships.filter((id) => id !== target.id));
+            }
+
+            pieceMap.delete(target.id);
+          }
+        }
+      }
 
     });
 
