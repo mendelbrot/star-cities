@@ -91,7 +91,6 @@ serve(async (req) => {
           y: cityPos.y,
           tether_id: null,
           is_anchored: true, // Start anchored to home star
-          is_stunned: false,
           is_visible: true,
           is_in_tray: false,
         };
@@ -107,7 +106,6 @@ serve(async (req) => {
             y: null,
             tether_id: null,
             is_anchored: false,
-            is_stunned: false,
             is_visible: true,
             is_in_tray: true,
           });

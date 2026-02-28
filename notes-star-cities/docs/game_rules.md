@@ -38,7 +38,7 @@ A faction wins if it is anchored to 3 or more distinct stars AND has more stars 
 - **Simultaneous Turns:** All players plan moves simultaneously.
 - **Planning:** Players can plan, undo, and reset moves until they finalize their turn.
 - **Star City Mobility:** An anchored Star City cannot move. It can only de-anchor to move if it has **no** ships currently tethered to it.
-- **Stun:** A piece hit by a bombardment is stunned and cannot move during the following turn.
+- **Stun:** A piece hit by a bombardment is stunned and cannot move during the current turn. (Bombardment occurs before movement).
 
 ## Combat & Bombardment
 - **Battle:** Occurs when multiple factions attempt to enter the same square.
@@ -48,8 +48,8 @@ A faction wins if it is anchored to 3 or more distinct stars AND has more stars 
 - **Capturing Cities:** If a ship wins a battle against a Star City, the city is captured. The attacking ship remains in its original square.
 - **Bombardment (Eclipse):** 
   - Range: 2 squares. Strength: 2.
-  - Bombardments occur **before** movement.
-  - Effects: Stacks with other bombardments; stuns the target.
+  - Bombardments occur **before** movement in the same turn.
+  - Effects: Stacks with other bombardments; stuns the target, preventing movement in the current turn.
   - **Destruction:** If a Star City loses a battle due to bombardment, it is destroyed rather than captured.
 
 ## Visibility & Stealth

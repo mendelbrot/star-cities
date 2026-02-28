@@ -22,7 +22,6 @@ export type Piece = {
   y: number | null;         // null if in tray
   tether_id: string | null; // ID of the Star City this ship is tethered to
   is_anchored: boolean;
-  is_stunned: boolean;
   is_visible: boolean;
   is_in_tray: boolean;
 };

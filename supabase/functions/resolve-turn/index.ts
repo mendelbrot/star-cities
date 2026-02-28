@@ -37,6 +37,7 @@ interface PieceTurnContext {
   wasJustPlaced?: boolean;
   wasJustDeanchored?: boolean;
   wasJustAnchored?: boolean;
+  wasJustBombarded?: boolean;
 }
 
 interface ValidatedMove {
@@ -144,7 +145,6 @@ serve(async (req) => {
       // 1a. Copy the state to the working state and reset fields per documentation
       const workingState: Piece[] = currentStateRow.state.map((p) => ({
         ...p,
-        is_stunned: false,
         is_visible: p.type === "NEUTRINO" ? false : true,
       }));
 
@@ -285,7 +285,7 @@ serve(async (req) => {
           } 
           else if (action.type === "TETHER_ACT") {
             const ship = pieceMap.get(action.ship_id);
-            if (!ship || ship.is_in_tray || ship.faction !== player.faction || ship.is_stunned) continue;
+            if (!ship || ship.is_in_tray || ship.faction !== player.faction) continue;
             if (ship.type !== "ECLIPSE" && ship.type !== "PARALLAX") continue;
 
             const city = pieceMap.get(action.city_id);
@@ -316,7 +316,7 @@ serve(async (req) => {
           }
           else if (action.type === "ANCHOR_ACT") {
             const city = pieceMap.get(action.piece_id);
-            if (!city || city.type !== "STAR_CITY" || city.is_in_tray || city.faction !== player.faction || city.is_stunned) continue;
+            if (!city || city.type !== "STAR_CITY" || city.is_in_tray || city.faction !== player.faction) continue;
 
             if (action.is_anchored) {
               const adj = getAdjacentCoordinates(city as Coordinate, size);
@@ -366,7 +366,7 @@ serve(async (req) => {
         for (const action of playerActionRow.actions) {
           if (action.type === "BOMBARD_ACT") {
             const attacker = pieceMap.get(action.piece_id);
-            if (!attacker || attacker.type !== "ECLIPSE" || attacker.faction !== player.faction || attacker.is_stunned || attacker.is_in_tray) continue;
+            if (!attacker || attacker.type !== "ECLIPSE" || attacker.faction !== player.faction || attacker.is_in_tray) continue;
 
             const target = pieceMap.get(action.target_id);
             if (!target || target.faction === player.faction || target.is_in_tray) continue;
@@ -408,7 +408,9 @@ serve(async (req) => {
 
         const target = pieceMap.get(event.target.piece_id);
         if (target) {
-          target.is_stunned = true;
+          const ctx = pieceContexts.get(target.id) || {};
+          pieceContexts.set(target.id, { ...ctx, wasJustBombarded: true });
+
           if (event.is_destroyed) {
             events.push({
               type: "SHIP_DESTROYED_IN_BOMBARDMENT",
@@ -431,14 +433,6 @@ serve(async (req) => {
 
       // Phase 4: Resolve MOVE_ACT actions
 
-      interface ValidatedMove {
-        piece_id: string;
-        from: Coordinate;
-        to: Coordinate;
-        faction: Faction;
-        applied: boolean;
-      }
-
       const validatedMoves: ValidatedMove[] = [];
       const moveTargetCount = new Map<string, number>();
 
@@ -449,12 +443,12 @@ serve(async (req) => {
         for (const action of playerActionRow.actions) {
           if (action.type === "MOVE_ACT") {
             const piece = pieceMap.get(action.piece_id);
-            if (!piece || piece.faction !== player.faction || piece.is_stunned || piece.is_in_tray) continue;
+            if (!piece || piece.faction !== player.faction || piece.is_in_tray) continue;
             if (getTorusDistance(piece as Coordinate, action.to, size) > UNIT_MOVEMENT[piece.type]) continue;
             if (game.stars.some((s) => isSameCoordinate(s, action.to))) continue;
             
             const context = pieceContexts.get(piece.id);
-            if (context?.wasJustPlaced) continue;
+            if (context?.wasJustPlaced || context?.wasJustBombarded) continue;
             if (piece.type === "STAR_CITY" && (piece.is_anchored || context?.wasJustDeanchored)) continue;
 
             const occupantId = coordinateMap.get(`${action.to.x},${action.to.y}`);
@@ -734,16 +728,10 @@ serve(async (req) => {
         if (sorted.length > 0 && sorted[0][1] >= params.star_count_to_win && (sorted.length === 1 || sorted[0][1] > sorted[1][1])) winnerF = sorted[0][0];
       } else {
         events.push({ type: "GAME_OVER", winner: null, did_someone_win: false });
-        await sql`UPDATE games SET status = 'FINISHED' WHERE id = ${game_id}`;
       }
 
       if (winnerF) {
         events.push({ type: "GAME_OVER", winner: winnerF, did_someone_win: true });
-        const winP = activePlayers.find(p => p.faction === winnerF);
-        if (winP) {
-          await sql`UPDATE games SET status = 'FINISHED', winner = ${winP.id} WHERE id = ${game_id}`;
-          await sql`UPDATE players SET is_winner = TRUE WHERE id = ${winP.id}`;
-        }
       }
 
       // Phase 6: Acquisition
@@ -769,7 +757,6 @@ serve(async (req) => {
               y: null, 
               tether_id: null, 
               is_anchored: false, 
-              is_stunned: false, 
               is_visible: type !== "NEUTRINO", 
               is_in_tray: true 
             };
@@ -783,8 +770,21 @@ serve(async (req) => {
       // Phase 7: Save
       const finalState = Array.from(pieceMap.values());
       await sql`INSERT INTO turn_events (game_id, turn_number, events) VALUES (${game_id}, ${turn_number}, ${JSON.stringify(events)})`;
-      await sql`INSERT INTO turn_states (game_id, turn_number, state) VALUES (${game_id}, ${turn_number + 1}, ${JSON.stringify(finalState)})`;
-      await sql`UPDATE games SET turn_number = ${turn_number + 1}, status = ${winnerF || remaining.length <= 1 ? "FINISHED" : "PLANNING"} WHERE id = ${game_id}`;
+      await sql`INSERT INTO turn_states (game_id, turn_number, state) VALUES (${game_id}, ${turn_number}, ${JSON.stringify(finalState)})`;
+      
+      const gameStatus = (winnerF || remaining.length <= 1) ? "FINISHED" : "PLANNING";
+      if (winnerF) {
+        const winP = activePlayers.find(p => p.faction === winnerF);
+        if (winP) {
+          await sql`UPDATE games SET turn_number = ${turn_number + 1}, status = ${gameStatus}, winner = ${winP.id} WHERE id = ${game_id}`;
+          await sql`UPDATE players SET is_winner = TRUE WHERE id = ${winP.id}`;
+        } else {
+          await sql`UPDATE games SET turn_number = ${turn_number + 1}, status = ${gameStatus} WHERE id = ${game_id}`;
+        }
+      } else {
+        await sql`UPDATE games SET turn_number = ${turn_number + 1}, status = ${gameStatus} WHERE id = ${game_id}`;
+      }
+      
       await sql`UPDATE players SET is_ready = FALSE WHERE game_id = ${game_id} AND is_eliminated = FALSE`;
     });
 

@@ -102,7 +102,6 @@ The `state` field in `turn_states` is a list of piece objects.
   "y": 0,         // 0-8, null if in tray
   "tether_id": "UUID", // ID of the Star City this ship is tethered to
   "is_anchored": false,
-  "is_stunned": false,
   "is_visible": true,
   "is_in_tray": false
 }
@@ -268,7 +267,7 @@ Before processing actions, the server indexes the current turn's `state` (Turn N
 - **Faction Placed PiecesMap**: `faction -> list of piece_ids` (for calculating vision or counting units - only the units placed on the map are included).
 - **Faction Tray Map** `faction -> list of piece_ids` (for checking the pieces on the tray).
 - **Tether Map**: `city_id -> list of ship_ids` (for range checks and tether loss propagation).
-- **Piece Contexts Map**: `piece_id -> PieceTurnContext` (for tracking temporary turn state like `wasJustPlaced` or `wasJustDeanchored`).
+- **Piece Contexts Map**: `piece_id -> PieceTurnContext` (for tracking temporary turn state like `wasJustPlaced`, `wasJustDeanchored`, or `wasJustBombarded`).
 
 *Note: All coordinate lookups MUST account for the 9x9 torus wrap-around logic.*
 
@@ -279,7 +278,6 @@ Each action in `turn_planned_actions` must pass these checks. Invalid actions ar
 - **Global Checks**:
     - The `piece_id` must exist in the current state.
     - The piece must belong to the `player_id` who submitted the action.
-    - The piece must not be `is_stunned`.
     - If the act is place, the the piece must be in the tray (have no x,y coordinates)
     - If the act is not place, then the piece must not be in the tray.
 
@@ -287,7 +285,7 @@ Each action in `turn_planned_actions` must pass these checks. Invalid actions ar
     - Target `to` must be within the piece's `movement` range.
     - Target `to` must not be a "Star" (stars are permanent obstacles).
     - There must not be a piece of the same faction moving to the same square.
-    - The piece must not have `wasJustPlaced: true` in its context.
+    - The piece must not have `wasJustPlaced: true` or `wasJustBombarded: true` in its context.
     - If the piece is a Star City, it must not be `is_anchored` AND must not have `wasJustDeanchored: true` in its context.
     - The target `to` must not be occupied by a ship that has `wasJustPlaced: true` in its context.
     - If the piece requires a tether (Eclipse, Parallax), the target `to` must be within range (2) of its current `tether_id`.
@@ -327,7 +325,6 @@ The server starts with a copy of the current game state, and gradually updates i
 Actions are applied in a specific order, in phases to ensure consistent resolution. Each phase is based on a type of action and is run through for all in a way that ensures the result is independent of processing order. The phases are listed below.
 
 1. Copy the state to the working state
-    - set is_stunned=false for all ships
     - set is_visible=false for all NEUTRINO ships
 
 2. Run through all PLACE_ACT, TETHER_ACT, and ANCHOR_ACT actions in the sequence they are given in each faction's actions list. 
@@ -343,7 +340,7 @@ Actions are applied in a specific order, in phases to ensure consistent resoluti
     - for each bombard event:
         - calculate is_destroyed with weighted probability 
         - push the events list
-        - update is_stunned=true for the bombarded ship
+        - set wasJustBombarded=true in the piece context for the bombarded ship
         - if the ship is destroyed:
             - create and push a SHIP_DESTROYED_IN_BOMBARDMENT event
             - update the working state and indexes
@@ -416,12 +413,8 @@ Actions are applied in a specific order, in phases to ensure consistent resoluti
         - If no winner is found:
             - If zero non-eliminated factions remain:
                 - Create and push a `GAME_OVER` event with `did_someone_win: false`.
-                - Update game status to `FINISHED`.
         - If a winner is found:
             - Create and push a `GAME_OVER` event with `winner: faction` and `did_someone_win: true`.
-            - Update game status to `FINISHED`.
-            - Update the player is_winner field to true.
-            - Update the game winner field to the player id.
 
 6. players acquire ships
   - for each player:
@@ -430,7 +423,13 @@ Actions are applied in a specific order, in phases to ensure consistent resoluti
           - update working state and indexes
 
 
-7. save the list of events and the working state to the database, update the turn.
+7. save the list of events and the working state to the database, update the turn and game status.
+    - If a winner was found or only one (or zero) factions remain:
+        - Update game status to `FINISHED`.
+        - If a winner was found, update the player `is_winner` field to true and the game `winner` field to the player id.
+    - Otherwise, update game status to `PLANNING`.
+    - increment `turn_number`.
+    - set `is_ready=false` for all non-eliminated players.
 
 
 ### The `handleTetherLoss` function
