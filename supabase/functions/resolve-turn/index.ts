@@ -36,6 +36,58 @@ interface TurnPlannedActionsRow {
 interface PieceTurnContext {
   wasJustPlaced?: boolean;
   wasJustDeanchored?: boolean;
+  wasJustAnchored?: boolean;
+}
+
+interface ValidatedMove {
+  piece_id: string;
+  from: Coordinate;
+  to: Coordinate;
+  faction: Faction;
+  applied: boolean;
+}
+
+// Game Logic Constants
+const MAX_TETHERED_SHIPS = 5;
+const TETHER_RANGE = 2;
+const BOMBARD_RANGE = 2;
+const BOMBARD_STRENGTH = 2;
+const SUPPORT_STRENGTH_FACTOR = 0.5;
+const BOMBARD_SUPPORT_STRENGTH = 1.0;
+const MAX_TRAY_SIZE = 9;
+
+const UNIT_STRENGTH: Record<PieceType, number> = {
+  STAR_CITY: 8,
+  NEUTRINO: 2,
+  ECLIPSE: 4,
+  PARALLAX: 6,
+};
+
+const UNIT_MOVEMENT: Record<PieceType, number> = {
+  STAR_CITY: 1,
+  NEUTRINO: 1,
+  ECLIPSE: 1,
+  PARALLAX: 2,
+};
+
+const ACQUISITION_PROBABILITIES = {
+  NEUTRINO: 0.25,
+  ECLIPSE: 0.20,
+  PARALLAX: 0.20,
+  STAR_CITY: 0.10,
+  NOTHING: 0.25,
+};
+
+function weightedRoll<T>(options: { label: T; weight: number }[]): T {
+  const totalWeight = options.reduce((sum, opt) => sum + opt.weight, 0);
+  if (totalWeight <= 0) return options[0].label;
+
+  let roll = Math.random() * totalWeight;
+  for (const option of options) {
+    if (roll < option.weight) return option.label;
+    roll -= option.weight;
+  }
+  return options[options.length - 1].label;
 }
 
 serve(async (req) => {
@@ -144,14 +196,7 @@ serve(async (req) => {
         factionMoveTargetsMap.set(player.faction, targets);
       }
 
-      const UNIT_STRENGTH: Record<string, number> = {
-        STAR_CITY: 8,
-        NEUTRINO: 2,
-        ECLIPSE: 4,
-        PARALLAX: 6,
-      };
-
-      const lossCascade = (lost_city_id: string) => {
+      const handleTetherLoss = (lost_city_id: string) => {
         const tetheredShips = tetherMap.get(lost_city_id) || [];
         for (const shipId of tetheredShips) {
           const ship = pieceMap.get(shipId);
@@ -196,7 +241,7 @@ serve(async (req) => {
               if (!city || city.type !== "STAR_CITY" || city.faction !== player.faction || !city.is_anchored) continue;
               
               const tetheredCount = tetherMap.get(city.id)?.length || 0;
-              if (tetheredCount >= 5) continue;
+              if (tetheredCount >= MAX_TETHERED_SHIPS) continue;
 
               const adj = getAdjacentCoordinates(city as Coordinate, size);
               isNearValidCity = adj.some((a) => isSameCoordinate(a, action.target));
@@ -247,10 +292,10 @@ serve(async (req) => {
             if (!city || city.type !== "STAR_CITY" || city.faction !== player.faction || !city.is_anchored) continue;
 
             const tetheredCount = tetherMap.get(city.id)?.length || 0;
-            if (tetheredCount >= 5) continue;
+            if (tetheredCount >= MAX_TETHERED_SHIPS) continue;
 
             const dist = getTorusDistance(ship as Coordinate, city as Coordinate, size);
-            if (dist > 2) continue;
+            if (dist > TETHER_RANGE) continue;
 
             if (ship.tether_id) {
               const oldShips = tetherMap.get(ship.tether_id) || [];
@@ -277,22 +322,34 @@ serve(async (req) => {
               const adj = getAdjacentCoordinates(city as Coordinate, size);
               const isNearStar = adj.some(a => game.stars.some(s => isSameCoordinate(s, a)));
               if (!isNearStar) continue;
+
+              const wasAnchored = city.is_anchored;
+              city.is_anchored = true;
+              if (!wasAnchored) {
+                const ctx = pieceContexts.get(city.id) || {};
+                pieceContexts.set(city.id, { ...ctx, wasJustAnchored: true });
+              }
             } else {
               const tetheredCount = tetherMap.get(city.id)?.length || 0;
               if (tetheredCount > 0) continue;
-            }
 
-            const wasAnchored = city.is_anchored;
-            city.is_anchored = action.is_anchored;
-            if (wasAnchored && !action.is_anchored) {
-              pieceContexts.set(city.id, { wasJustDeanchored: true });
+              const wasAnchored = city.is_anchored;
+              city.is_anchored = false;
+              if (wasAnchored) {
+                const ctx = pieceContexts.get(city.id) || {};
+                if (ctx.wasJustAnchored) {
+                  pieceContexts.set(city.id, { ...ctx, wasJustAnchored: false, wasJustDeanchored: false });
+                } else {
+                  pieceContexts.set(city.id, { ...ctx, wasJustDeanchored: true });
+                }
+              }
             }
 
             events.push({
               type: "ANCHOR",
               faction: player.faction as Faction,
               piece_id: action.piece_id,
-              is_anchored: action.is_anchored,
+              is_anchored: city.is_anchored,
             });
           }
         }
@@ -315,7 +372,7 @@ serve(async (req) => {
             if (!target || target.faction === player.faction || target.is_in_tray) continue;
 
             const dist = getTorusDistance(attacker as Coordinate, target as Coordinate, size);
-            if (dist > 2) continue;
+            if (dist > BOMBARD_RANGE) continue;
 
             const targetKey = `${target.x},${target.y}`;
             const existing = bombardmentsByCoord.get(targetKey) || [];
@@ -337,15 +394,16 @@ serve(async (req) => {
             }
 
             event.attacking_pieces.push({ piece_id: attacker.id, piece_type: attacker.type, faction: attacker.faction });
-            event.attack_strength += 2;
+            event.attack_strength += BOMBARD_STRENGTH;
           }
         }
       }
 
       for (const event of bombardEventsMap.values()) {
-        const totalStrength = event.attack_strength + event.target_strength;
-        const roll = Math.random() * totalStrength;
-        event.is_destroyed = roll < event.attack_strength;
+        event.is_destroyed = weightedRoll([
+          { label: true, weight: event.attack_strength },
+          { label: false, weight: event.target_strength },
+        ]);
         events.push(event);
 
         const target = pieceMap.get(event.target.piece_id);
@@ -361,7 +419,7 @@ serve(async (req) => {
             if (target.x !== null && target.y !== null) coordinateMap.delete(`${target.x},${target.y}`);
             const factionPlaced = factionPlacedPiecesMap.get(target.faction) || [];
             factionPlacedPiecesMap.set(target.faction, factionPlaced.filter((id) => id !== target.id));
-            if (target.type === "STAR_CITY") lossCascade(target.id);
+            if (target.type === "STAR_CITY") handleTetherLoss(target.id);
             else if (target.tether_id) {
               const ships = tetherMap.get(target.tether_id) || [];
               tetherMap.set(target.tether_id, ships.filter((id) => id !== target.id));
@@ -372,7 +430,6 @@ serve(async (req) => {
       }
 
       // Phase 4: Resolve MOVE_ACT actions
-      const UNIT_MOVEMENT: Record<string, number> = { STAR_CITY: 1, NEUTRINO: 1, ECLIPSE: 1, PARALLAX: 2 };
 
       interface ValidatedMove {
         piece_id: string;
@@ -408,7 +465,7 @@ serve(async (req) => {
 
             if ((piece.type === "ECLIPSE" || piece.type === "PARALLAX") && piece.tether_id) {
               const city = pieceMap.get(piece.tether_id);
-              if (!city || getTorusDistance(action.to, city as Coordinate, size) > 2) continue;
+              if (!city || getTorusDistance(action.to, city as Coordinate, size) > TETHER_RANGE) continue;
             }
 
             validatedMoves.push({
@@ -423,6 +480,36 @@ serve(async (req) => {
           }
         }
       }
+
+      // Step 1: Initial move application (only non-conflicting, non-blocked)
+      const applyNonConflictingMoves = (moves: ValidatedMove[]) => {
+        let changed = true;
+        while (changed) {
+          changed = false;
+          for (const move of moves) {
+            if (move.applied) continue;
+
+            const piece = pieceMap.get(move.piece_id);
+            if (!piece) {
+              move.applied = true;
+              continue;
+            }
+
+            const targetKey = `${move.to.x},${move.to.y}`;
+            const targetCount = moveTargetCount.get(targetKey) || 0;
+
+            if (targetCount === 1 && !coordinateMap.has(targetKey)) {
+              coordinateMap.delete(`${move.from.x},${move.from.y}`);
+              piece.x = move.to.x;
+              piece.y = move.to.y;
+              coordinateMap.set(targetKey, piece.id);
+              events.push({ type: "MOVE", faction: move.faction, piece_id: move.piece_id, from: move.from, to: move.to });
+              move.applied = true;
+              changed = true;
+            }
+          }
+        }
+      };
 
       const factionTargetKeys = new Set<string>();
       const invalidMoveIndices = new Set<number>();
@@ -439,25 +526,7 @@ serve(async (req) => {
       }
       const finalValidatedMoves = validatedMoves.filter((_, i) => !invalidMoveIndices.has(i));
 
-      let movesAppliedThisLoop = true;
-      while (movesAppliedThisLoop) {
-        movesAppliedThisLoop = false;
-        for (const move of finalValidatedMoves) {
-          const targetKey = `${move.to.x},${move.to.y}`;
-          if (!move.applied && moveTargetCount.get(targetKey) === 1 && !coordinateMap.has(targetKey)) {
-            const piece = pieceMap.get(move.piece_id);
-            if (piece) {
-              coordinateMap.delete(`${move.from.x},${move.from.y}`);
-              piece.x = move.to.x;
-              piece.y = move.to.y;
-              coordinateMap.set(targetKey, piece.id);
-              events.push({ type: "MOVE", faction: move.faction, piece_id: move.piece_id, from: move.from, to: move.to });
-              move.applied = true;
-              movesAppliedThisLoop = true;
-            } else move.applied = true;
-          }
-        }
-      }
+      applyNonConflictingMoves(finalValidatedMoves);
 
       const unappliedMovesByCoord = new Map<string, ValidatedMove[]>();
       for (const m of finalValidatedMoves) {
@@ -471,12 +540,12 @@ serve(async (req) => {
 
       const battleCoords = new Set<string>();
       for (const [coordKey, moves] of unappliedMovesByCoord) {
-        const defenderId = coordinateMap.get(coordKey);
-        const defender = defenderId ? pieceMap.get(defenderId) : null;
+        const occupantId = coordinateMap.get(coordKey);
+        const occupant = occupantId ? pieceMap.get(occupantId) : null;
         
         const factions = new Set<Faction>();
         moves.forEach(m => factions.add(m.faction));
-        if (defender) factions.add(defender.faction);
+        if (occupant) factions.add(occupant.faction);
 
         if (factions.size > 1) {
           battleCoords.add(coordKey);
@@ -486,9 +555,16 @@ serve(async (req) => {
       const battleEvents: BattleCollisionEvent[] = [];
       for (const coordKey of battleCoords) {
         const [x, y] = coordKey.split(',').map(Number);
-        const entering = unappliedMovesByCoord.get(coordKey) || [];
-        const defenderId = coordinateMap.get(coordKey);
-        const defender = defenderId ? pieceMap.get(defenderId) : null;
+        const enteringCandidates = unappliedMovesByCoord.get(coordKey) || [];
+        const occupantId = coordinateMap.get(coordKey);
+        const occupant = occupantId ? pieceMap.get(occupantId) : null;
+
+        // Filter out movers that are the same faction as the defender
+        const entering = occupant 
+          ? enteringCandidates.filter(m => m.faction !== occupant.faction)
+          : enteringCandidates;
+
+        if (entering.length === 0) continue;
 
         const battle: BattleCollisionEvent = {
           type: "BATTLE_COLLISION",
@@ -497,7 +573,7 @@ serve(async (req) => {
             const p = pieceMap.get(m.piece_id)!;
             return { piece_id: p.id, piece_type: p.type, faction: p.faction };
           }),
-          defending_participant: defender ? { piece_id: defender.id, piece_type: defender.type, faction: defender.faction } : null,
+          defending_participant: occupant ? { piece_id: occupant.id, piece_type: occupant.type, faction: occupant.faction } : null,
           supporting_participants: [],
           supporting_bombardments: bombardmentsByCoord.get(coordKey) || [],
           calculated_strengths: [],
@@ -508,7 +584,7 @@ serve(async (req) => {
         const adj = getAdjacentCoordinates({ x, y }, size);
         for (const a of adj) {
           const sId = coordinateMap.get(`${a.x},${a.y}`);
-          if (sId && sId !== defenderId) {
+          if (sId && sId !== occupantId) {
             const p = pieceMap.get(sId)!;
             battle.supporting_participants.push({ piece_id: p.id, piece_type: p.type, faction: p.faction });
           }
@@ -516,28 +592,22 @@ serve(async (req) => {
 
         const factions = new Set<Faction>();
         entering.forEach(m => factions.add(m.faction));
-        if (defender) factions.add(defender.faction);
+        if (occupant) factions.add(occupant.faction);
 
         const weights = new Map<Faction, number>();
         for (const f of factions) {
           let w = 0;
           entering.filter(m => m.faction === f).forEach(m => w += UNIT_STRENGTH[pieceMap.get(m.piece_id)!.type]);
-          if (defender && defender.faction === f) w += UNIT_STRENGTH[defender.type];
-          battle.supporting_participants.filter(p => p.faction === f).forEach(p => w += 0.5 * UNIT_STRENGTH[p.piece_type]);
-          battle.supporting_bombardments.filter(p => p.faction === f).forEach(p => w += 1.0);
+          if (occupant && occupant.faction === f) w += UNIT_STRENGTH[occupant.type];
+          battle.supporting_participants.filter(p => p.faction === f).forEach(p => w += SUPPORT_STRENGTH_FACTOR * UNIT_STRENGTH[p.piece_type]);
+          battle.supporting_bombardments.filter(p => p.faction === f).forEach(_ => w += BOMBARD_SUPPORT_STRENGTH);
           weights.set(f, w);
           battle.calculated_strengths.push({ faction: f, strength: w });
         }
 
-        const totalW = Array.from(weights.values()).reduce((a, b) => a + b, 0);
-        let roll = Math.random() * (totalW || 1);
-        let winner: Faction = Array.from(weights.keys())[0];
-        for (const [f, w] of weights.entries()) {
-          if (roll < w) { winner = f; break; }
-          roll -= w;
-        }
+        const winner = weightedRoll(Array.from(weights.entries()).map(([f, w]) => ({ label: f, weight: w })));
         battle.winning_faction = winner;
-        battle.result = (defender && defender.type === "STAR_CITY" && defender.faction !== winner) ? "CAPTURE" : "DESTROY";
+        battle.result = (occupant && occupant.type === "STAR_CITY" && occupant.faction !== winner) ? "CAPTURE" : "DESTROY";
         events.push(battle);
         battleEvents.push(battle);
       }
@@ -546,8 +616,14 @@ serve(async (req) => {
       for (const b of battleEvents) {
         const all = [...b.entering_participants, ...b.supporting_participants, ...(b.defending_participant ? [b.defending_participant] : [])];
         for (const p of all) if (p.piece_type === "NEUTRINO") pieceMap.get(p.piece_id)!.is_visible = true;
+        
+        // Those who entered and lost are destroyed
         for (const p of b.entering_participants) if (p.faction !== b.winning_faction) piecesToDestroy.add(p.piece_id);
-        if (b.result === "DESTROY" && b.defending_participant && b.defending_participant.faction !== b.winning_faction) piecesToDestroy.add(b.defending_participant.piece_id);
+        
+        // Defending ship is destroyed if it's not the winner and result is DESTROY
+        if (b.result === "DESTROY" && b.defending_participant && b.defending_participant.faction !== b.winning_faction) {
+          piecesToDestroy.add(b.defending_participant.piece_id);
+        }
       }
 
       for (const id of piecesToDestroy) {
@@ -557,7 +633,7 @@ serve(async (req) => {
           if (p.x !== null && p.y !== null) coordinateMap.delete(`${p.x},${p.y}`);
           const factionPlaced = factionPlacedPiecesMap.get(p.faction) || [];
           factionPlacedPiecesMap.set(p.faction, factionPlaced.filter(pid => pid !== p.id));
-          if (p.type === "STAR_CITY") lossCascade(p.id);
+          if (p.type === "STAR_CITY") handleTetherLoss(p.id);
           else if (p.tether_id) {
             const ships = tetherMap.get(p.tether_id) || [];
             tetherMap.set(p.tether_id, ships.filter(sid => sid !== p.id));
@@ -590,6 +666,14 @@ serve(async (req) => {
           // Mark applied regardless (if CAPTURE, they stay put but move is consumed)
           winningMove.applied = true;
         }
+
+        // Mark losers' moves as applied too, so they don't try to move again in Step 4
+        const loserMoves = finalValidatedMoves.filter(m => 
+          !m.applied && 
+          m.to.x === b.coord.x && 
+          m.to.y === b.coord.y
+        );
+        for (const m of loserMoves) m.applied = true;
       }
 
       for (const b of battleEvents) {
@@ -603,34 +687,16 @@ serve(async (req) => {
             factionPlacedPiecesMap.set(oldF, oldList.filter(id => id !== city.id));
             factionPlacedPiecesMap.get(newF)?.push(city.id);
             city.faction = newF;
-            lossCascade(city.id);
+            handleTetherLoss(city.id);
           }
         }
       }
 
-      const remMoves = finalValidatedMoves.filter(m => !m.applied && pieceMap.has(m.piece_id));
-      movesAppliedThisLoop = true;
-      while (movesAppliedThisLoop) {
-        movesAppliedThisLoop = false;
-        for (const move of remMoves) {
-          const tKey = `${move.to.x},${move.to.y}`;
-          if (!move.applied && !coordinateMap.has(tKey)) {
-            const p = pieceMap.get(move.piece_id);
-            if (p) {
-              coordinateMap.delete(`${move.from.x},${move.from.y}`);
-              p.x = move.to.x;
-              p.y = move.to.y;
-              coordinateMap.set(tKey, p.id);
-              events.push({ type: "MOVE", faction: move.faction, piece_id: move.piece_id, from: move.from, to: move.to });
-              move.applied = true;
-              movesAppliedThisLoop = true;
-            } else move.applied = true;
-          }
-        }
-      }
+      // Step 4: Final move application
+      applyNonConflictingMoves(finalValidatedMoves);
 
       // Phase 5: Win/Elimination
-      const eliminated = [];
+      const eliminated: Faction[] = [];
       for (const p of activePlayers) {
         const faction = p.faction as Faction;
         if ((factionPlacedPiecesMap.get(faction) || []).map(id => pieceMap.get(id)!).filter(p => p.type === "STAR_CITY").length === 0) eliminated.push(faction);
@@ -665,7 +731,7 @@ serve(async (req) => {
           counts.set(f, stars.size);
         }
         const sorted = Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
-        if (sorted.length > 0 && sorted[0][1] >= 3 && (sorted.length === 1 || sorted[0][1] > sorted[1][1])) winnerF = sorted[0][0];
+        if (sorted.length > 0 && sorted[0][1] >= params.star_count_to_win && (sorted.length === 1 || sorted[0][1] > sorted[1][1])) winnerF = sorted[0][0];
       } else {
         events.push({ type: "GAME_OVER", winner: null, did_someone_win: false });
         await sql`UPDATE games SET status = 'FINISHED' WHERE id = ${game_id}`;
@@ -674,27 +740,42 @@ serve(async (req) => {
       if (winnerF) {
         events.push({ type: "GAME_OVER", winner: winnerF, did_someone_win: true });
         const winP = activePlayers.find(p => p.faction === winnerF);
-        await sql`UPDATE games SET status = 'FINISHED', winner = ${winP?.id} WHERE id = ${game_id}`;
-        if (winP) await sql`UPDATE players SET is_winner = TRUE WHERE id = ${winP.id}`;
+        if (winP) {
+          await sql`UPDATE games SET status = 'FINISHED', winner = ${winP.id} WHERE id = ${game_id}`;
+          await sql`UPDATE players SET is_winner = TRUE WHERE id = ${winP.id}`;
+        }
       }
 
       // Phase 6: Acquisition
       for (const p of remaining) {
-        const tray = factionTrayMap.get(p.faction as Faction) || [];
-        if (tray.length < 9) {
-          const r = Math.random();
-          let type: PieceType | null = null;
-          if (r < 0.25) type = "NEUTRINO";
-          else if (r < 0.45) type = "ECLIPSE";
-          else if (r < 0.65) type = "PARALLAX";
-          else if (r < 0.75) type = "STAR_CITY";
+        const faction = p.faction as Faction;
+        const tray = factionTrayMap.get(faction) || [];
+        if (tray.length < MAX_TRAY_SIZE) {
+          const type = weightedRoll([
+            { label: "NEUTRINO" as PieceType, weight: ACQUISITION_PROBABILITIES.NEUTRINO },
+            { label: "ECLIPSE" as PieceType, weight: ACQUISITION_PROBABILITIES.ECLIPSE },
+            { label: "PARALLAX" as PieceType, weight: ACQUISITION_PROBABILITIES.PARALLAX },
+            { label: "STAR_CITY" as PieceType, weight: ACQUISITION_PROBABILITIES.STAR_CITY },
+            { label: null, weight: ACQUISITION_PROBABILITIES.NOTHING },
+          ]);
 
           if (type) {
             const id = crypto.randomUUID();
-            const piece: Piece = { id, faction: p.faction as Faction, type, x: null, y: null, tether_id: null, is_anchored: false, is_stunned: false, is_visible: type !== "NEUTRINO", is_in_tray: true };
+            const piece: Piece = { 
+              id, 
+              faction, 
+              type, 
+              x: null, 
+              y: null, 
+              tether_id: null, 
+              is_anchored: false, 
+              is_stunned: false, 
+              is_visible: type !== "NEUTRINO", 
+              is_in_tray: true 
+            };
             pieceMap.set(id, piece);
             tray.push(id);
-            events.push({ type: "PIECE_ACQUIRED", faction: p.faction as Faction, piece_type: type, new_piece_id: id });
+            events.push({ type: "PIECE_ACQUIRED", faction, piece_type: type, new_piece_id: id });
           }
         }
       }

@@ -347,7 +347,7 @@ Actions are applied in a specific order, in phases to ensure consistent resoluti
         - if the ship is destroyed:
             - create and push a SHIP_DESTROYED_IN_BOMBARDMENT event
             - update the working state and indexes
-            - put it through the lossCascade function (this function will be explained in detail later, it removes tethers and untethered ships from the working state)
+            - put it through the handleTetherLoss function (this function will be explained in detail later, it removes tethers and untethered ships from the working state)
 
 4. Resolve MOVE_ACT actions
     - overview: this phase will be done in steps:
@@ -390,12 +390,12 @@ Actions are applied in a specific order, in phases to ensure consistent resoluti
         - for each destroyed ship:
             - create and push a SHIP_DESTROYED_IN_BATTLE event
             - update the working state and indexes
-            - put it through the lossCascade function
+            - put it through the handleTetherLoss function
         - for each battle
             - if result=CAPTURE and the captured star city still exists
                 - create and push a CITY_CAPTURED event
                 - update the working state and indexes to transfer ownership
-                - put the lost city through the lossCascade function
+                - put the lost city through the handleTetherLoss function
 
     - Step 4
         - take the list of un-applied moves that was used at the beginning of step 2
@@ -433,7 +433,7 @@ Actions are applied in a specific order, in phases to ensure consistent resoluti
 7. save the list of events and the working state to the database, update the turn.
 
 
-### The `lossCascade` function
+### The `handleTetherLoss` function
 When a Star City is destroyed or captured, the ships tethered to it may be lost.
 
 - **Input**: `lost_city_id`

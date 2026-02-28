@@ -23,7 +23,7 @@ A faction wins if it is anchored to 3 or more distinct stars AND has more stars 
 | **Parallax** | 6 | 2 | 2 | Yes | Triangle | High mobility. |
 
 ## Tethers & Placement
-- **Requirement:** Every Ship (except Neutrinos) and Star City must be tethered to a Star City.
+- **Requirement:** Every Ship (except Neutrinos) must be tethered to a Star City.
 - **Anchoring:** A Star City must be **anchored** beside a star to support tethers and allow placement of new pieces.
 - **Tether Range:** Eclipse and Parallax units must remain within a distance of 2 from their tethered Star City.
 - **Capacity:** A Star City can support up to 5 tethered pieces.
