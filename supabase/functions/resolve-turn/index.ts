@@ -471,7 +471,16 @@ serve(async (req) => {
 
       const battleCoords = new Set<string>();
       for (const [coordKey, moves] of unappliedMovesByCoord) {
-        if (moves.length > 1 || coordinateMap.has(coordKey)) battleCoords.add(coordKey);
+        const defenderId = coordinateMap.get(coordKey);
+        const defender = defenderId ? pieceMap.get(defenderId) : null;
+        
+        const factions = new Set<Faction>();
+        moves.forEach(m => factions.add(m.faction));
+        if (defender) factions.add(defender.faction);
+
+        if (factions.size > 1) {
+          battleCoords.add(coordKey);
+        }
       }
 
       const battleEvents: BattleCollisionEvent[] = [];
@@ -554,6 +563,32 @@ serve(async (req) => {
             tetherMap.set(p.tether_id, ships.filter(sid => sid !== p.id));
           }
           pieceMap.delete(id);
+        }
+      }
+
+      // Step 3.1: Apply Victor Moves
+      for (const b of battleEvents) {
+        const winningMove = finalValidatedMoves.find(m => 
+          !m.applied && 
+          m.faction === b.winning_faction && 
+          m.to.x === b.coord.x && 
+          m.to.y === b.coord.y
+        );
+
+        if (winningMove) {
+          if (b.result === "DESTROY") {
+            // Victor moves into the square
+            const p = pieceMap.get(winningMove.piece_id);
+            if (p) {
+              coordinateMap.delete(`${winningMove.from.x},${winningMove.from.y}`);
+              p.x = winningMove.to.x;
+              p.y = winningMove.to.y;
+              coordinateMap.set(`${p.x},${p.y}`, p.id);
+              events.push({ type: "MOVE", faction: winningMove.faction, piece_id: winningMove.piece_id, from: winningMove.from, to: winningMove.to });
+            }
+          }
+          // Mark applied regardless (if CAPTURE, they stay put but move is consumed)
+          winningMove.applied = true;
         }
       }
 
