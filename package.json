@@ -11,6 +11,7 @@
     "flutter": "cd client-flutter && flutter run --dart-define-from-file=.env",
     "flutter:analyze": "cd ./client-flutter && flutter analyze --no-pub",
     "db:diff": "supabase db diff -f",
+    "db:push": "supabase db push",
     "fn:deploy": "supabase functions deploy",
     "create-user": "node scripts/create-user.js",
     "log": "node ./notes-star-cities/scripts/dev-log.js"

@@ -30,8 +30,9 @@ This document outlines the high-level logic, database interactions, and triggers
 ## 2. `resolve-turn`
 **Goal:** Process the simultaneous moves of all players and transition the game from Turn N to Turn N+1.
 
-*   **Trigger:**
-    *   Database Webhook fires when a Postgres Function (`check_all_players_ready`) determines that all players for a `game_id` have `is_ready = true`.
+*   **Trigger Mechanism:**
+    1.  **Step 1 (SQL Trigger):** `trigger_resolve_turn` on the `players` table. When a player sets `is_ready = true`, it checks if all non-eliminated players in that game are ready. If so, it updates `games.status` to `'RESOLVING'`.
+    2.  **Step 2 (Supabase Webhook):** A Webhook configured in the Supabase Dashboard (`resolve_turn`) listens for `UPDATE` events on the `games` table. When the status changes to `'RESOLVING'`, it invokes this function.
 *   **Architecture:**
     *   The function is modularized into five distinct phases for maintainability and clear resolution order.
     *   **Phase 1: Preparation (`01-prepare`)**: Fetches game data and initializes the `TurnContext` with lookup indexes.
@@ -52,8 +53,8 @@ This document outlines the high-level logic, database interactions, and triggers
 ## 3. `player-bot`
 **Goal:** Provide an automated participant to fill games or act as an opponent.
 
-*   **Trigger:**
-    *   Supabase Webhook configured to fire when `games.status` changes to `'PLANNING'`.
+*   **Trigger Mechanism:**
+    *   **Supabase Webhook:** A Webhook configured in the Supabase Dashboard (`player_bot`) listens for `UPDATE` events on the `games` table. It is triggered when `games.status` changes to `'PLANNING'`, signaling the start of a new turn.
 *   **Database Reads:**
     *   `players`: To identify which player IDs in the current game are bots and not eliminated.
 *   **Logic (Current Scaffold):**
