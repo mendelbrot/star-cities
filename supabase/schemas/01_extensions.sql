@@ -1,3 +1,2 @@
 -- Enable common extensions
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+-- gen_random_uuid() is built-in as of Postgres 13+, so no extension is needed for basic UUID generation.

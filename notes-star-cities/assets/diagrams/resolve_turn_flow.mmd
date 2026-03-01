@@ -1,0 +1,45 @@
+graph TD
+    Start([Turn Resolution Starts]) --> P1[Phase 1: Prepare]
+    
+    subgraph Phase 1: Prepare
+        P1 --> Fetch[Fetch Game, Players, State & Actions]
+        Fetch --> Context[Initialize TurnContext]
+        Context --> Reset[Reset Visibility & Flags]
+    end
+    
+    Reset --> P2[Phase 2: Intent Resolution]
+    
+    subgraph Phase 2: Intent Resolution
+        P2 --> Loop2[For each Player: Process Actions in Sequence]
+        Loop2 --> Validate2[Validate Type: Place/Tether/Anchor]
+        Validate2 --> UpdateIdx2[Update Piece & Map Immediately]
+    end
+    
+    UpdateIdx2 --> P3[Phase 3: Combat Resolution]
+    
+    subgraph Phase 3: Combat Resolution
+        P3 --> B_ACT[3a. Resolve Bombardments]
+        B_ACT --> V_MOVE[3b. Validate Movement Intents]
+        V_MOVE --> I_MOVE[3c. Iterative Non-Conflicting Moves]
+        I_MOVE --> BATTLES[3d. Resolve Battles & Collisions]
+        BATTLES --> DESTROY[3e. Handle Destruction & Cascading Losses]
+        DESTROY --> VICTOR[3f. Apply Victor Movement]
+        VICTOR --> F_MOVE[3g. Final Movement Application]
+    end
+    
+    F_MOVE --> P4[Phase 4: Lifecycle & Economy]
+    
+    subgraph Phase 4: Lifecycle
+        P4 --> ELIM[Faction Elimination]
+        ELIM --> ACQ[Random Piece Acquisition]
+    end
+    
+    ACQ --> P5[Phase 5: Conclusion]
+    
+    subgraph Phase 5: Conclusion
+        P5 --> WIN[Check Win Conditions]
+        WIN --> Save[Save Events & Final State]
+        Save --> Transition[Transition Game Status & Turn]
+    end
+    
+    Transition --> End([Turn Resolution Ends])

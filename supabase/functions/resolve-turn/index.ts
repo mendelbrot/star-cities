@@ -1,30 +1,54 @@
-// Supabase Edge Function: resolve-turn
-// This function resolves Turn N into Turn N+1 events and state.
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { sql } from "../_shared/db.ts";
+import { ServerError } from "../_shared/server-error.ts";
+import { prepare } from "./phases/01-prepare.ts";
+import { resolveIntents } from "./phases/02-intent.ts";
+import { resolveCombat } from "./phases/03-combat.ts";
+import { resolveLifecycle } from "./phases/04-lifecycle.ts";
+import { finalize } from "./phases/05-finalize.ts";
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-
-console.log("Hello from resolve-turn!")
+interface WebhookPayload {
+  record: {
+    id: string;
+    status: string;
+    turn_number: number;
+  };
+}
 
 serve(async (req) => {
   try {
-    const { game_id } = await req.json()
+    const body: WebhookPayload = await req.json();
+    const { record } = body;
+    const { id: game_id, status, turn_number } = record;
 
-    console.log(`Resolving turn for game: ${game_id}`)
+    if (status !== "RESOLVING") {
+      return new Response(null, { status: 200 });
+    }
 
-    // TODO: Implement 7-phase resolution logic
-    // 1. Fetch current state and planned actions
-    // 2. Process phases (Move, Battle, etc.)
-    // 3. Commit events and new state in an ACID transaction
+    console.log(`Resolving turn ${turn_number} for game: ${game_id}`);
 
-    return new Response(
-      JSON.stringify({ message: "Turn resolution started.", game_id }),
-      { headers: { "Content-Type": "application/json" }, status: 200 },
-    )
+    await sql.begin(async (tx) => {
+      // Phase 1: Preparation (Fetch & Index)
+      const { context, plannedActions, factionMoveTargetsMap } = await prepare(tx, game_id, turn_number);
+
+      // Phase 2: Intent Resolution (PLACE, TETHER, ANCHOR)
+      resolveIntents(context, plannedActions, factionMoveTargetsMap);
+
+      // Phase 3: Combat Resolution (BOMBARD, MOVE, BATTLE)
+      resolveCombat(context, plannedActions);
+
+      // Phase 4: Lifecycle & Economy (Elimination, Acquisition)
+      await resolveLifecycle(tx, context);
+
+      // Phase 5: Conclusion (Win Check, Persistence)
+      await finalize(tx, context);
+    });
+
+    return new Response(null, { status: 200 });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred"
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { headers: { "Content-Type": "application/json" }, status: 400 },
-    )
+    console.error(error);
+    return new Response(null, { 
+      status: error instanceof ServerError ? error.statusCode : 500,
+    });
   }
-})
+});

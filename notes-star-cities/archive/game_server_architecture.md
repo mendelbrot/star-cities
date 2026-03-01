@@ -39,7 +39,7 @@ server-go/
 │       ├── torus.go     # Math helpers for 9x9 torus wrap-around logic
 │       ├── engine.go    # Orchestrates the 7 phases
 │       ├── phase1_2.go  # Initialization, Place, Tether, Anchor
-│       ├── phase3_4.go  # Bombardments, Movement, Battles, lossCascade
+│       ├── phase3_4.go  # Bombardments, Movement, Battles, handleTetherLoss
 │       └── phase5_7.go  # Win conditions, Ship acquisition
 └── pkg/                 # Shared utilities (logging, deterministic RNG)
 ```

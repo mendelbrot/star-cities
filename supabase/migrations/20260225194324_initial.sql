@@ -4,12 +4,12 @@ create type "public"."game_status" as enum ('WAITING', 'STARTING', 'PLANNING', '
 
 
   create table "public"."games" (
-    "id" uuid not null default extensions.uuid_generate_v4(),
+    "id" uuid not null default gen_random_uuid(),
     "status" public.game_status not null default 'WAITING'::public.game_status,
     "turn_number" integer not null default 1,
     "player_count" integer not null default 4,
     "stars" jsonb,
-    "game_parameters" jsonb not null default '{"grid_size": 9, "star_count_to_win": 3, "max_ships_per_city": 5}'::jsonb,
+    "game_parameters" jsonb not null default '{"grid_size": 9, "star_count": 6, "starting_ships": ["NEUTRINO", "NEUTRINO", "PARALLAX", "ECLIPSE"], "star_count_to_win": 3, "max_ships_per_city": 5}'::jsonb,
     "created_at" timestamp with time zone not null default now(),
     "updated_at" timestamp with time zone not null default now(),
     "winner" uuid
@@ -20,9 +20,11 @@ alter table "public"."games" enable row level security;
 
 
   create table "public"."players" (
-    "id" uuid not null default extensions.uuid_generate_v4(),
+    "id" uuid not null default gen_random_uuid(),
     "game_id" uuid not null,
-    "user_id" uuid not null,
+    "user_id" uuid,
+    "is_bot" boolean not null default false,
+    "bot_name" text,
     "faction" public.faction not null,
     "home_star" jsonb,
     "is_ready" boolean not null default false,
@@ -36,7 +38,7 @@ alter table "public"."players" enable row level security;
 
 
   create table "public"."turn_events" (
-    "id" uuid not null default extensions.uuid_generate_v4(),
+    "id" uuid not null default gen_random_uuid(),
     "game_id" uuid not null,
     "turn_number" integer not null,
     "events" jsonb not null default '[]'::jsonb,
@@ -48,7 +50,7 @@ alter table "public"."turn_events" enable row level security;
 
 
   create table "public"."turn_planned_actions" (
-    "id" uuid not null default extensions.uuid_generate_v4(),
+    "id" uuid not null default gen_random_uuid(),
     "game_id" uuid not null,
     "player_id" uuid not null,
     "turn_number" integer not null,
@@ -61,7 +63,7 @@ alter table "public"."turn_planned_actions" enable row level security;
 
 
   create table "public"."turn_states" (
-    "id" uuid not null default extensions.uuid_generate_v4(),
+    "id" uuid not null default gen_random_uuid(),
     "game_id" uuid not null,
     "turn_number" integer not null,
     "state" jsonb not null default '[]'::jsonb,
@@ -85,9 +87,9 @@ alter table "public"."user_profiles" enable row level security;
 
 CREATE UNIQUE INDEX games_pkey ON public.games USING btree (id);
 
-CREATE UNIQUE INDEX players_game_id_faction_key ON public.players USING btree (game_id, faction);
+CREATE UNIQUE INDEX idx_unique_human_player_per_game ON public.players USING btree (game_id, user_id) WHERE (user_id IS NOT NULL);
 
-CREATE UNIQUE INDEX players_game_id_user_id_key ON public.players USING btree (game_id, user_id);
+CREATE UNIQUE INDEX players_game_id_faction_key ON public.players USING btree (game_id, faction);
 
 CREATE UNIQUE INDEX players_pkey ON public.players USING btree (id);
 
@@ -121,13 +123,15 @@ alter table "public"."games" add constraint "games_winner_fkey" FOREIGN KEY (win
 
 alter table "public"."games" validate constraint "games_winner_fkey";
 
+alter table "public"."players" add constraint "player_identity" CHECK ((((is_bot = false) AND (user_id IS NOT NULL)) OR ((is_bot = true) AND (user_id IS NULL)))) not valid;
+
+alter table "public"."players" validate constraint "player_identity";
+
 alter table "public"."players" add constraint "players_game_id_faction_key" UNIQUE using index "players_game_id_faction_key";
 
 alter table "public"."players" add constraint "players_game_id_fkey" FOREIGN KEY (game_id) REFERENCES public.games(id) ON DELETE CASCADE not valid;
 
 alter table "public"."players" validate constraint "players_game_id_fkey";
-
-alter table "public"."players" add constraint "players_game_id_user_id_key" UNIQUE using index "players_game_id_user_id_key";
 
 alter table "public"."players" add constraint "players_user_id_fkey" FOREIGN KEY (user_id) REFERENCES auth.users(id) not valid;
 
@@ -158,6 +162,33 @@ alter table "public"."user_profiles" add constraint "user_profiles_id_fkey" FORE
 alter table "public"."user_profiles" validate constraint "user_profiles_id_fkey";
 
 alter table "public"."user_profiles" add constraint "user_profiles_username_key" UNIQUE using index "user_profiles_username_key";
+
+set check_function_bodies = off;
+
+CREATE OR REPLACE FUNCTION public.check_game_full_and_start()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+DECLARE
+    target_count INTEGER;
+    current_count INTEGER;
+BEGIN
+    -- Get the target player count from the game record
+    SELECT player_count INTO target_count FROM games WHERE id = NEW.game_id;
+    
+    -- Count how many players have joined this game
+    SELECT COUNT(*) INTO current_count FROM players WHERE game_id = NEW.game_id;
+    
+    -- If the counts match, update the game status to 'STARTING'
+    IF current_count = target_count THEN
+        UPDATE games SET status = 'STARTING' WHERE id = NEW.game_id AND status = 'WAITING';
+    END IF;
+    
+    RETURN NEW;
+END;
+$function$
+;
 
 grant delete on table "public"."games" to "anon";
 
@@ -547,5 +578,7 @@ with check ((auth.uid() = id));
   to authenticated
 using ((auth.uid() = id));
 
+
+CREATE TRIGGER trigger_check_game_full AFTER INSERT ON public.players FOR EACH ROW EXECUTE FUNCTION public.check_game_full_and_start();
 
 

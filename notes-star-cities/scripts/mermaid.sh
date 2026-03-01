@@ -12,15 +12,16 @@
 # mmdc -i input.mmd -o output.svg -t forest
 
 src_dir=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
+assets_dir="${src_dir}/../assets"
 
-for file in "${src_dir}"/assets/diagrams/*.mmd
+for file in "${assets_dir}"/diagrams/*.mmd
 do
   basename="$(basename -- $file)"
   basename_svg=${basename%.mmd}.svg
   echo $( \
     mmdc \
       -i "${file}" \
-      -o "${src_dir}"/assets/images/"${basename_svg}"\
+      -o "${assets_dir}"/images/"${basename_svg}"\
       -t forest \
   )
 done
