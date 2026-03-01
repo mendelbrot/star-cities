@@ -32,23 +32,20 @@ This document outlines the high-level logic, database interactions, and triggers
 
 *   **Trigger:**
     *   Database Webhook fires when a Postgres Function (`check_all_players_ready`) determines that all players for a `game_id` have `is_ready = true`.
-*   **Database Reads:**
-    *   `games`: Current turn number and status.
-    *   `turn_states`: The starting state of the board for Turn N.
-    *   `turn_planned_actions`: All actions submitted by players for Turn N.
-*   **Logic:**
-      // Phase 1: Indexing state
-      // Phase 2: Resolve non-conflict actions (PLACE, TETHER, ANCHOR)
-      // Phase 3: Resolve BOMBARD actions
-      // Phase 4: Resolve MOVE actions and Battles
-      // Phase 5: Check win condition and eliminated factions
-      // Phase 6: Players acquire ships
-      // Phase 7: Save next turn state and events
+*   **Architecture:**
+    *   The function is modularized into five distinct phases for maintainability and clear resolution order.
+    *   **Phase 1: Preparation (`01-prepare`)**: Fetches game data and initializes the `TurnContext` with lookup indexes.
+    *   **Phase 2: Intent Resolution (`02-intent`)**: Processes `PLACE_ACT`, `TETHER_ACT`, and `ANCHOR_ACT` in the order they were submitted by the player.
+    *   **Phase 3: Combat Resolution (`03-combat`)**: Resolves bombardment, validates movement, and executes iterative move application and battles.
+    *   **Phase 4: Lifecycle & Economy (`04-lifecycle`)**: Handles faction elimination and random piece acquisition.
+    *   **Phase 5: Conclusion (`05-finalize`)**: Checks win conditions, saves final state/events, and increments the turn.
+*   **Logic Detail:**
+    *   For a deep-dive into the resolution rules for each phase, see the **[Server-Side Event + State Resolution Logic](data_models_and_game_logic.md#resolving-state--actions-to-next-state--events-the-5-phase-model)** section of the Data Models documentation.
 *   **Database Writes (Transaction):**
     1.  Insert `turn_events`: The sequence of events for Turn N (to be replayed by clients).
     2.  Insert `turn_states`: The resulting board state for Turn N+1.
     3.  Update `games`: Increment `turn_number`, update `status` (back to `'PLANNING'` or `'FINISHED'`), and set `winner` if applicable.
-    4.  Update `players`: Reset `is_ready` to `false` for all players.
+    4.  Update `players`: Reset `is_ready` to `false` for all non-eliminated players.
 
 ---
 
@@ -56,17 +53,13 @@ This document outlines the high-level logic, database interactions, and triggers
 **Goal:** Provide an automated participant to fill games or act as an opponent.
 
 *   **Trigger:**
-    *   Invoked via an Edge Function call (or Cron trigger) when a game enters the `'PLANNING'` phase and contains bot-controlled players.
+    *   Supabase Webhook configured to fire when `games.status` changes to `'PLANNING'`.
 *   **Database Reads:**
-    *   `turn_states`: To see the current board and tray.
-    *   `user_profiles` / `players`: To identify which player IDs are bots.
-*   **Logic:**
-    1.  **Vision Check:** Determine which enemy units are visible based on bot's piece vision ranges.
-    2.  **Decision Engine:**
-        *   Priority 1: Tether/Place pieces from tray.
-        *   Priority 2: Move toward the nearest Star or enemy City.
-        *   Priority 3: Bombard any visible threats.
-    3.  **Action Generation:** Format decisions into the `turn_planned_actions` JSON schema.
+    *   `players`: To identify which player IDs in the current game are bots and not eliminated.
+*   **Logic (Current Scaffold):**
+    1.  The function currently iterates through all active bots in the game.
+    2.  It creates an empty list of `actions`.
+    3.  Future implementation will include a **Decision Engine** to move toward stars, tether pieces, and bombard threats.
 *   **Database Writes:**
-    1.  Upsert into `turn_planned_actions`: Save the bot's moves for the current turn.
+    1.  Insert into `turn_planned_actions`: Save the bot's moves for the current turn.
     2.  Update `players`: Set `is_ready = true` for the bot.

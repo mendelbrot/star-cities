@@ -173,6 +173,7 @@ export function resolveCombat(
 
   applyNonConflictingMoves(finalValidatedMoves);
 
+  // 3c. Identify Battles and Collisions
   const unappliedMovesByCoord = new Map<string, ValidatedMove[]>();
   for (const m of finalValidatedMoves) {
     if (!m.applied) {
@@ -197,6 +198,7 @@ export function resolveCombat(
     }
   }
 
+  // 3d. Resolve Battles (Weighted Probability)
   const battleEvents: BattleCollisionEvent[] = [];
   for (const coordKey of battleCoords) {
     const [x, y] = coordKey.split(',').map(Number);
@@ -256,6 +258,7 @@ export function resolveCombat(
     battleEvents.push(battle);
   }
 
+  // 3e. Handle Piece Destruction
   const piecesToDestroy = new Set<string>();
   for (const b of battleEvents) {
     const all = [...b.entering_participants, ...b.supporting_participants, ...(b.defending_participant ? [b.defending_participant] : [])];
@@ -276,6 +279,7 @@ export function resolveCombat(
     }
   }
 
+  // 3f. Apply Victor Moves and Capture Cities
   for (const b of battleEvents) {
     const winningMove = finalValidatedMoves.find((m: ValidatedMove) => 
       !m.applied && 
@@ -323,5 +327,6 @@ export function resolveCombat(
     }
   }
 
+  // 3g. Final Movement Application
   applyNonConflictingMoves(finalValidatedMoves);
 }

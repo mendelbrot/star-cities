@@ -318,118 +318,50 @@ Each action in `turn_planned_actions` must pass these checks. Invalid actions ar
 
 
 
-### Resolving State + Actions to Next State + Events
+### Resolving State + Actions to Next State + Events (The 5-Phase Model)
 
-The server starts with a copy of the current game state, and gradually updates it to the next state while creating a list Events during this process. Let's call this copy of the state the "working state".
+![Turn Resolution Flow](../assets/images/resolve_turn_flow.svg)
 
-Actions are applied in a specific order, in phases to ensure consistent resolution. Each phase is based on a type of action and is run through for all in a way that ensures the result is independent of processing order. The phases are listed below.
+The server processes a turn by initializing a `TurnContext` which maintains a "working state" of pieces and high-performance lookup indexes. Resolution happens in five distinct phases to ensure consistent results regardless of player processing order.
 
-1. Copy the state to the working state
-    - set is_visible=false for all NEUTRINO ships
+#### Phase 1: Preparation (`01-prepare`)
+- **Data Fetching**: Retrieves the current game parameters, star coordinates, player statuses, and the current turn state.
+- **Context Initialization**: Creates the `TurnContext` and populates the `pieceMap`, `coordinateMap`, `tetherMap`, and `factionPiecesMap`.
+- **Pre-processing**: 
+    - Resets `is_visible` to `false` for all Neutrinos (visibility must be re-earned each turn).
+    - Pre-calculates `factionMoveTargetsMap` to prevent pieces from being placed on squares that friendly units are moving into.
 
-2. Run through all PLACE_ACT, TETHER_ACT, and ANCHOR_ACT actions in the sequence they are given in each faction's actions list. 
-    - validate against the working state and indexes, discard invalid actions
-    - create the events add push them to the events list
-    - update the working state
-    - update the indexes
+#### Phase 2: Intent Resolution (`02-intent`)
+Processes "structural" actions that modify the board state before combat. Actions are processed **sequentially for each player** exactly as they were planned, ensuring that dependent actions (like Placing then Anchoring) are resolved correctly.
 
-3. Resolve BOMBARD_ACT actions:
-    - validate all bombardments against the working state and indexes, discard invalid actions
-    - build an index (map) of target coordinate -> BOMBARD event, filling in the attackers and defender, then:
+- **Ordered Processing**: For each player, the server iterates through their action list. The `TurnContext` is updated immediately after each valid action.
+- **Action Types Handled**:
+    - **PLACE_ACT**: Validates that the target is empty, not a star, and adjacent to a valid Star City.
+    - **TETHER_ACT**: Re-assigns a ship's `tether_id` to an anchored Star City.
+    - **ANCHOR_ACT**: Toggles the `is_anchored` state based on star adjacency or ship capacity.
 
-    - for each bombard event:
-        - calculate is_destroyed with weighted probability 
-        - push the events list
-        - set wasJustBombarded=true in the piece context for the bombarded ship
-        - if the ship is destroyed:
-            - create and push a SHIP_DESTROYED_IN_BOMBARDMENT event
-            - update the working state and indexes
-            - put it through the handleTetherLoss function (this function will be explained in detail later, it removes tethers and untethered ships from the working state)
+#### Phase 3: Combat Resolution (`03-combat`)
+The most complex phase, resolving all interactions and movement.
+- **3a. Bombardment**: Resolves all `BOMBARD_ACT` intents. Destruction is determined by a weighted roll. Targets that survive are marked `wasJustBombarded` (preventing movement this turn).
+- **3b. Validated Moves**: Filters all `MOVE_ACT` intents against terrain, range, and turn flags (`wasJustPlaced`, `wasJustBombarded`, `is_anchored`).
+- **3c. Non-Conflicting Moves**: Iteratively applies moves where a ship is the sole claimant to an empty square.
+- **3d. Battle Resolution**: Identifies squares where multiple factions are entering or where a move conflicts with an existing occupant.
+    - **Weighted Probability**: `Weight = Unit Strength + (0.5 * Support Strength) + Bombardment Support`.
+    - **Results**: `DESTROY` (typical) or `CAPTURE` (if a Star City is defeated by a non-owner).
+- **3e. Cascading Losses**: When a Star City is destroyed or captured, `handleTetherLoss` is triggered, removing all ships tethered to that city from the board.
+- **3f. Victor Application**: Winning units move into the contested square (if result was `DESTROY`).
 
-4. Resolve MOVE_ACT actions
-    - overview: this phase will be done in steps:
-        - in step 1 we will resolve all moves that can be made without conflict. this will require make a second list of moves that couldn't be resolved in this step, for the next step.
-        - in step 2 we will resolve all battles
-        - in step 3 we will destroy ships and transfer captured star cities
-        - in step 4 we will again do double loop as in step 1 to make the remaining non-conflicting moves after battles have cleared some squares
+#### Phase 4: Lifecycle & Economy (`04-lifecycle`)
+- **Faction Elimination**: Any faction with zero Star Cities on the board is marked as eliminated. All remaining pieces of that faction are removed.
+- **Random Acquisition**: Remaining players with tray space (< 9) have a weighted chance to receive a new piece (`Neutrino`, `Eclipse`, `Parallax`, or `Star City`).
 
-    - Step 1
-        - validate all moves against the working state and indexes, discard invalid actions
-        - store the validated move actions in a way such that they can be marked as applied (true/false)
-        - make a list of ships where it that ship the only ship moving to its target coordinate (the target coordinate may be currently occupied or not), (to do this, you may first build a map of coordinate -> list of ships moving there and then build the list from the items with just one ship)
-        - loop through the following loop until it runs through with no moves made:
-            - declare a list of ships that couldn't be moved in the last iteration of the below loop
-            - declare a boolean flag stating if a ship was moved this loop, initially false
-            - for each ship in the list
-                - if the target coordinate is empty:
-                    - push a new MOVE event 
-                    - update the working state and indexes
-                    - mark the move action for this ship as applied
-                    - set the flag to true
-                - otherwise
-                    - push to the list of ships for the next loop
-            - exit the upper loop if the flag is false
-    
-    - Step 2
-        - from the un-applied moves, build a map of build a map of coordinate -> BATTLE_COLLISION events, filling the moving ships as entering participants
-        - for each battle:
-            - fill in all of the remaining fields
-            - resolve the winner with a weighted probability
-            - if the defending_participant is a star_city and its faction != the winning faction, set result=CAPTURE, otherwise set result=DESTROY
-            - push the battle to the events list
-    
-    - Step 3
-        - start a set list of destroyed ships
-        - for each battle:
-            - set is_visible=true for all NEUTRINO ships that are directly involved or are supporting ships
-            - push all attacking ships not belonging to the winning faction to the set of destroyed ships
-            - if result=DESTROY and the defending ship isn't of the winning faction, push it to the set of destroyed ships
-        - for each destroyed ship:
-            - create and push a SHIP_DESTROYED_IN_BATTLE event
-            - update the working state and indexes
-            - put it through the handleTetherLoss function
-        - for each battle
-            - if result=CAPTURE and the captured star city still exists
-                - create and push a CITY_CAPTURED event
-                - update the working state and indexes to transfer ownership
-                - put the lost city through the handleTetherLoss function
-
-    - Step 4
-        - take the list of un-applied moves that was used at the beginning of step 2
-        - filter out all moves of ships that no longer exist
-        - perform the nested loop at the end of step one until no more moves can be applied
-
-5. Check win condition and eliminated factions
-    - **Identify Eliminated Factions**:
-        - A faction is eliminated if it has no star cities on the board (star cities in the tray do not count).
-        - For each newly eliminated faction:
-            - Create and push a `FACTION_ELIMINATED` event.
-            - Remove all of the factions pieces in the working state and indexes.
-            - Mark the faction's is_eliminated and eliminated_on_turn fields.
-    - **Check for Winner**:
-        - Count the number of distinct stars each faction's Star Cities are currently anchored to.
-        - A faction wins if it is anchored to 3 or more distinct stars AND has more stars than any other faction.
-        - If only one non-eliminated faction remains, that faction wins.
-        - If no winner is found:
-            - If zero non-eliminated factions remain:
-                - Create and push a `GAME_OVER` event with `did_someone_win: false`.
-        - If a winner is found:
-            - Create and push a `GAME_OVER` event with `winner: faction` and `did_someone_win: true`.
-
-6. players acquire ships
-  - for each player:
-      - if their tray has less than 9 ships
-          - based on the weighted probability create and push a PIECE_ACQUIRED event
-          - update working state and indexes
-
-
-7. save the list of events and the working state to the database, update the turn and game status.
-    - If a winner was found or only one (or zero) factions remain:
-        - Update game status to `FINISHED`.
-        - If a winner was found, update the player `is_winner` field to true and the game `winner` field to the player id.
-    - Otherwise, update game status to `PLANNING`.
-    - increment `turn_number`.
-    - set `is_ready=false` for all non-eliminated players.
+#### Phase 5: Conclusion (`05-finalize`)
+- **Win Condition Check**: 
+    - **Star Victory**: A faction is anchored to 3+ distinct stars and has more than any other.
+    - **Last Stand**: Only one non-eliminated faction remains.
+- **Persistence**: Saves the final `turn_state` and `turn_events` to the database.
+- **Transition**: Increments `turn_number` and sets the game status to `PLANNING` (or `FINISHED`).
+- **Reset**: Sets `is_ready = false` for all active players.
 
 
 ### The `handleTetherLoss` function
