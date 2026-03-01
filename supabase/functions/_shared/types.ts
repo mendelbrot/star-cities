@@ -1,6 +1,19 @@
 export type Faction = "BLUE" | "RED" | "PURPLE" | "GREEN";
 export type PieceType = "STAR_CITY" | "NEUTRINO" | "ECLIPSE" | "PARALLAX";
 
+export type Player = {
+  id: string;
+  game_id: string;
+  user_id: string | null;
+  is_bot: boolean;
+  bot_name: string | null;
+  faction: Faction;
+  is_ready: boolean;
+  is_eliminated: boolean;
+  eliminated_on_turn: number | null;
+  is_winner: boolean;
+};
+
 export type GameParameters = {
   grid_size: number;
   star_count: number;
