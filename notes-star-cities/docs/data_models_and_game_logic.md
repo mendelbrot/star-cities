@@ -53,6 +53,8 @@ Records the starting position of all pieces for a given turn.
     - `turn_number` Integer
     - `state` (JSONB)
     - `created_at` TIMESTAMPTZ
+- **Constraints**:
+    - `UNIQUE(game_id, turn_number)`: Only one state snapshot per turn.
 
 ### Table: `turn_planned_actions`
 Records the intents submitted by players during the planning phase.
@@ -64,6 +66,8 @@ Records the intents submitted by players during the planning phase.
     - `player_id` UUID
     - `actions` (JSONB)
     - `submitted_at` TIMESTAMPTZ
+- **Constraints**:
+    - `UNIQUE(game_id, player_id, turn_number)`: Each player can only have one set of planned actions per turn.
 
 ### Table: `turn_events`
 Records the resolved outcomes that occurred during the transition between turns.
@@ -74,6 +78,8 @@ Records the resolved outcomes that occurred during the transition between turns.
     - `turn_number` Integer
     - `events` (JSONB)
     - `created_at` TIMESTAMPTZ
+- **Constraints**:
+    - `UNIQUE(game_id, turn_number)`: Only one set of events per turn.
 
 ---
 

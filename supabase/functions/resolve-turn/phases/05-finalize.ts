@@ -43,8 +43,20 @@ export async function finalize(sql: postgres.Sql, context: TurnContext) {
 
   // Final Persistence
   const finalState = Array.from(pieceMap.values());
-  await sql`INSERT INTO turn_events (game_id, turn_number, events) VALUES (${game_id}, ${turn_number}, ${JSON.stringify(events)})`;
-  await sql`INSERT INTO turn_states (game_id, turn_number, state) VALUES (${game_id}, ${turn_number}, ${JSON.stringify(finalState)})`;
+  
+  // turn_events is for the current turn being resolved
+  await sql`
+    INSERT INTO turn_events (game_id, turn_number, events) 
+    VALUES (${game_id}, ${turn_number}, ${sql.json(events)})
+    ON CONFLICT (game_id, turn_number) DO UPDATE SET events = EXCLUDED.events
+  `;
+
+  // turn_states is for the START of the NEXT turn
+  await sql`
+    INSERT INTO turn_states (game_id, turn_number, state) 
+    VALUES (${game_id}, ${turn_number + 1}, ${sql.json(finalState)})
+    ON CONFLICT (game_id, turn_number) DO UPDATE SET state = EXCLUDED.state
+  `;
   
   const gameStatus = (winnerF || remainingPlayers.length <= 1) ? "FINISHED" : "PLANNING";
   if (winnerF) {

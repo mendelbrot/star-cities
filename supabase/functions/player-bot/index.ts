@@ -46,10 +46,14 @@ serve(async (req) => {
         // TODO: Implement actual AI logic here to populate 'actions'.
         const actions: PlannedAction[] = [];
 
-        // 1. Submit planned actions for the current turn
+        // 1. Submit planned actions for the current turn (UPSERT)
         await sql`
           INSERT INTO turn_planned_actions (game_id, player_id, turn_number, actions)
           VALUES (${game_id}, ${bot.id}, ${turn_number}, ${sql.json(actions)})
+          ON CONFLICT (game_id, player_id, turn_number) 
+          DO UPDATE SET 
+            actions = EXCLUDED.actions,
+            submitted_at = NOW()
         `;
 
         // 2. Mark bot as ready

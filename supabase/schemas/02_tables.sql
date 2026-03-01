@@ -72,9 +72,10 @@ CREATE TABLE turn_planned_actions (
     player_id UUID NOT NULL REFERENCES players(id) ON DELETE CASCADE,
     turn_number INTEGER NOT NULL,
     actions JSONB NOT NULL DEFAULT '[]',
-    submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    -- We allow multiple rows per player/turn to record history. 
-    -- The server will pick the one with the latest 'submitted_at'.
+    submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    
+    -- Each player can only have one set of planned actions per turn.
+    UNIQUE(game_id, player_id, turn_number)
 );
 
 -- Turn Events (Resolved outcomes for a turn)

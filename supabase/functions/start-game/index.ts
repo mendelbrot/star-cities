@@ -129,10 +129,11 @@ serve(async (req) => {
         `;
       }
 
-      // Insert Turn 1 State
+      // Insert Turn 1 State (UPSERT)
       await sql`
         INSERT INTO turn_states (game_id, turn_number, state)
         VALUES (${game_id}, 1, ${sql.json(pieces)})
+        ON CONFLICT (game_id, turn_number) DO UPDATE SET state = EXCLUDED.state
       `;
     });
 
