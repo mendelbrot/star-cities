@@ -1,59 +1,58 @@
-import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
+import 'app_state_manager.dart';
 import 'package:star_cities/features/auth/presentation/screens/sign_in/sign_in.dart';
+import 'package:star_cities/features/profile/presentation/screens/profile_setup.dart';
 import 'package:star_cities/features/lobby/presentation/screens/lobby.dart';
 import 'package:star_cities/features/game/presentation/screens/game_board.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// A [Listenable] that notifies when the provided [Stream] emits a value.
-/// Used to make GoRouter reactive to external state changes like Supabase auth.
-class GoRouterRefreshStream extends ChangeNotifier {
-  GoRouterRefreshStream(Stream<dynamic> stream) {
-    notifyListeners();
-    _subscription = stream.asBroadcastStream().listen(
-          (dynamic _) => notifyListeners(),
-        );
-  }
+GoRouter createRouter(AppStateManager appStateManager) {
+  return GoRouter(
+    initialLocation: '/',
+    refreshListenable: appStateManager,
+    routes: [
+      GoRoute(
+        path: '/signin',
+        builder: (context, state) => const SignInPage(),
+      ),
+      GoRoute(
+        path: '/profile',
+        builder: (context, state) => const ProfileSetupPage(),
+      ),
+      GoRoute(
+        path: '/',
+        builder: (context, state) => const LobbyPage(),
+      ),
+      GoRoute(
+        path: '/game/:id',
+        builder: (context, state) {
+          final gameId = state.pathParameters['id']!;
+          return GameBoard(gameId: gameId);
+        },
+      ),
+    ],
+    redirect: (context, state) {
+      final bool isAuthenticated = appStateManager.isAuthenticated;
+      final bool hasUsername = appStateManager.hasUsername;
+      
+      final bool isSigningIn = state.uri.toString() == '/signin';
+      final bool isSettingProfile = state.uri.toString() == '/profile';
 
-  late final StreamSubscription<dynamic> _subscription;
+      // 1. If not authenticated, force to signin
+      if (!isAuthenticated) {
+        return isSigningIn ? null : '/signin';
+      }
 
-  @override
-  void dispose() {
-    _subscription.cancel();
-    super.dispose();
-  }
+      // 2. If authenticated but no username, force to profile
+      if (!hasUsername) {
+        return isSettingProfile ? null : '/profile';
+      }
+
+      // 3. If authenticated and has username, don't allow signin or profile pages
+      if (isSigningIn || isSettingProfile) {
+        return '/';
+      }
+
+      return null;
+    },
+  );
 }
-
-final appRouter = GoRouter(
-  initialLocation: '/',
-  refreshListenable: GoRouterRefreshStream(
-    Supabase.instance.client.auth.onAuthStateChange,
-  ),
-  routes: [
-    GoRoute(path: '/signin', builder: (context, state) => const SignInPage()),
-    GoRoute(
-      path: '/',
-      builder: (context, state) => const LobbyPage(),
-    ),
-    GoRoute(
-      path: '/game',
-      builder: (context, state) => const GameBoard(),
-    ),
-  ],
-  redirect: (context, state) {
-    final bool isGoingToLogin = state.uri.toString() == '/signin';
-    final bool isAuthenticated =
-        Supabase.instance.client.auth.currentUser != null;
-
-    if (!isAuthenticated && !isGoingToLogin) {
-      return '/signin'; // Redirect to sign in if not logged in
-    }
-
-    if (isAuthenticated && isGoingToLogin) {
-      return '/'; // Redirect to home if already logged in but trying to sign in
-    }
-
-    return null; // No redirection needed
-  },
-);

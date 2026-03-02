@@ -1,0 +1,63 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:star_cities/features/lobby/domain/models/game.dart';
+import 'package:star_cities/shared/models/player.dart';
+import 'package:star_cities/features/profile/domain/models/profile.dart';
+
+final _supabase = Supabase.instance.client;
+
+/// Provides a stream of a single game by its ID.
+final gameProvider = StreamProvider.family<Game?, String>((ref, gameId) {
+  return _supabase
+      .from('games')
+      .stream(primaryKey: ['id'])
+      .eq('id', gameId)
+      .map((data) => data.isNotEmpty ? Game.fromMap(data.first) : null);
+});
+
+/// Provides a stream of all players in a specific game.
+final playersProvider = StreamProvider.family<List<Player>, String>((ref, gameId) {
+  return _supabase
+      .from('players')
+      .stream(primaryKey: ['id'])
+      .eq('game_id', gameId)
+      .map((data) => data.map((m) => Player.fromMap(m)).toList());
+});
+
+/// Provides a stream of all user profiles.
+/// We stream all profiles to ensure the join is always up-to-date.
+final allProfilesProvider = StreamProvider<Map<String, Profile>>((ref) {
+  return _supabase
+      .from('user_profiles')
+      .stream(primaryKey: ['id'])
+      .map((data) => {
+        for (var m in data) m['id'] as String: Profile.fromMap(m)
+      });
+});
+
+/// Represents a Player combined with their Profile data.
+class PlayerWithProfile {
+  final Player player;
+  final Profile? profile;
+  PlayerWithProfile(this.player, this.profile);
+
+  String get displayName => player.isBot ? (player.botName ?? 'BOT') : (profile?.username ?? 'HUMAN');
+}
+
+/// Provides a combined list of players and their profiles for a specific game.
+final gamePlayersWithProfilesProvider = Provider.family<AsyncValue<List<PlayerWithProfile>>, String>((ref, gameId) {
+  final playersAsync = ref.watch(playersProvider(gameId));
+  final profilesAsync = ref.watch(allProfilesProvider);
+
+  return playersAsync.when(
+    data: (players) => profilesAsync.when(
+      data: (profiles) => AsyncValue.data(
+        players.map((p) => PlayerWithProfile(p, profiles[p.userId])).toList(),
+      ),
+      loading: () => const AsyncValue.loading(),
+      error: (e, s) => AsyncValue.error(e, s),
+    ),
+    loading: () => const AsyncValue.loading(),
+    error: (e, s) => AsyncValue.error(e, s),
+  );
+});
