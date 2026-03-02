@@ -53,3 +53,56 @@ CREATE TRIGGER trigger_resolve_turn
 AFTER UPDATE OF is_ready ON players
 FOR EACH ROW
 EXECUTE FUNCTION handle_player_ready();
+
+-- 3. Trigger to delete the game if the last human player leaves.
+CREATE OR REPLACE FUNCTION delete_abandoned_game()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Only act if the deleted player was a human (is_bot = FALSE)
+    -- and the game still exists (to avoid recursion or errors during game deletion)
+    IF OLD.is_bot = FALSE THEN
+        IF NOT EXISTS (
+            SELECT 1 FROM players 
+            WHERE game_id = OLD.game_id 
+              AND is_bot = FALSE
+        ) THEN
+            DELETE FROM games WHERE id = OLD.game_id;
+        END IF;
+    END IF;
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER trigger_delete_abandoned_game
+AFTER DELETE ON players
+FOR EACH ROW
+EXECUTE FUNCTION delete_abandoned_game();
+
+-- 4. Sync Auth User Metadata to the 'user_profiles' table.
+CREATE OR REPLACE FUNCTION handle_auth_user_update()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Sync the metadata to the profile table
+    -- Using the metadata stored in 'raw_user_meta_data'
+    INSERT INTO public.user_profiles (id, username, profile_icon)
+    VALUES (
+        NEW.id,
+        COALESCE(NEW.raw_user_meta_data->>'username', 'Unknown'),
+        COALESCE(NEW.raw_user_meta_data->>'profile_icon', 'default_icon')
+    )
+    ON CONFLICT (id) DO UPDATE SET
+        username = EXCLUDED.username,
+        profile_icon = EXCLUDED.profile_icon,
+        updated_at = NOW();
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger on the 'auth.users' table
+-- Note: This trigger is applied to 'auth.users' which is managed by Supabase.
+-- It will fire on both INSERT (onboarding) and UPDATE (user profile setup).
+CREATE TRIGGER trigger_sync_user_profile
+AFTER INSERT OR UPDATE ON auth.users
+FOR EACH ROW
+EXECUTE FUNCTION handle_auth_user_update();

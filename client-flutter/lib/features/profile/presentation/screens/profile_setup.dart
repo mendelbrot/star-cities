@@ -34,17 +34,17 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
     setState(() => _isLoading = true);
 
     try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) return;
-
-      await Supabase.instance.client.from('user_profiles').upsert({
-        'id': user.id,
-        'username': _usernameController.text.trim(),
-        'profile_icon': _selectedIcon,
-        'updated_at': DateTime.now().toIso8601String(),
-      });
+      await Supabase.instance.client.auth.updateUser(
+        UserAttributes(
+          data: {
+            'username': _usernameController.text.trim(),
+            'profile_icon': _selectedIcon,
+          },
+        ),
+      );
       
-      // No need to redirect manually; AppStateManager will trigger router refresh
+      // The router will automatically refresh because AppStateManager 
+      // is listening to onAuthStateChange.
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

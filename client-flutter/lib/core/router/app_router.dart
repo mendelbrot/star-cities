@@ -1,5 +1,5 @@
 import 'package:go_router/go_router.dart';
-import 'package:star_cities/core/app_state_manager.dart';
+import 'app_state_manager.dart';
 import 'package:star_cities/features/auth/presentation/screens/sign_in/sign_in.dart';
 import 'package:star_cities/features/profile/presentation/screens/profile_setup.dart';
 import 'package:star_cities/features/lobby/presentation/screens/lobby.dart';

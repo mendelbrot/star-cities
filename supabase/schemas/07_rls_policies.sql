@@ -40,6 +40,36 @@ CREATE POLICY "Authenticated users can join games" ON players
         )
     );
 
+CREATE POLICY "Authenticated users can add player bots to games" ON players
+    FOR INSERT TO authenticated WITH CHECK (
+        is_bot = true AND
+        EXISTS (
+            SELECT 1 FROM games
+            WHERE games.id = game_id
+            AND games.status = 'WAITING'
+        )
+    );
+
+CREATE POLICY "Players can leave games" ON players
+    FOR DELETE TO authenticated USING (
+        auth.uid() = user_id AND
+        EXISTS (
+            SELECT 1 FROM games
+            WHERE games.id = game_id
+            AND games.status = 'WAITING'
+        )
+    );
+
+CREATE POLICY "Authenticated users can remove player bots from games" ON players
+    FOR DELETE TO authenticated USING (
+        is_bot = true AND
+        EXISTS (
+            SELECT 1 FROM games
+            WHERE games.id = game_id
+            AND games.status = 'WAITING'
+        )
+    );
+
 CREATE POLICY "Players can update their own data" ON players
     FOR UPDATE TO authenticated USING (auth.uid() = user_id);
 

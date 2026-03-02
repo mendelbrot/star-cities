@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:star_cities/core/app_state_manager.dart';
+import 'package:star_cities/core/router/app_state_manager.dart';
 import 'package:star_cities/core/router/app_router.dart';
 import 'package:star_cities/core/theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
