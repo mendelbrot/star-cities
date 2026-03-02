@@ -1,16 +1,9 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:star_cities/core/app_state_manager.dart';
 import 'package:star_cities/features/auth/presentation/screens/sign_in/sign_in.dart';
+import 'package:star_cities/features/profile/presentation/screens/profile_setup.dart';
 import 'package:star_cities/features/lobby/presentation/screens/lobby.dart';
 import 'package:star_cities/features/game/presentation/screens/game_board.dart';
-
-// Placeholder for the profile screen
-class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key});
-  @override
-  Widget build(BuildContext context) => const Scaffold(body: Center(child: Text('Profile Setup')));
-}
 
 GoRouter createRouter(AppStateManager appStateManager) {
   return GoRouter(
@@ -23,7 +16,7 @@ GoRouter createRouter(AppStateManager appStateManager) {
       ),
       GoRoute(
         path: '/profile',
-        builder: (context, state) => const ProfilePage(),
+        builder: (context, state) => const ProfileSetupPage(),
       ),
       GoRoute(
         path: '/',
@@ -32,9 +25,8 @@ GoRouter createRouter(AppStateManager appStateManager) {
       GoRoute(
         path: '/game/:id',
         builder: (context, state) {
-          // ignore: unused_local_variable
-          final gameId = state.pathParameters['id'];
-          return const GameBoard(); // GameBoard will need the ID eventually
+          final gameId = state.pathParameters['id']!;
+          return GameBoard(gameId: gameId);
         },
       ),
     ],
