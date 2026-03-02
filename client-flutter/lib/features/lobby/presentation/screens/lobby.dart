@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:star_cities/features/lobby/domain/models/game.dart';
+import 'package:star_cities/features/lobby/presentation/providers/lobby_providers.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
-class LobbyPage extends StatefulWidget {
+class LobbyPage extends ConsumerStatefulWidget {
   const LobbyPage({super.key});
 
   @override
-  State<LobbyPage> createState() => _LobbyPageState();
+  ConsumerState<LobbyPage> createState() => _LobbyPageState();
 }
 
-class _LobbyPageState extends State<LobbyPage> {
+class _LobbyPageState extends ConsumerState<LobbyPage> {
   final _supabase = Supabase.instance.client;
   bool _isCreating = false;
 
@@ -21,14 +23,12 @@ class _LobbyPageState extends State<LobbyPage> {
       final user = _supabase.auth.currentUser;
       if (user == null) return;
 
-      // 1. Create the game
       final gameData = await _supabase.from('games').insert({
-        'player_count': 4, // Default to 4 for now
+        'player_count': 4,
       }).select().single();
 
       final gameId = gameData['id'];
 
-      // 2. Add the creator as the first player (BLUE)
       await _supabase.from('players').insert({
         'game_id': gameId,
         'user_id': user.id,
@@ -54,7 +54,6 @@ class _LobbyPageState extends State<LobbyPage> {
       final user = _supabase.auth.currentUser;
       if (user == null) return;
 
-      // Check if already in game
       final existingPlayer = await _supabase
           .from('players')
           .select()
@@ -67,7 +66,6 @@ class _LobbyPageState extends State<LobbyPage> {
         return;
       }
 
-      // Find an available faction
       final players = await _supabase.from('players').select('faction').eq('game_id', gameId);
       final takenFactions = players.map((p) => p['faction']).toList();
       final allFactions = ['BLUE', 'RED', 'PURPLE', 'GREEN'];
@@ -91,7 +89,8 @@ class _LobbyPageState extends State<LobbyPage> {
 
   @override
   Widget build(BuildContext context) {
-    final user = _supabase.auth.currentUser;
+    final activeGamesAsync = ref.watch(activeGamesProvider);
+    final waitingGamesAsync = ref.watch(waitingGamesProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -104,7 +103,10 @@ class _LobbyPageState extends State<LobbyPage> {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () async => setState(() {}),
+        onRefresh: () async {
+          ref.invalidate(activeGamesProvider);
+          ref.invalidate(waitingGamesProvider);
+        },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
@@ -112,10 +114,18 @@ class _LobbyPageState extends State<LobbyPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _buildSectionTitle('YOUR ACTIVE TURNS'),
-              _buildActiveGames(user?.id),
+              activeGamesAsync.when(
+                data: (games) => _buildGameList(games, isParticipant: true),
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, s) => Text('Error: $e'),
+              ),
               const SizedBox(height: 32),
               _buildSectionTitle('WAITING FOR PLAYERS'),
-              _buildWaitingGames(),
+              waitingGamesAsync.when(
+                data: (games) => _buildGameList(games, isParticipant: false),
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, s) => Text('Error: $e'),
+              ),
             ],
           ),
         ),
@@ -143,77 +153,25 @@ class _LobbyPageState extends State<LobbyPage> {
     );
   }
 
-  Widget _buildActiveGames(String? userId) {
-    if (userId == null) return const SizedBox.shrink();
+  Widget _buildGameList(List<Game> games, {required bool isParticipant}) {
+    if (games.isEmpty) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            isParticipant ? 'No active games.' : 'No games waiting.',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
 
-    return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _supabase
-          .from('players')
-          .stream(primaryKey: ['id'])
-          .eq('user_id', userId),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        
-        final playerRecords = snapshot.data!;
-        if (playerRecords.isEmpty) {
-          return const Card(
-            child: Padding(
-              padding: EdgeInsets.all(24),
-              child: Text('No active games.', textAlign: TextAlign.center),
-            ),
-          );
-        }
-
-        final gameIds = playerRecords.map((p) => p['game_id'] as String).toList();
-
-        return FutureBuilder<List<Map<String, dynamic>>>(
-          future: _supabase
-              .from('games')
-              .select()
-              .inFilter('id', gameIds)
-              .neq('status', 'FINISHED')
-              .order('updated_at', ascending: false),
-          builder: (context, gameSnapshot) {
-            if (!gameSnapshot.hasData) return const SizedBox.shrink();
-            final games = gameSnapshot.data!.map((m) => Game.fromMap(m)).toList();
-
-            return Column(
-              children: games.map((game) => _buildGameCard(game, isParticipant: true)).toList(),
-            );
-          },
-        );
-      },
+    return Column(
+      children: games.map((game) => _buildGameCard(game, isParticipant: isParticipant)).toList(),
     );
   }
 
-  Widget _buildWaitingGames() {
-    return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _supabase
-          .from('games')
-          .stream(primaryKey: ['id'])
-          .eq('status', 'WAITING')
-          .order('created_at', ascending: false),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-        final games = snapshot.data!.map((m) => Game.fromMap(m)).toList();
-
-        if (games.isEmpty) {
-          return const Card(
-            child: Padding(
-              padding: EdgeInsets.all(24),
-              child: Text('No games waiting.', textAlign: TextAlign.center),
-            ),
-          );
-        }
-
-        return Column(
-          children: games.map((game) => _buildGameCard(game)).toList(),
-        );
-      },
-    );
-  }
-
-  Widget _buildGameCard(Game game, {bool isParticipant = false}) {
+  Widget _buildGameCard(Game game, {required bool isParticipant}) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(

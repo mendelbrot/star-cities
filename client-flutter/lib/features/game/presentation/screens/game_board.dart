@@ -1,24 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:star_cities/features/lobby/domain/models/game.dart';
+import 'package:star_cities/features/game/presentation/providers/game_providers.dart';
+import 'package:star_cities/shared/models/player.dart';
 import 'package:go_router/go_router.dart';
 
-class GameBoard extends StatefulWidget {
+class GameBoard extends ConsumerStatefulWidget {
   final String gameId;
   const GameBoard({super.key, required this.gameId});
 
   @override
-  State<GameBoard> createState() => _GameBoardState();
+  ConsumerState<GameBoard> createState() => _GameBoardState();
 }
 
-class _GameBoardState extends State<GameBoard> {
+class _GameBoardState extends ConsumerState<GameBoard> {
   final _supabase = Supabase.instance.client;
 
   Future<void> _addBot() async {
     try {
-      final players = await _supabase.from('players').select('faction').eq('game_id', widget.gameId);
-      final takenFactions = players.map((p) => p['faction']).toList();
+      final playersAsync = ref.read(playersProvider(widget.gameId));
+      final players = playersAsync.value ?? [];
+      final takenFactions = players.map((p) => p.faction.value).toList();
       final allFactions = ['BLUE', 'RED', 'PURPLE', 'GREEN'];
       final availableFaction = allFactions.firstWhere((f) => !takenFactions.contains(f));
 
@@ -48,7 +52,7 @@ class _GameBoardState extends State<GameBoard> {
   Future<void> _deleteGame() async {
     try {
       await _supabase.from('games').delete().eq('id', widget.gameId);
-      if (mounted) context.pop();
+      // Redirection is handled by ref.listen
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting game: $e')));
@@ -61,8 +65,9 @@ class _GameBoardState extends State<GameBoard> {
       final user = _supabase.auth.currentUser;
       if (user == null) return;
 
-      final players = await _supabase.from('players').select('faction').eq('game_id', widget.gameId);
-      final takenFactions = players.map((p) => p['faction']).toList();
+      final playersAsync = ref.read(playersProvider(widget.gameId));
+      final players = playersAsync.value ?? [];
+      final takenFactions = players.map((p) => p.faction.value).toList();
       final allFactions = ['BLUE', 'RED', 'PURPLE', 'GREEN'];
       final availableFaction = allFactions.firstWhere((f) => !takenFactions.contains(f));
 
@@ -80,25 +85,31 @@ class _GameBoardState extends State<GameBoard> {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<List<Map<String, dynamic>>>(
-      stream: _supabase.from('games').stream(primaryKey: ['id']).eq('id', widget.gameId),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    // Listen for game deletion
+    ref.listen<AsyncValue<Game?>>(gameProvider(widget.gameId), (previous, next) {
+      if (next is AsyncData && next.value == null) {
+        if (mounted && GoRouterState.of(context).uri.toString().contains(widget.gameId)) {
+          context.go('/');
         }
+      }
+    });
 
-        final game = Game.fromMap(snapshot.data!.first);
+    final gameAsync = ref.watch(gameProvider(widget.gameId));
 
-        if (game.status == GameStatus.waiting) {
-          return _buildWaitingUI(game);
-        }
-
+    return gameAsync.when(
+      data: (game) {
+        if (game == null) return const Scaffold(body: Center(child: Text('Game not found.')));
+        if (game.status == GameStatus.waiting) return _buildWaitingUI(game);
         return _buildActiveUI(game);
       },
+      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      error: (e, s) => Scaffold(body: Center(child: Text('Error: $e'))),
     );
   }
 
   Widget _buildWaitingUI(Game game) {
+    final playersWithProfilesAsync = ref.watch(gamePlayersWithProfilesProvider(widget.gameId));
+
     return Scaffold(
       appBar: AppBar(
         title: Text('GAME ROOM: ${game.id.substring(0, 8)}'),
@@ -109,12 +120,10 @@ class _GameBoardState extends State<GameBoard> {
           ),
         ],
       ),
-      body: StreamBuilder<List<Map<String, dynamic>>>(
-        stream: _supabase.from('players').stream(primaryKey: ['id']).eq('game_id', widget.gameId),
-        builder: (context, snapshot) {
-          final players = snapshot.data ?? [];
+      body: playersWithProfilesAsync.when(
+        data: (players) {
           final user = _supabase.auth.currentUser;
-          final isJoined = players.any((p) => p['user_id'] == user?.id);
+          final isJoined = players.any((p) => p.player.userId == user?.id);
           final canJoin = players.length < game.playerCount && !isJoined;
 
           return ListView(
@@ -124,14 +133,14 @@ class _GameBoardState extends State<GameBoard> {
               ...players.map((p) => Card(
                 child: ListTile(
                   leading: CircleAvatar(
-                    backgroundColor: _getFactionColor(p['faction']),
+                    backgroundColor: _getFactionColor(p.player.faction),
                     radius: 8,
                   ),
-                  title: Text(p['is_bot'] ? p['bot_name'] : 'HUMAN PLAYER'),
-                  subtitle: Text('FACTION: ${p['faction']}'),
+                  title: Text(p.displayName),
+                  subtitle: Text('FACTION: ${p.player.faction.value}'),
                   trailing: IconButton(
                     icon: const Icon(LucideIcons.x),
-                    onPressed: () => _removePlayer(p['id']),
+                    onPressed: () => _removePlayer(p.player.id),
                   ),
                 ),
               )),
@@ -159,6 +168,8 @@ class _GameBoardState extends State<GameBoard> {
             ],
           );
         },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, s) => Center(child: Text('Error: $e')),
       ),
     );
   }
@@ -198,13 +209,12 @@ class _GameBoardState extends State<GameBoard> {
     );
   }
 
-  Color _getFactionColor(String faction) {
+  Color _getFactionColor(Faction faction) {
     switch (faction) {
-      case 'BLUE': return Colors.blue;
-      case 'RED': return Colors.red;
-      case 'PURPLE': return Colors.purple;
-      case 'GREEN': return Colors.green;
-      default: return Colors.grey;
+      case Faction.blue: return Colors.blue;
+      case Faction.red: return Colors.red;
+      case Faction.purple: return Colors.purple;
+      case Faction.green: return Colors.green;
     }
   }
 
