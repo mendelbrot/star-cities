@@ -1,59 +1,66 @@
-import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:star_cities/core/app_state_manager.dart';
 import 'package:star_cities/features/auth/presentation/screens/sign_in/sign_in.dart';
 import 'package:star_cities/features/lobby/presentation/screens/lobby.dart';
 import 'package:star_cities/features/game/presentation/screens/game_board.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// A [Listenable] that notifies when the provided [Stream] emits a value.
-/// Used to make GoRouter reactive to external state changes like Supabase auth.
-class GoRouterRefreshStream extends ChangeNotifier {
-  GoRouterRefreshStream(Stream<dynamic> stream) {
-    notifyListeners();
-    _subscription = stream.asBroadcastStream().listen(
-          (dynamic _) => notifyListeners(),
-        );
-  }
-
-  late final StreamSubscription<dynamic> _subscription;
-
+// Placeholder for the profile screen
+class ProfilePage extends StatelessWidget {
+  const ProfilePage({super.key});
   @override
-  void dispose() {
-    _subscription.cancel();
-    super.dispose();
-  }
+  Widget build(BuildContext context) => const Scaffold(body: Center(child: Text('Profile Setup')));
 }
 
-final appRouter = GoRouter(
-  initialLocation: '/',
-  refreshListenable: GoRouterRefreshStream(
-    Supabase.instance.client.auth.onAuthStateChange,
-  ),
-  routes: [
-    GoRoute(path: '/signin', builder: (context, state) => const SignInPage()),
-    GoRoute(
-      path: '/',
-      builder: (context, state) => const LobbyPage(),
-    ),
-    GoRoute(
-      path: '/game',
-      builder: (context, state) => const GameBoard(),
-    ),
-  ],
-  redirect: (context, state) {
-    final bool isGoingToLogin = state.uri.toString() == '/signin';
-    final bool isAuthenticated =
-        Supabase.instance.client.auth.currentUser != null;
+GoRouter createRouter(AppStateManager appStateManager) {
+  return GoRouter(
+    initialLocation: '/',
+    refreshListenable: appStateManager,
+    routes: [
+      GoRoute(
+        path: '/signin',
+        builder: (context, state) => const SignInPage(),
+      ),
+      GoRoute(
+        path: '/profile',
+        builder: (context, state) => const ProfilePage(),
+      ),
+      GoRoute(
+        path: '/',
+        builder: (context, state) => const LobbyPage(),
+      ),
+      GoRoute(
+        path: '/game/:id',
+        builder: (context, state) {
+          // ignore: unused_local_variable
+          final gameId = state.pathParameters['id'];
+          return const GameBoard(); // GameBoard will need the ID eventually
+        },
+      ),
+    ],
+    redirect: (context, state) {
+      final bool isAuthenticated = appStateManager.isAuthenticated;
+      final bool hasUsername = appStateManager.hasUsername;
+      
+      final bool isSigningIn = state.uri.toString() == '/signin';
+      final bool isSettingProfile = state.uri.toString() == '/profile';
 
-    if (!isAuthenticated && !isGoingToLogin) {
-      return '/signin'; // Redirect to sign in if not logged in
-    }
+      // 1. If not authenticated, force to signin
+      if (!isAuthenticated) {
+        return isSigningIn ? null : '/signin';
+      }
 
-    if (isAuthenticated && isGoingToLogin) {
-      return '/'; // Redirect to home if already logged in but trying to sign in
-    }
+      // 2. If authenticated but no username, force to profile
+      if (!hasUsername) {
+        return isSettingProfile ? null : '/profile';
+      }
 
-    return null; // No redirection needed
-  },
-);
+      // 3. If authenticated and has username, don't allow signin or profile pages
+      if (isSigningIn || isSettingProfile) {
+        return '/';
+      }
+
+      return null;
+    },
+  );
+}
