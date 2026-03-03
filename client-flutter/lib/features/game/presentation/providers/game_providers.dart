@@ -1,14 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:star_cities/features/lobby/domain/models/game.dart';
 import 'package:star_cities/shared/models/player.dart';
 import 'package:star_cities/features/profile/domain/models/profile.dart';
-
-final _supabase = Supabase.instance.client;
+import 'package:star_cities/shared/providers/auth_providers.dart';
 
 /// Provides a stream of a single game by its ID.
 final gameProvider = StreamProvider.family<Game?, String>((ref, gameId) {
-  return _supabase
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return const Stream.empty();
+
+  final supabase = ref.watch(supabaseClientProvider);
+  return supabase
       .from('games')
       .stream(primaryKey: ['id'])
       .eq('id', gameId)
@@ -17,7 +19,11 @@ final gameProvider = StreamProvider.family<Game?, String>((ref, gameId) {
 
 /// Provides a stream of all players in a specific game.
 final playersProvider = StreamProvider.family<List<Player>, String>((ref, gameId) {
-  return _supabase
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return const Stream.empty();
+
+  final supabase = ref.watch(supabaseClientProvider);
+  return supabase
       .from('players')
       .stream(primaryKey: ['id'])
       .eq('game_id', gameId)
@@ -25,9 +31,12 @@ final playersProvider = StreamProvider.family<List<Player>, String>((ref, gameId
 });
 
 /// Provides a stream of all user profiles.
-/// We stream all profiles to ensure the join is always up-to-date.
 final allProfilesProvider = StreamProvider<Map<String, Profile>>((ref) {
-  return _supabase
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return const Stream.empty();
+
+  final supabase = ref.watch(supabaseClientProvider);
+  return supabase
       .from('user_profiles')
       .stream(primaryKey: ['id'])
       .map((data) => {

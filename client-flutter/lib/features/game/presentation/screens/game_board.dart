@@ -6,6 +6,7 @@ import 'package:star_cities/features/lobby/domain/models/game.dart';
 import 'package:star_cities/features/game/presentation/providers/game_providers.dart';
 import 'package:star_cities/shared/models/player.dart';
 import 'package:go_router/go_router.dart';
+import 'package:star_cities/shared/widgets/grid_loading_indicator.dart';
 
 class GameBoard extends ConsumerStatefulWidget {
   final String gameId;
@@ -34,7 +35,10 @@ class _GameBoardState extends ConsumerState<GameBoard> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error adding bot: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ));
       }
     }
   }
@@ -44,18 +48,10 @@ class _GameBoardState extends ConsumerState<GameBoard> {
       await _supabase.from('players').delete().eq('id', playerId);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error removing player: $e')));
-      }
-    }
-  }
-
-  Future<void> _deleteGame() async {
-    try {
-      await _supabase.from('games').delete().eq('id', widget.gameId);
-      // Redirection is handled by ref.listen
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error deleting game: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ));
       }
     }
   }
@@ -78,14 +74,17 @@ class _GameBoardState extends ConsumerState<GameBoard> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error joining: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ));
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Listen for game deletion
+    // Listen for game deletion to redirect to lobby
     ref.listen<AsyncValue<Game?>>(gameProvider(widget.gameId), (previous, next) {
       if (next is AsyncData && next.value == null) {
         if (mounted && GoRouterState.of(context).uri.toString().contains(widget.gameId)) {
@@ -98,32 +97,28 @@ class _GameBoardState extends ConsumerState<GameBoard> {
 
     return gameAsync.when(
       data: (game) {
-        if (game == null) return const Scaffold(body: Center(child: Text('Game not found.')));
+        if (game == null) return const Scaffold(body: Center(child: Text('GAME NOT FOUND.')));
         if (game.status == GameStatus.waiting) return _buildWaitingUI(game);
         return _buildActiveUI(game);
       },
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (e, s) => Scaffold(body: Center(child: Text('Error: $e'))),
+      loading: () => const Scaffold(body: Center(child: GridLoadingIndicator(size: 60))),
+      error: (e, s) => Scaffold(body: Center(child: Text('ERROR: $e'))),
     );
   }
 
   Widget _buildWaitingUI(Game game) {
     final playersWithProfilesAsync = ref.watch(gamePlayersWithProfilesProvider(widget.gameId));
+    final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
         title: Text('GAME ROOM: ${game.id.substring(0, 8)}'),
-        actions: [
-          IconButton(
-            icon: const Icon(LucideIcons.trash2, color: Colors.red),
-            onPressed: () => _showDeleteConfirm(),
-          ),
-        ],
       ),
       body: playersWithProfilesAsync.when(
         data: (players) {
-          final user = _supabase.auth.currentUser;
-          final isJoined = players.any((p) => p.player.userId == user?.id);
+          final currentUser = _supabase.auth.currentUser;
+          final currentPlayer = players.where((p) => p.player.userId == currentUser?.id).toList();
+          final isJoined = currentPlayer.isNotEmpty;
           final canJoin = players.length < game.playerCount && !isJoined;
 
           return ListView(
@@ -134,18 +129,31 @@ class _GameBoardState extends ConsumerState<GameBoard> {
                 child: ListTile(
                   leading: CircleAvatar(
                     backgroundColor: _getFactionColor(p.player.faction),
-                    radius: 8,
+                    radius: 6,
                   ),
                   title: Text(p.displayName),
                   subtitle: Text('FACTION: ${p.player.faction.value}'),
-                  trailing: IconButton(
-                    icon: const Icon(LucideIcons.x),
-                    onPressed: () => _removePlayer(p.player.id),
-                  ),
+                  trailing: p.player.isBot 
+                    ? IconButton(
+                        icon: const Icon(LucideIcons.x, size: 20),
+                        onPressed: () => _removePlayer(p.player.id),
+                        tooltip: 'REMOVE BOT',
+                      )
+                    : null,
                 ),
               )),
               const SizedBox(height: 32),
-              if (canJoin)
+              if (isJoined)
+                OutlinedButton.icon(
+                  onPressed: () => _removePlayer(currentPlayer.first.player.id),
+                  icon: const Icon(LucideIcons.userMinus),
+                  label: const Text('LEAVE GAME'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: theme.colorScheme.error,
+                    side: BorderSide(color: theme.colorScheme.error),
+                  ),
+                )
+              else if (canJoin)
                 OutlinedButton.icon(
                   onPressed: _joinGame,
                   icon: const Icon(LucideIcons.userPlus),
@@ -160,28 +168,30 @@ class _GameBoardState extends ConsumerState<GameBoard> {
                 ),
               ],
               const SizedBox(height: 48),
-              const Text(
-                'GAME WILL START AUTOMATICALLY WHEN ALL SLOTS ARE FILLED.',
+              Text(
+                'THE MISSION WILL BEGIN AUTOMATICALLY ONCE ALL SLOTS ARE SECURED.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: Colors.white54),
+                style: theme.textTheme.bodySmall?.copyWith(letterSpacing: 1),
               ),
             ],
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, s) => Center(child: Text('Error: $e')),
+        loading: () => const Center(child: GridLoadingIndicator(size: 40)),
+        error: (e, s) => Center(child: Text('ERROR: $e')),
       ),
     );
   }
 
   Widget _buildActiveUI(Game game) {
+    final theme = Theme.of(context);
     return DefaultTabController(
       length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: Text('TURN ${game.turnNumber} | ${game.status.value}'),
-          bottom: const TabBar(
-            tabs: [
+          bottom: TabBar(
+            unselectedLabelColor: theme.disabledColor,
+            tabs: const [
               Tab(text: 'PLAYERS'),
               Tab(text: 'REPLAY'),
               Tab(text: 'PLANNING'),
@@ -204,7 +214,7 @@ class _GameBoardState extends ConsumerState<GameBoard> {
       padding: const EdgeInsets.only(bottom: 16),
       child: Text(
         title,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 2),
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2),
       ),
     );
   }
@@ -216,25 +226,5 @@ class _GameBoardState extends ConsumerState<GameBoard> {
       case Faction.purple: return Colors.purple;
       case Faction.green: return Colors.green;
     }
-  }
-
-  void _showDeleteConfirm() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('DELETE GAME?'),
-        content: const Text('This action cannot be undone.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCEL')),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _deleteGame();
-            },
-            child: const Text('DELETE', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
   }
 }

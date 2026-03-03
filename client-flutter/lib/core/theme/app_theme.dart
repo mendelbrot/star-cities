@@ -7,6 +7,7 @@ class AppTheme {
       brightness: Brightness.dark,
       scaffoldBackgroundColor: Colors.black,
       primaryColor: Colors.white,
+      disabledColor: const Color(0xFF666666),
       fontFamily: GoogleFonts.jetBrainsMono().fontFamily,
       
       // Text Theme
@@ -16,6 +17,7 @@ class AppTheme {
           displayMedium: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           bodyLarge: TextStyle(color: Colors.white),
           bodyMedium: TextStyle(color: Colors.white),
+          bodySmall: TextStyle(color: Color(0xFF666666)),
         ),
       ),
 
@@ -69,14 +71,14 @@ class AppTheme {
           borderSide: BorderSide(color: Colors.red, width: 2),
         ),
         labelStyle: TextStyle(color: Colors.white),
-        hintStyle: TextStyle(color: Colors.white54),
+        hintStyle: TextStyle(color: Color(0xFF666666)),
       ),
 
       // TabBar Theme
       tabBarTheme: const TabBarThemeData(
         indicatorColor: Colors.white,
         labelColor: Colors.white,
-        unselectedLabelColor: Colors.white54,
+        unselectedLabelColor: Color(0xFF666666),
         indicatorSize: TabBarIndicatorSize.tab,
       ),
 
@@ -85,7 +87,7 @@ class AppTheme {
         backgroundColor: Colors.black,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.zero,
-          side: BorderSide(color: Colors.white, width: 1),
+          side: BorderSide(color: Color(0xFF333333), width: 1),
         ),
       ),
     );

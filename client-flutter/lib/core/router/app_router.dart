@@ -47,8 +47,8 @@ GoRouter createRouter(AppStateManager appStateManager) {
         return isSettingProfile ? null : '/profile';
       }
 
-      // 3. If authenticated and has username, don't allow signin or profile pages
-      if (isSigningIn || isSettingProfile) {
+      // 3. If authenticated and has username, don't allow signin page
+      if (isSigningIn) {
         return '/';
       }
 
