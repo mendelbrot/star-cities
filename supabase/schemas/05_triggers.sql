@@ -84,15 +84,13 @@ RETURNS TRIGGER AS $$
 BEGIN
     -- Sync the metadata to the profile table
     -- Using the metadata stored in 'raw_user_meta_data'
-    INSERT INTO public.user_profiles (id, username, profile_icon)
+    INSERT INTO public.user_profiles (id, username)
     VALUES (
         NEW.id,
-        COALESCE(NEW.raw_user_meta_data->>'username', 'Unknown'),
-        COALESCE(NEW.raw_user_meta_data->>'profile_icon', 'default_icon')
+        COALESCE(NEW.raw_user_meta_data->>'username', 'Unknown')
     )
     ON CONFLICT (id) DO UPDATE SET
         username = EXCLUDED.username,
-        profile_icon = EXCLUDED.profile_icon,
         updated_at = NOW();
 
     RETURN NEW;
@@ -106,3 +104,24 @@ CREATE TRIGGER trigger_sync_user_profile
 AFTER INSERT OR UPDATE ON auth.users
 FOR EACH ROW
 EXECUTE FUNCTION handle_auth_user_update();
+
+-- 5. Sync 'user_profiles' changes back to Auth User Metadata.
+CREATE OR REPLACE FUNCTION handle_user_profile_update()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Update the auth.users raw_user_meta_data with the new username
+  UPDATE auth.users
+  SET raw_user_meta_data = 
+    COALESCE(raw_user_meta_data, '{}'::jsonb) || 
+    jsonb_build_object('username', NEW.username)
+  WHERE id = NEW.id;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger on the 'public.user_profiles' table
+CREATE TRIGGER trigger_sync_user_profile_to_auth
+AFTER UPDATE OF username ON public.user_profiles
+FOR EACH ROW
+EXECUTE FUNCTION handle_user_profile_update();

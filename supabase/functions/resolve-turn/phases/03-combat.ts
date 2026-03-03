@@ -71,19 +71,14 @@ export function resolveCombat(
     context.addEvent(event);
 
     const target = pieceMap.get(event.target.piece_id);
-    if (target) {
-      const ctx = pieceContexts.get(target.id) || {};
-      pieceContexts.set(target.id, { ...ctx, wasJustBombarded: true });
-
-      if (event.is_destroyed) {
-        context.addEvent({
-          type: "SHIP_DESTROYED_IN_BOMBARDMENT",
-          piece_id: target.id,
-          piece_type: target.type,
-          faction: target.faction,
-        });
-        context.removePiece(target.id);
-      }
+    if (target && event.is_destroyed) {
+      context.addEvent({
+        type: "SHIP_DESTROYED_IN_BOMBARDMENT",
+        piece_id: target.id,
+        piece_type: target.type,
+        faction: target.faction,
+      });
+      context.removePiece(target.id);
     }
   }
 
@@ -103,7 +98,7 @@ export function resolveCombat(
         if (context.isStarAt(action.to)) continue;
         
         const ctx = pieceContexts.get(piece.id);
-        if (ctx?.wasJustPlaced || ctx?.wasJustBombarded) continue;
+        if (ctx?.wasJustPlaced) continue;
         if (piece.type === "STAR_CITY" && (piece.is_anchored || ctx?.wasJustDeanchored)) continue;
 
         const occupantId = coordinateMap.get(`${action.to.x},${action.to.y}`);

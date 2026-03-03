@@ -6,7 +6,6 @@ CREATE TYPE faction AS ENUM ('BLUE', 'RED', 'PURPLE', 'GREEN');
 CREATE TABLE user_profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
     username TEXT UNIQUE NOT NULL,
-    profile_icon TEXT NOT NULL DEFAULT 'default_icon',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

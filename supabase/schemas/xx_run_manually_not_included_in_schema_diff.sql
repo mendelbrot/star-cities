@@ -24,6 +24,3 @@ ALTER TABLE turn_events REPLICA IDENTITY FULL;
 
 -- 3. VIEW GRANTS
 -- Grants for authenticated users to access views.
-GRANT SELECT ON v_user_game_status TO authenticated;
-GRANT SELECT ON v_user_game_status TO anon;
-GRANT SELECT ON v_user_game_status TO service_role;

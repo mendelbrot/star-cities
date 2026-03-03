@@ -61,37 +61,11 @@ class _LobbyPageState extends ConsumerState<LobbyPage> {
     }
   }
 
-  Future<void> _joinGame(String gameId) async {
-    try {
-      final user = _supabase.auth.currentUser;
-      if (user == null) return;
-
-      final players = await _supabase.from('players').select('faction').eq('game_id', gameId);
-      final takenFactions = players.map((p) => p['faction']).toList();
-      final allFactions = ['BLUE', 'RED', 'PURPLE', 'GREEN'];
-      final availableFaction = allFactions.firstWhere((f) => !takenFactions.contains(f));
-
-      await _supabase.from('players').insert({
-        'game_id': gameId,
-        'user_id': user.id,
-        'faction': availableFaction,
-      });
-
-      if (mounted) context.push('/game/$gameId');
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Theme.of(context).colorScheme.error),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('STAR CITIES LOBBY'),
+        title: const Text('STAR CITIES'),
         actions: [
           IconButton(
             icon: const Icon(LucideIcons.user),
@@ -205,13 +179,7 @@ class _LobbyPageState extends ConsumerState<LobbyPage> {
         title: Text('GAME ID: ${game.id.substring(0, 8)}'),
         subtitle: Text('STATUS: ${game.status.value} | TURN: ${game.turnNumber}'),
         trailing: Icon(LucideIcons.chevronRight, color: Theme.of(context).primaryColor),
-        onTap: () {
-          if (isParticipant) {
-            context.push('/game/${game.id}');
-          } else {
-            _joinGame(game.id);
-          }
-        },
+        onTap: () => context.push('/game/${game.id}'),
       ),
     );
   }

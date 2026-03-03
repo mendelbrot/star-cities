@@ -6,12 +6,15 @@ This document outlines the refined plan for polishing the Star Cities frontend a
 
 ### Auth & Profile (Metadata Strategy)
 - **Source of Truth**: The `AppStateManager` will now check `userMetadata` in the JWT for the `username`. This eliminates database latency for the initial redirect.
-- **Sync Logic**: A database trigger on `auth.users` will sync `raw_user_meta_data` to the `public.user_profiles` table to maintain data integrity for other players to see.
-- **Profile Page**: A single `/profile` route will handle both initial setup and subsequent edits. It will conditionally display an "INITIALIZE YOUR CALLSIGN" message if the metadata is missing.
+- **Sync Logic**: Bi-directional triggers maintain sync between `auth.users` and `public.user_profiles`.
+    - `auth.users` -> `public.user_profiles`: Updates the profile table when metadata changes (e.g., during onboarding).
+    - `public.user_profiles` -> `auth.users`: Updates the JWT metadata when the profile is modified via the dashboard or other direct DB access.
+- **Profile Page**: A single `/profile` route will handle both initial setup and subsequent edits. It will conditionally display an "INITIALIZE YOUR CALLSIGN" message if the username is missing.
 
 ### State Management (Riverpod)
 - **Global Invalidation**: All data providers will watch an `authStateProvider`. Signing out will automatically dispose of all active streams and cached data.
-- **Realtime Reliability**: Investigate `REPLICA IDENTITY FULL` on the `players` and `games` tables to ensure all row updates (including deletions) are captured by the Supabase realtime stream.
+- **Realtime Reliability**: `REPLICA IDENTITY FULL` is enabled on all game-related tables to ensure row deletions are captured by Supabase realtime streams.
+- **Client-Side Joins**: To ensure reliable realtime updates, the Lobby and Game screens perform client-side joins of the `games` and `players` table streams rather than relying on database views.
 
 ## 2. Feature Improvements
 
@@ -23,29 +26,14 @@ We will implement four distinct lists based on the user's relationship to the ga
 3.  **Waiting for Players**: Games the user has joined where `game.status == 'WAITING'`.
 4.  **Open Games**: Games the user has **not** joined where `game.status == 'WAITING'`.
 
-### Database Optimization
-I propose creating a **Postgres View** `v_user_game_status` to simplify these queries:
-```sql
-CREATE VIEW v_user_game_status AS
-SELECT 
-    g.id as game_id,
-    g.status as game_status,
-    g.turn_number,
-    p.user_id,
-    p.is_ready,
-    p.faction
-FROM games g
-LEFT JOIN players p ON g.id = p.game_id;
-```
-*Note: This view allows us to find "Open Games" where `user_id` is NOT the current user and no player record exists for them.*
-
 ### Game Creation & UX
-- **Streamlined Flow**: Implement a `LoadingOverlay` during game creation. The app will navigate to the game screen immediately upon receiving the new ID from the `insert` call, bypassing the Lobby's list refresh delay.
+- **Streamlined Flow**: Implement a `LoadingOverlay` during game creation. The app will navigate to the game screen immediately upon receiving the new ID from the `insert` call, bypassing any list refresh delay.
 - **Join/Leave Logic**:
     - Navigating to a game does **not** auto-join.
     - A "JOIN" button appears if the user isn't in the game.
     - A "LEAVE" button appears if they are.
-    - "DELETE" buttons are restricted to bot players only.
+    - Bot removal buttons are restricted to bot players only.
+- **Clearer Status**: "THE GAME WILL START WHEN ALL PLAYER SPOTS ARE FILLED" message displayed in the waiting room.
 
 ## 3. Visual Identity & Styling
 - **Theme Consistency**: All hard-coded colors (e.g., `Colors.red`) will be replaced with `Theme.of(context).colorScheme` or `Theme.of(context).primaryColor`.
@@ -54,7 +42,7 @@ LEFT JOIN players p ON g.id = p.game_id;
 
 ## 4. Implementation Plan
 
-1.  **Phase 1: Database & Logic**: Create views, triggers, and update `AppStateManager`.
+1.  **Phase 1: Database & Logic**: Create bi-directional sync triggers and update `AppStateManager`.
 2.  **Phase 2: Profile & Auth**: Realtime username availability (with debounce) and metadata-based setup.
-3.  **Phase 3: Lobby Overhaul**: Implement the 4-list view and fix button styling.
-4.  **Phase 4: Game Board Foundation**: Fix realtime update bugs and implement Join/Leave/Bot logic.
+3.  **Phase 3: Lobby Overhaul**: Implement the 4-list view with client-side joins and fix button styling.
+4.  **Phase 5: Game Board Foundation**: Fix realtime update bugs and implement Join/Leave/Bot logic.

@@ -77,7 +77,6 @@ alter table "public"."turn_states" enable row level security;
   create table "public"."user_profiles" (
     "id" uuid not null,
     "username" text not null,
-    "profile_icon" text not null default 'default_icon'::text,
     "created_at" timestamp with time zone not null default now(),
     "updated_at" timestamp with time zone not null default now()
       );
@@ -96,6 +95,8 @@ CREATE UNIQUE INDEX players_pkey ON public.players USING btree (id);
 CREATE UNIQUE INDEX turn_events_game_id_turn_number_key ON public.turn_events USING btree (game_id, turn_number);
 
 CREATE UNIQUE INDEX turn_events_pkey ON public.turn_events USING btree (id);
+
+CREATE UNIQUE INDEX turn_planned_actions_game_id_player_id_turn_number_key ON public.turn_planned_actions USING btree (game_id, player_id, turn_number);
 
 CREATE UNIQUE INDEX turn_planned_actions_pkey ON public.turn_planned_actions USING btree (id);
 
@@ -147,6 +148,8 @@ alter table "public"."turn_planned_actions" add constraint "turn_planned_actions
 
 alter table "public"."turn_planned_actions" validate constraint "turn_planned_actions_game_id_fkey";
 
+alter table "public"."turn_planned_actions" add constraint "turn_planned_actions_game_id_player_id_turn_number_key" UNIQUE using index "turn_planned_actions_game_id_player_id_turn_number_key";
+
 alter table "public"."turn_planned_actions" add constraint "turn_planned_actions_player_id_fkey" FOREIGN KEY (player_id) REFERENCES public.players(id) ON DELETE CASCADE not valid;
 
 alter table "public"."turn_planned_actions" validate constraint "turn_planned_actions_player_id_fkey";
@@ -186,6 +189,95 @@ BEGIN
     END IF;
     
     RETURN NEW;
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.delete_abandoned_game()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+BEGIN
+    -- Only act if the deleted player was a human (is_bot = FALSE)
+    -- and the game still exists (to avoid recursion or errors during game deletion)
+    IF OLD.is_bot = FALSE THEN
+        IF NOT EXISTS (
+            SELECT 1 FROM players 
+            WHERE game_id = OLD.game_id 
+              AND is_bot = FALSE
+        ) THEN
+            DELETE FROM games WHERE id = OLD.game_id;
+        END IF;
+    END IF;
+    RETURN OLD;
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.handle_auth_user_update()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+BEGIN
+    -- Sync the metadata to the profile table
+    -- Using the metadata stored in 'raw_user_meta_data'
+    INSERT INTO public.user_profiles (id, username)
+    VALUES (
+        NEW.id,
+        COALESCE(NEW.raw_user_meta_data->>'username', 'Unknown')
+    )
+    ON CONFLICT (id) DO UPDATE SET
+        username = EXCLUDED.username,
+        updated_at = NOW();
+
+    RETURN NEW;
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.handle_player_ready()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+BEGIN
+    -- Only act if is_ready changed to true
+    IF (NEW.is_ready = true AND (OLD.is_ready = false OR OLD.is_ready IS NULL)) THEN
+        -- Check if all active (non-eliminated) players in this game are ready
+        IF NOT EXISTS (
+            SELECT 1 FROM players 
+            WHERE game_id = NEW.game_id 
+              AND is_eliminated = false 
+              AND is_ready = false
+        ) THEN
+            -- Update game status to 'RESOLVING' to trigger the resolve-turn edge function
+            UPDATE games 
+            SET status = 'RESOLVING' 
+            WHERE id = NEW.game_id 
+              AND status = 'PLANNING';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.handle_user_profile_update()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+BEGIN
+  -- Update the auth.users raw_user_meta_data with the new username
+  UPDATE auth.users
+  SET raw_user_meta_data = 
+    COALESCE(raw_user_meta_data, '{}'::jsonb) || 
+    jsonb_build_object('username', NEW.username)
+  WHERE id = NEW.id;
+
+  RETURN NEW;
 END;
 $function$
 ;
@@ -448,7 +540,7 @@ grant update on table "public"."user_profiles" to "service_role";
   as permissive
   for insert
   to authenticated
-with check (true);
+with check (((status = 'WAITING'::public.game_status) AND (turn_number = 1)));
 
 
 
@@ -458,6 +550,17 @@ with check (true);
   for select
   to authenticated
 using (true);
+
+
+
+  create policy "Authenticated users can add player bots to games"
+  on "public"."players"
+  as permissive
+  for insert
+  to authenticated
+with check (((is_bot = true) AND (EXISTS ( SELECT 1
+   FROM public.games
+  WHERE ((games.id = players.game_id) AND (games.status = 'WAITING'::public.game_status))))));
 
 
 
@@ -472,12 +575,34 @@ with check (((auth.uid() = user_id) AND (EXISTS ( SELECT 1
 
 
 
+  create policy "Authenticated users can remove player bots from games"
+  on "public"."players"
+  as permissive
+  for delete
+  to authenticated
+using (((is_bot = true) AND (EXISTS ( SELECT 1
+   FROM public.games
+  WHERE ((games.id = players.game_id) AND (games.status = 'WAITING'::public.game_status))))));
+
+
+
   create policy "Authenticated users can see all players"
   on "public"."players"
   as permissive
   for select
   to authenticated
 using (true);
+
+
+
+  create policy "Players can leave games"
+  on "public"."players"
+  as permissive
+  for delete
+  to authenticated
+using (((auth.uid() = user_id) AND (EXISTS ( SELECT 1
+   FROM public.games
+  WHERE ((games.id = players.game_id) AND (games.status = 'WAITING'::public.game_status))))));
 
 
 
@@ -580,5 +705,13 @@ using ((auth.uid() = id));
 
 
 CREATE TRIGGER trigger_check_game_full AFTER INSERT ON public.players FOR EACH ROW EXECUTE FUNCTION public.check_game_full_and_start();
+
+CREATE TRIGGER trigger_delete_abandoned_game AFTER DELETE ON public.players FOR EACH ROW EXECUTE FUNCTION public.delete_abandoned_game();
+
+CREATE TRIGGER trigger_resolve_turn AFTER UPDATE OF is_ready ON public.players FOR EACH ROW EXECUTE FUNCTION public.handle_player_ready();
+
+CREATE TRIGGER trigger_sync_user_profile_to_auth AFTER UPDATE OF username ON public.user_profiles FOR EACH ROW EXECUTE FUNCTION public.handle_user_profile_update();
+
+CREATE TRIGGER trigger_sync_user_profile AFTER INSERT OR UPDATE ON auth.users FOR EACH ROW EXECUTE FUNCTION public.handle_auth_user_update();
 
 

@@ -169,7 +169,7 @@ class _GameBoardState extends ConsumerState<GameBoard> {
               ],
               const SizedBox(height: 48),
               Text(
-                'THE MISSION WILL BEGIN AUTOMATICALLY ONCE ALL SLOTS ARE SECURED.',
+                'THE GAME WILL START WHEN ALL PLAYER SPOTS ARE FILLED',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodySmall?.copyWith(letterSpacing: 1),
               ),

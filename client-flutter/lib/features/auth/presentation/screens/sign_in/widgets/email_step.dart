@@ -23,7 +23,7 @@ class EmailStep extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const AuthHeader(title: 'Sign In'),
+        const AuthHeader(title: 'Sign In / Sign Up'),
         const SizedBox(height: 48),
         TextFormField(
           controller: emailController,

@@ -8,7 +8,6 @@ Publicly visible profile information for each user.
 - **Fields**:
     - `id`: UUID (Primary Key, references `auth.users.id`)
     - `username`: TEXT (Unique)
-    - `profile_icon`: TEXT (A string identifier for the selected icon)
     - `created_at`: TIMESTAMPTZ
     - `updated_at`: TIMESTAMPTZ
 
