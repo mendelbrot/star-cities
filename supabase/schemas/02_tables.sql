@@ -5,7 +5,7 @@ CREATE TYPE faction AS ENUM ('BLUE', 'RED', 'PURPLE', 'GREEN');
 -- User Profiles (Publicly visible user info)
 CREATE TABLE user_profiles (
     id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    username TEXT UNIQUE NOT NULL,
+    username TEXT UNIQUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

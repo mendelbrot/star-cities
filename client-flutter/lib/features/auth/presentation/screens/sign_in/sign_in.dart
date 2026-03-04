@@ -71,34 +71,49 @@ class _SignInPageState extends State<SignInPage> {
             padding: const EdgeInsets.all(16.0),
             child: SizedBox(
               width: 400,
-              child: Form(
-                key: _formKey,
-                child: ListenableBuilder(
-                  listenable: _controller,
-                  builder: (context, _) {
-                    if (!_controller.codeSent) {
-                      return EmailStep(
-                        emailController: _emailController,
-                        onSend: _sendCode,
-                        isLoading: _controller.isLoading,
-                        errorMessage: _controller.errorMessage,
-                      );
-                    }
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'STAR CITIES',
+                    style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                      letterSpacing: 8,
+                      fontWeight: FontWeight.w900,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 64),
+                  Form(
+                    key: _formKey,
+                    child: ListenableBuilder(
+                      listenable: _controller,
+                      builder: (context, _) {
+                        if (!_controller.codeSent) {
+                          return EmailStep(
+                            emailController: _emailController,
+                            onSend: _sendCode,
+                            isLoading: _controller.isLoading,
+                            errorMessage: _controller.errorMessage,
+                          );
+                        }
 
-                    return OTPStep(
-                      otpController: _otpController,
-                      email: _emailController.text,
-                      onVerify: _verifyCode,
-                      onResend: _sendCode,
-                      onChangeEmail: () {
-                        _otpController.clear();
-                        _controller.reset();
+                        return OTPStep(
+                          otpController: _otpController,
+                          email: _emailController.text,
+                          onVerify: _verifyCode,
+                          onResend: _sendCode,
+                          onChangeEmail: () {
+                            _otpController.clear();
+                            _controller.reset();
+                          },
+                          isLoading: _controller.isLoading,
+                          errorMessage: _controller.errorMessage,
+                        );
                       },
-                      isLoading: _controller.isLoading,
-                      errorMessage: _controller.errorMessage,
-                    );
-                  },
-                ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
