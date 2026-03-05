@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:star_cities/shared/widgets/grid_loading_indicator.dart';
 
 class LoadingButton extends StatelessWidget {
   final VoidCallback? onPressed;
@@ -20,11 +21,7 @@ class LoadingButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 16),
       ),
       child: isLoading
-          ? const SizedBox(
-              height: 20,
-              width: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
+          ? const GridLoadingIndicator(size: 20)
           : Text(label),
     );
   }

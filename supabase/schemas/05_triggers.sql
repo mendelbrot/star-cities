@@ -78,31 +78,47 @@ AFTER DELETE ON players
 FOR EACH ROW
 EXECUTE FUNCTION delete_abandoned_game();
 
--- 4. Sync Auth User Metadata to the 'user_profiles' table.
+-- 4. Sync Auth User Metadata -> public.user_profiles
 CREATE OR REPLACE FUNCTION handle_auth_user_update()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- Sync the metadata to the profile table
-    -- Using the metadata stored in 'raw_user_meta_data'
-    INSERT INTO public.user_profiles (id, username, profile_icon)
+    INSERT INTO public.user_profiles (id, username)
     VALUES (
         NEW.id,
-        COALESCE(NEW.raw_user_meta_data->>'username', 'Unknown'),
-        COALESCE(NEW.raw_user_meta_data->>'profile_icon', 'default_icon')
+        NEW.raw_user_meta_data->>'username'
     )
     ON CONFLICT (id) DO UPDATE SET
         username = EXCLUDED.username,
-        profile_icon = EXCLUDED.profile_icon,
-        updated_at = NOW();
+        updated_at = NOW()
+    WHERE user_profiles.username IS DISTINCT FROM EXCLUDED.username;
 
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Trigger on the 'auth.users' table
--- Note: This trigger is applied to 'auth.users' which is managed by Supabase.
--- It will fire on both INSERT (onboarding) and UPDATE (user profile setup).
 CREATE TRIGGER trigger_sync_user_profile
 AFTER INSERT OR UPDATE ON auth.users
 FOR EACH ROW
 EXECUTE FUNCTION handle_auth_user_update();
+
+-- 5. Sync public.user_profiles -> Auth User Metadata
+CREATE OR REPLACE FUNCTION handle_user_profile_update()
+RETURNS TRIGGER AS $$
+BEGIN
+  UPDATE auth.users
+  SET raw_user_meta_data = 
+    COALESCE(raw_user_meta_data, '{}'::jsonb) || 
+    jsonb_build_object('username', NEW.username)
+  WHERE id = NEW.id
+    AND (raw_user_meta_data->>'username' IS DISTINCT FROM NEW.username);
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger on the 'public.user_profiles' table
+CREATE TRIGGER trigger_sync_user_profile_to_auth
+AFTER UPDATE OF username ON public.user_profiles
+FOR EACH ROW
+EXECUTE FUNCTION handle_user_profile_update();

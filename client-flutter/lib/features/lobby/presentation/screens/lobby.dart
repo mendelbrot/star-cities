@@ -5,6 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:star_cities/features/lobby/domain/models/game.dart';
 import 'package:star_cities/features/lobby/presentation/providers/lobby_providers.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:star_cities/shared/widgets/grid_loading_indicator.dart';
+import 'package:star_cities/shared/widgets/branding_header.dart';
 
 class LobbyPage extends ConsumerStatefulWidget {
   const LobbyPage({super.key});
@@ -19,6 +21,16 @@ class _LobbyPageState extends ConsumerState<LobbyPage> {
 
   Future<void> _createGame() async {
     setState(() => _isCreating = true);
+    
+    // Show instant loading overlay
+    final overlay = OverlayEntry(
+      builder: (context) => Container(
+        color: Colors.black54,
+        child: const Center(child: GridLoadingIndicator(size: 60)),
+      ),
+    );
+    Overlay.of(context).insert(overlay);
+
     try {
       final user = _supabase.auth.currentUser;
       if (user == null) return;
@@ -41,71 +53,36 @@ class _LobbyPageState extends ConsumerState<LobbyPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error creating game: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Theme.of(context).colorScheme.error),
         );
       }
     } finally {
+      overlay.remove();
       if (mounted) setState(() => _isCreating = false);
-    }
-  }
-
-  Future<void> _joinGame(String gameId) async {
-    try {
-      final user = _supabase.auth.currentUser;
-      if (user == null) return;
-
-      final existingPlayer = await _supabase
-          .from('players')
-          .select()
-          .eq('game_id', gameId)
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-      if (existingPlayer != null) {
-        if (mounted) context.push('/game/$gameId');
-        return;
-      }
-
-      final players = await _supabase.from('players').select('faction').eq('game_id', gameId);
-      final takenFactions = players.map((p) => p['faction']).toList();
-      final allFactions = ['BLUE', 'RED', 'PURPLE', 'GREEN'];
-      final availableFaction = allFactions.firstWhere((f) => !takenFactions.contains(f));
-
-      await _supabase.from('players').insert({
-        'game_id': gameId,
-        'user_id': user.id,
-        'faction': availableFaction,
-      });
-
-      if (mounted) context.push('/game/$gameId');
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error joining game: $e'), backgroundColor: Colors.red),
-        );
-      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final activeGamesAsync = ref.watch(activeGamesProvider);
-    final waitingGamesAsync = ref.watch(waitingGamesProvider);
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text('STAR CITIES LOBBY'),
+        title: const BrandingHeader(iconSize: 24, spacing: 4),
         actions: [
+          IconButton(
+            icon: const Icon(LucideIcons.user),
+            onPressed: () => context.push('/profile'),
+            tooltip: 'Profile',
+          ),
           IconButton(
             icon: const Icon(LucideIcons.logOut),
             onPressed: () => _supabase.auth.signOut(),
+            tooltip: 'Sign Out',
           ),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(activeGamesProvider);
-          ref.invalidate(waitingGamesProvider);
+          ref.invalidate(userGameStatusProvider);
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -113,41 +90,60 @@ class _LobbyPageState extends ConsumerState<LobbyPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildSectionTitle('YOUR ACTIVE TURNS'),
-              activeGamesAsync.when(
-                data: (games) => _buildGameList(games, isParticipant: true),
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, s) => Text('Error: $e'),
-              ),
-              const SizedBox(height: 32),
-              _buildSectionTitle('WAITING FOR PLAYERS'),
-              waitingGamesAsync.when(
-                data: (games) => _buildGameList(games, isParticipant: false),
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, s) => Text('Error: $e'),
-              ),
+              _buildListSection('TAP Required', ref.watch(tapRequiredGamesProvider), true),
+              _buildListSection('TAP Done, Waiting for Others', ref.watch(tapDoneGamesProvider), true),
+              _buildListSection('Waiting for Players to Join', ref.watch(waitingForPlayersGamesProvider), true),
+              _buildListSection('Open Games', ref.watch(openGamesProvider), false),
+              const SizedBox(height: 80),
             ],
           ),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        foregroundColor: Theme.of(context).primaryColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(color: Theme.of(context).primaryColor, width: 2),
+        ),
         onPressed: _isCreating ? null : _createGame,
-        label: _isCreating ? const Text('INITIALIZING...') : const Text('CREATE NEW GAME'),
+        label: Text(_isCreating ? 'Initializing...' : 'Create New Game'),
         icon: const Icon(LucideIcons.plus),
       ),
     );
   }
 
+  Widget _buildListSection(String title, AsyncValue<List<Game>> asyncGames, bool isParticipant) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle(title),
+        asyncGames.when(
+          data: (games) => _buildGameList(games, isParticipant: isParticipant),
+          loading: () => const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Center(child: GridLoadingIndicator(size: 30)),
+          ),
+          error: (e, s) => Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text('Error: $e', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
   Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Text(
         title,
-        style: const TextStyle(
-          fontSize: 14,
+        style: TextStyle(
+          fontSize: 12,
           fontWeight: FontWeight.bold,
-          letterSpacing: 2,
-          color: Colors.white70,
+          letterSpacing: 1.5,
+          color: Theme.of(context).disabledColor,
         ),
       ),
     );
@@ -155,12 +151,21 @@ class _LobbyPageState extends ConsumerState<LobbyPage> {
 
   Widget _buildGameList(List<Game> games, {required bool isParticipant}) {
     if (games.isEmpty) {
+      final theme = Theme.of(context);
       return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(
-            isParticipant ? 'No active games.' : 'No games waiting.',
-            textAlign: TextAlign.center,
+        margin: const EdgeInsets.only(bottom: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(color: theme.disabledColor, width: 1),
+        ),
+        child: ListTile(
+          title: Text(
+            'No Games',
+            style: TextStyle(
+              color: theme.disabledColor,
+              fontSize: 12,
+              letterSpacing: 1,
+            ),
           ),
         ),
       );
@@ -173,20 +178,12 @@ class _LobbyPageState extends ConsumerState<LobbyPage> {
 
   Widget _buildGameCard(Game game, {required bool isParticipant}) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        title: Text('GAME ID: ${game.id.substring(0, 8)}'),
-        subtitle: Text('STATUS: ${game.status.value} | TURN: ${game.turnNumber}'),
-        trailing: const Icon(LucideIcons.chevronRight),
-        onTap: () {
-          if (isParticipant || game.status == GameStatus.waiting) {
-            if (isParticipant) {
-              context.push('/game/${game.id}');
-            } else {
-              _joinGame(game.id);
-            }
-          }
-        },
+        title: Text('Game ID: ${game.id.substring(0, 8)}'),
+        subtitle: Text('Status: ${game.status.value} | Turn: ${game.turnNumber}'),
+        trailing: Icon(LucideIcons.chevronRight, color: Theme.of(context).primaryColor),
+        onTap: () => context.push('/game/${game.id}'),
       ),
     );
   }

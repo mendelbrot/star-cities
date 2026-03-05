@@ -7,6 +7,7 @@ class AppTheme {
       brightness: Brightness.dark,
       scaffoldBackgroundColor: Colors.black,
       primaryColor: Colors.white,
+      disabledColor: const Color(0xFF666666),
       fontFamily: GoogleFonts.jetBrainsMono().fontFamily,
       
       // Text Theme
@@ -16,26 +17,27 @@ class AppTheme {
           displayMedium: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           bodyLarge: TextStyle(color: Colors.white),
           bodyMedium: TextStyle(color: Colors.white),
+          bodySmall: TextStyle(color: Color(0xFF666666)),
         ),
       ),
 
-      // Card Theme (Sharp Corners)
-      cardTheme: const CardThemeData(
+      // Card Theme (Rounded Corners)
+      cardTheme: CardThemeData(
         color: Colors.black,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.zero,
-          side: BorderSide(color: Colors.white, width: 1),
+          borderRadius: BorderRadius.circular(8),
+          side: const BorderSide(color: Colors.white, width: 1),
         ),
       ),
 
-      // Button Theme (Sharp Corners, White Outlines)
+      // Button Theme (Rounded Corners, White Outlines)
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: Colors.white,
           side: const BorderSide(color: Colors.white, width: 2),
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.zero,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         ),
@@ -45,47 +47,47 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           foregroundColor: Colors.black,
           backgroundColor: Colors.white,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.zero,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         ),
       ),
 
-      // Input Theme (2px White Outlines)
-      inputDecorationTheme: const InputDecorationTheme(
+      // Input Theme (2px White Outlines, Rounded)
+      inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: Colors.black,
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
-          borderSide: BorderSide(color: Colors.white, width: 2),
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Colors.white, width: 2),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
-          borderSide: BorderSide(color: Colors.white, width: 3),
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Colors.white, width: 3),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.zero,
-          borderSide: BorderSide(color: Colors.red, width: 2),
+          borderRadius: BorderRadius.circular(8),
+          borderSide: const BorderSide(color: Colors.red, width: 2),
         ),
-        labelStyle: TextStyle(color: Colors.white),
-        hintStyle: TextStyle(color: Colors.white54),
+        labelStyle: const TextStyle(color: Colors.white),
+        hintStyle: const TextStyle(color: Color(0xFF666666)),
       ),
 
       // TabBar Theme
       tabBarTheme: const TabBarThemeData(
         indicatorColor: Colors.white,
         labelColor: Colors.white,
-        unselectedLabelColor: Colors.white54,
+        unselectedLabelColor: Color(0xFF666666),
         indicatorSize: TabBarIndicatorSize.tab,
       ),
 
       // Dialog Theme
-      dialogTheme: const DialogThemeData(
+      dialogTheme: DialogThemeData(
         backgroundColor: Colors.black,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.zero,
-          side: BorderSide(color: Colors.white, width: 1),
+          borderRadius: BorderRadius.circular(8),
+          side: const BorderSide(color: Color(0xFF333333), width: 1),
         ),
       ),
     );

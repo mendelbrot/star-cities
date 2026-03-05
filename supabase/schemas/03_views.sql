@@ -1,1 +1,1 @@
--- Views will be defined here as needed.
+-- View definitions go here.

@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="256mm"
+   height="256mm"
+   viewBox="0 0 256 256"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.4.3 (0d15f75042, 2025-12-25)"
+   sodipodi:docname="star-city-anchored.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#505050"
+     bordercolor="#ffffff"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="1"
+     inkscape:deskcolor="#505050"
+     inkscape:document-units="mm"
+     showgrid="true"
+     inkscape:zoom="0.5"
+     inkscape:cx="283"
+     inkscape:cy="377"
+     inkscape:window-width="1579"
+     inkscape:window-height="824"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="layer1">
+    <inkscape:grid
+       id="grid1"
+       units="mm"
+       originx="0"
+       originy="0"
+       spacingx="3.9999999"
+       spacingy="3.9999999"
+       empcolor="#0099e5"
+       empopacity="0.30196078"
+       color="#0099e5"
+       opacity="0.14901961"
+       empspacing="4"
+       enabled="true"
+       visible="true" />
+  </sodipodi:namedview>
+  <defs
+     id="defs1" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <path
+       style="fill:none;stroke:#ffffff;stroke-width:6;stroke-dasharray:none;stroke-opacity:1;stroke-linecap:round;stroke-linejoin:round"
+       d="M 96.000003,160 H 160 V 48.000001 l -32,-32 -31.999997,32 z"
+       id="path29-9" />
+    <path
+       style="fill:none;stroke:#ffffff;stroke-width:6;stroke-dasharray:none;stroke-opacity:1;stroke-linecap:round;stroke-linejoin:round"
+       d="M 176,144 V 80.000001 l 32,-32 32,32 V 144 Z"
+       id="path30-7" />
+    <path
+       style="fill:none;stroke:#ffffff;stroke-width:6;stroke-dasharray:none;stroke-opacity:1;stroke-linecap:round;stroke-linejoin:round"
+       d="M 16.000003,144 V 80.000001 l 32,-32 32,32 V 144 Z"
+       id="path30-5-3" />
+    <path
+       style="fill:none;stroke:#ff00ff;stroke-width:4;stroke-dasharray:none;stroke-opacity:1;stroke-linecap:round;stroke-linejoin:round"
+       d="M 96.000003,160 H 160 V 48.000001 L 128,16 96.000003,48.000001 Z"
+       id="path29" />
+    <path
+       style="fill:none;stroke:#ff00ff;stroke-width:4;stroke-dasharray:none;stroke-opacity:1;stroke-linecap:round;stroke-linejoin:round"
+       d="M 176,144 V 80 L 208,48.000001 240,80 v 64 z"
+       id="path30" />
+    <path
+       style="fill:none;stroke:#ff00ff;stroke-width:4;stroke-dasharray:none;stroke-opacity:1;stroke-linecap:round;stroke-linejoin:round"
+       d="M 16.000001,144 V 80.000001 l 32,-31.999999 32,31.999999 V 144 Z"
+       id="path30-5" />
+    <path
+       style="fill:none;stroke:#ffffff;stroke-width:6.00001;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+       d="m 128,176 v 64"
+       id="path32" />
+    <path
+       style="fill:none;stroke:#ffffff;stroke-width:6.00001;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+       d="M 64.000001,240 H 192"
+       id="path33" />
+    <path
+       style="fill:none;stroke:#ff00ff;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+       d="m 128,176 v 64"
+       id="path32-1" />
+    <path
+       style="fill:none;stroke:#ff00ff;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+       d="M 64,240 H 192"
+       id="path33-9" />
+  </g>
+</svg>

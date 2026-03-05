@@ -70,6 +70,16 @@ CREATE POLICY "Authenticated users can remove player bots from games" ON players
         )
     );
 
+CREATE POLICY "Authenticated users can update player bot data" ON players
+    FOR UPDATE TO authenticated USING (
+        is_bot = true AND
+        EXISTS (
+            SELECT 1 FROM games
+            WHERE games.id = game_id
+            AND games.status = 'WAITING'
+        )
+    );
+
 CREATE POLICY "Players can update their own data" ON players
     FOR UPDATE TO authenticated USING (auth.uid() = user_id);
 

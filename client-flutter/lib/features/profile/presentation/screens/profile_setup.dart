@@ -1,5 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:star_cities/shared/widgets/grid_loading_indicator.dart';
 
 class ProfileSetupPage extends StatefulWidget {
   const ProfileSetupPage({super.key});
@@ -9,49 +13,97 @@ class ProfileSetupPage extends StatefulWidget {
 }
 
 class _ProfileSetupPageState extends State<ProfileSetupPage> {
+  final _supabase = Supabase.instance.client;
   final _usernameController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  String _selectedIcon = 'default_icon';
+  
   bool _isLoading = false;
+  bool _isCheckingUsername = false;
+  String? _usernameError;
+  Timer? _debounce;
 
-  final List<String> _availableIcons = [
-    'default_icon',
-    'commander_alpha',
-    'sector_beta',
-    'orbit_gamma',
-    'pulsar_delta',
-  ];
+  bool get _isInitialSetup {
+    final metadata = _supabase.auth.currentUser?.userMetadata;
+    return metadata == null || metadata['username'] == null;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    final currentUsername = _supabase.auth.currentUser?.userMetadata?['username'] as String?;
+    if (currentUsername != null) {
+      _usernameController.text = currentUsername;
+    }
+  }
 
   @override
   void dispose() {
     _usernameController.dispose();
+    _debounce?.cancel();
     super.dispose();
   }
 
-  Future<void> _saveProfile() async {
-    if (!_formKey.currentState!.validate()) return;
+  void _onUsernameChanged(String value) {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    
+    setState(() {
+      _usernameError = null;
+    });
 
+    if (value.length < 3) return;
+
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      _checkUsernameAvailability(value);
+    });
+  }
+
+  Future<void> _checkUsernameAvailability(String username) async {
+    setState(() => _isCheckingUsername = true);
+    try {
+      final res = await _supabase
+          .from('user_profiles')
+          .select('id')
+          .eq('username', username)
+          .maybeSingle();
+      
+      if (res != null && res['id'] != _supabase.auth.currentUser?.id) {
+        setState(() => _usernameError = 'Username is already taken');
+      }
+    } catch (e) {
+      // Ignore errors for availability check
+    } finally {
+      if (mounted) setState(() => _isCheckingUsername = false);
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    if (!_formKey.currentState!.validate() || _usernameError != null) return;
+
+    final wasInitialSetup = _isInitialSetup;
     setState(() => _isLoading = true);
 
     try {
-      await Supabase.instance.client.auth.updateUser(
+      await _supabase.auth.updateUser(
         UserAttributes(
           data: {
             'username': _usernameController.text.trim(),
-            'profile_icon': _selectedIcon,
           },
         ),
       );
       
-      // The router will automatically refresh because AppStateManager 
-      // is listening to onAuthStateChange.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile updated successfully')),
+        );
+
+        if (wasInitialSetup) {
+          context.go('/');
+        }
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error saving profile: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Error: $e'), backgroundColor: Theme.of(context).colorScheme.error),
         );
       }
     } finally {
@@ -61,7 +113,18 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Profile'),
+        actions: [
+          IconButton(
+            onPressed: () => _supabase.auth.signOut(),
+            icon: Icon(LucideIcons.logOut, color: theme.colorScheme.error),
+            tooltip: 'Sign Out',
+          ),
+        ],
+      ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -73,70 +136,39 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    'INITIALIZE PROFILE',
-                    style: Theme.of(context).textTheme.displaySmall,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 48),
+                  if (_isInitialSetup) ...[
+                    const Text(
+                      'Choose your username.',
+                      style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 48),
+                  ],
                   TextFormField(
                     controller: _usernameController,
-                    decoration: const InputDecoration(
-                      labelText: 'USERNAME',
-                      hintText: 'Enter your callsign',
+                    onChanged: _onUsernameChanged,
+                    decoration: InputDecoration(
+                      labelText: 'Username',
+                      suffixIcon: _isCheckingUsername 
+                        ? const Padding(
+                            padding: EdgeInsets.all(12.0),
+                            child: GridLoadingIndicator(size: 20),
+                          )
+                        : null,
+                      errorText: _usernameError,
                     ),
                     validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Username is required';
-                      }
-                      if (value.trim().length < 3) {
-                        return 'Minimum 3 characters';
-                      }
+                      if (value == null || value.trim().isEmpty) return 'Username is required';
+                      if (value.trim().length < 3) return 'Minimum 3 characters';
                       return null;
                     },
                   ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'SELECT ICON',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                  ),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    alignment: WrapAlignment.center,
-                    children: _availableIcons.map((icon) {
-                      final isSelected = _selectedIcon == icon;
-                      return GestureDetector(
-                        onTap: () => setState(() => _selectedIcon = icon),
-                        child: Container(
-                          width: 64,
-                          height: 64,
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: isSelected ? Colors.white : Colors.white24,
-                              width: isSelected ? 3 : 1,
-                            ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              icon.substring(0, 2).toUpperCase(),
-                              style: TextStyle(
-                                color: isSelected ? Colors.white : Colors.white24,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
                   const SizedBox(height: 48),
                   _isLoading
-                      ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                      ? const Center(child: GridLoadingIndicator(size: 40))
                       : ElevatedButton(
                           onPressed: _saveProfile,
-                          child: const Text('SAVE AND PROCEED'),
+                          child: Text(_isInitialSetup ? 'Select' : 'Save'),
                         ),
                 ],
               ),

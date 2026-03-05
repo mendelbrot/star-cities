@@ -8,7 +8,6 @@ Publicly visible profile information for each user.
 - **Fields**:
     - `id`: UUID (Primary Key, references `auth.users.id`)
     - `username`: TEXT (Unique)
-    - `profile_icon`: TEXT (A string identifier for the selected icon)
     - `created_at`: TIMESTAMPTZ
     - `updated_at`: TIMESTAMPTZ
 
@@ -33,7 +32,7 @@ Links users or bots to games and assigns their faction.
     - `user_id`: UUID (Foreign Key to auth users, null if `is_bot` is true)
     - `is_bot`: Boolean (Default FALSE)
     - `bot_name`: TEXT (Friendly name for the bot, null for human players)
-    - `faction`: `faction` (`BLUE | RED | PURPLE | GREEN`)
+    - `faction`: `faction` (`RED | YELLOW | GREEN | CYAN | BLUE | MAGENTA`)
     - `home_star`: JSONB (`{x, y}` coordinates)
     - `is_ready`: Boolean (Default FALSE)
     - `is_eliminated`: Boolean (Default FALSE)
@@ -102,7 +101,7 @@ The `state` field in `turn_states` is a list of piece objects.
 ```json
 {
   "id": "UUID",
-  "faction": "BLUE | RED | PURPLE | GREEN",
+  "faction": "RED | YELLOW | GREEN | CYAN | BLUE | MAGENTA",
   "type": "STAR_CITY | NEUTRINO | ECLIPSE | PARALLAX",
   "x": 0,         // 0-8, null if in tray
   "y": 0,         // 0-8, null if in tray

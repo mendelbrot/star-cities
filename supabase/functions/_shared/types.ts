@@ -1,4 +1,4 @@
-export type Faction = "BLUE" | "RED" | "PURPLE" | "GREEN";
+export type Faction = "RED" | "YELLOW" | "GREEN" | "CYAN" | "BLUE" | "MAGENTA";
 export type PieceType = "STAR_CITY" | "NEUTRINO" | "ECLIPSE" | "PARALLAX";
 
 export type Player = {

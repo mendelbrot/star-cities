@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:star_cities/features/auth/presentation/screens/sign_in/sign_in_controller.dart';
 import 'package:star_cities/features/auth/presentation/screens/sign_in/widgets/sign_in_page_widgets.dart';
+import 'package:star_cities/shared/widgets/branding_header.dart';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
@@ -71,34 +72,42 @@ class _SignInPageState extends State<SignInPage> {
             padding: const EdgeInsets.all(16.0),
             child: SizedBox(
               width: 400,
-              child: Form(
-                key: _formKey,
-                child: ListenableBuilder(
-                  listenable: _controller,
-                  builder: (context, _) {
-                    if (!_controller.codeSent) {
-                      return EmailStep(
-                        emailController: _emailController,
-                        onSend: _sendCode,
-                        isLoading: _controller.isLoading,
-                        errorMessage: _controller.errorMessage,
-                      );
-                    }
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const BrandingHeader(iconSize: 40, spacing: 12),
+                  const SizedBox(height: 64),
+                  Form(
+                    key: _formKey,
+                    child: ListenableBuilder(
+                      listenable: _controller,
+                      builder: (context, _) {
+                        if (!_controller.codeSent) {
+                          return EmailStep(
+                            emailController: _emailController,
+                            onSend: _sendCode,
+                            isLoading: _controller.isLoading,
+                            errorMessage: _controller.errorMessage,
+                          );
+                        }
 
-                    return OTPStep(
-                      otpController: _otpController,
-                      email: _emailController.text,
-                      onVerify: _verifyCode,
-                      onResend: _sendCode,
-                      onChangeEmail: () {
-                        _otpController.clear();
-                        _controller.reset();
+                        return OTPStep(
+                          otpController: _otpController,
+                          email: _emailController.text,
+                          onVerify: _verifyCode,
+                          onResend: _sendCode,
+                          onChangeEmail: () {
+                            _otpController.clear();
+                            _controller.reset();
+                          },
+                          isLoading: _controller.isLoading,
+                          errorMessage: _controller.errorMessage,
+                        );
                       },
-                      isLoading: _controller.isLoading,
-                      errorMessage: _controller.errorMessage,
-                    );
-                  },
-                ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
