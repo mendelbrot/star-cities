@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:star_cities/shared/widgets/grid_loading_indicator.dart';
@@ -78,6 +79,7 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate() || _usernameError != null) return;
 
+    final wasInitialSetup = _isInitialSetup;
     setState(() => _isLoading = true);
 
     try {
@@ -93,6 +95,10 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Profile updated successfully')),
         );
+
+        if (wasInitialSetup) {
+          context.go('/');
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -110,12 +116,12 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isInitialSetup ? 'INITIALIZE PROFILE' : 'EDIT PROFILE'),
+        title: const Text('Profile'),
         actions: [
           IconButton(
             onPressed: () => _supabase.auth.signOut(),
             icon: Icon(LucideIcons.logOut, color: theme.colorScheme.error),
-            tooltip: 'SIGN OUT',
+            tooltip: 'Sign Out',
           ),
         ],
       ),
@@ -132,7 +138,7 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
                 children: [
                   if (_isInitialSetup) ...[
                     const Text(
-                      'WELCOME COMMANDER.\nPLEASE INITIALIZE YOUR CALLSIGN.',
+                      'Choose your username.',
                       style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2),
                       textAlign: TextAlign.center,
                     ),
@@ -142,7 +148,7 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
                     controller: _usernameController,
                     onChanged: _onUsernameChanged,
                     decoration: InputDecoration(
-                      labelText: 'USERNAME',
+                      labelText: 'Username',
                       suffixIcon: _isCheckingUsername 
                         ? const Padding(
                             padding: EdgeInsets.all(12.0),
@@ -162,7 +168,7 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
                       ? const Center(child: GridLoadingIndicator(size: 40))
                       : ElevatedButton(
                           onPressed: _saveProfile,
-                          child: Text(_isInitialSetup ? 'START CAREER' : 'UPDATE PROFILE'),
+                          child: Text(_isInitialSetup ? 'Select' : 'Save'),
                         ),
                 ],
               ),

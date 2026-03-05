@@ -70,12 +70,12 @@ class _LobbyPageState extends ConsumerState<LobbyPage> {
           IconButton(
             icon: const Icon(LucideIcons.user),
             onPressed: () => context.push('/profile'),
-            tooltip: 'PROFILE',
+            tooltip: 'Profile',
           ),
           IconButton(
             icon: const Icon(LucideIcons.logOut),
             onPressed: () => _supabase.auth.signOut(),
-            tooltip: 'SIGN OUT',
+            tooltip: 'Sign Out',
           ),
         ],
       ),
@@ -89,10 +89,10 @@ class _LobbyPageState extends ConsumerState<LobbyPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildListSection('TAP REQUIRED', ref.watch(tapRequiredGamesProvider), true),
-              _buildListSection('TAP DONE, WAITING FOR OTHERS', ref.watch(tapDoneGamesProvider), true),
-              _buildListSection('WAITING FOR PLAYERS TO JOIN', ref.watch(waitingForPlayersGamesProvider), true),
-              _buildListSection('OPEN GAMES', ref.watch(openGamesProvider), false),
+              _buildListSection('Tap Required', ref.watch(tapRequiredGamesProvider), true),
+              _buildListSection('Tap Done, Waiting for Others', ref.watch(tapDoneGamesProvider), true),
+              _buildListSection('Waiting for Players to Join', ref.watch(waitingForPlayersGamesProvider), true),
+              _buildListSection('Open Games', ref.watch(openGamesProvider), false),
               const SizedBox(height: 80),
             ],
           ),
@@ -101,9 +101,9 @@ class _LobbyPageState extends ConsumerState<LobbyPage> {
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: Theme.of(context).primaryColor,
         foregroundColor: Theme.of(context).scaffoldBackgroundColor,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         onPressed: _isCreating ? null : _createGame,
-        label: Text(_isCreating ? 'INITIALIZING...' : 'CREATE NEW GAME'),
+        label: Text(_isCreating ? 'Initializing...' : 'Create New Game'),
         icon: const Icon(LucideIcons.plus),
       ),
     );
@@ -151,12 +151,12 @@ class _LobbyPageState extends ConsumerState<LobbyPage> {
       return Card(
         margin: const EdgeInsets.only(bottom: 8),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.zero,
+          borderRadius: BorderRadius.circular(8),
           side: BorderSide(color: theme.disabledColor, width: 1),
         ),
         child: ListTile(
           title: Text(
-            'NO GAMES',
+            'No Games',
             style: TextStyle(
               color: theme.disabledColor,
               fontSize: 12,
@@ -176,8 +176,8 @@ class _LobbyPageState extends ConsumerState<LobbyPage> {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
-        title: Text('GAME ID: ${game.id.substring(0, 8)}'),
-        subtitle: Text('STATUS: ${game.status.value} | TURN: ${game.turnNumber}'),
+        title: Text('Game ID: ${game.id.substring(0, 8)}'),
+        subtitle: Text('Status: ${game.status.value} | Turn: ${game.turnNumber}'),
         trailing: Icon(LucideIcons.chevronRight, color: Theme.of(context).primaryColor),
         onTap: () => context.push('/game/${game.id}'),
       ),

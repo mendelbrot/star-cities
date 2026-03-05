@@ -97,12 +97,12 @@ class _GameBoardState extends ConsumerState<GameBoard> {
 
     return gameAsync.when(
       data: (game) {
-        if (game == null) return const Scaffold(body: Center(child: Text('GAME NOT FOUND.')));
+        if (game == null) return const Scaffold(body: Center(child: Text('Game not found.')));
         if (game.status == GameStatus.waiting) return _buildWaitingUI(game);
         return _buildActiveUI(game);
       },
       loading: () => const Scaffold(body: Center(child: GridLoadingIndicator(size: 60))),
-      error: (e, s) => Scaffold(body: Center(child: Text('ERROR: $e'))),
+      error: (e, s) => Scaffold(body: Center(child: Text('Error: $e'))),
     );
   }
 
@@ -112,7 +112,7 @@ class _GameBoardState extends ConsumerState<GameBoard> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('GAME ROOM: ${game.id.substring(0, 8)}'),
+        title: Text('Game Room: ${game.id.substring(0, 8)}'),
       ),
       body: playersWithProfilesAsync.when(
         data: (players) {
@@ -124,7 +124,7 @@ class _GameBoardState extends ConsumerState<GameBoard> {
           return ListView(
             padding: const EdgeInsets.all(24),
             children: [
-              _buildSectionTitle('PLAYERS (${players.length}/${game.playerCount})'),
+              _buildSectionTitle('Players (${players.length}/${game.playerCount})'),
               ...players.map((p) => Card(
                 child: ListTile(
                   leading: CircleAvatar(
@@ -132,12 +132,12 @@ class _GameBoardState extends ConsumerState<GameBoard> {
                     radius: 6,
                   ),
                   title: Text(p.displayName),
-                  subtitle: Text('FACTION: ${p.player.faction.value}'),
+                  subtitle: Text('Faction: ${p.player.faction.value}'),
                   trailing: p.player.isBot 
                     ? IconButton(
                         icon: const Icon(LucideIcons.x, size: 20),
                         onPressed: () => _removePlayer(p.player.id),
-                        tooltip: 'REMOVE BOT',
+                        tooltip: 'Remove Bot',
                       )
                     : null,
                 ),
@@ -147,7 +147,7 @@ class _GameBoardState extends ConsumerState<GameBoard> {
                 OutlinedButton.icon(
                   onPressed: () => _removePlayer(currentPlayer.first.player.id),
                   icon: const Icon(LucideIcons.userMinus),
-                  label: const Text('LEAVE GAME'),
+                  label: const Text('Leave Game'),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: theme.colorScheme.error,
                     side: BorderSide(color: theme.colorScheme.error),
@@ -157,19 +157,19 @@ class _GameBoardState extends ConsumerState<GameBoard> {
                 OutlinedButton.icon(
                   onPressed: _joinGame,
                   icon: const Icon(LucideIcons.userPlus),
-                  label: const Text('JOIN GAME'),
+                  label: const Text('Join Game'),
                 ),
               if (players.length < game.playerCount) ...[
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
                   onPressed: _addBot,
                   icon: const Icon(LucideIcons.bot),
-                  label: const Text('ADD BOT PLAYER'),
+                  label: const Text('Add Bot Player'),
                 ),
               ],
               const SizedBox(height: 48),
               Text(
-                'THE GAME WILL START WHEN ALL PLAYER SPOTS ARE FILLED',
+                'The game will start when all player spots are filled',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodySmall?.copyWith(letterSpacing: 1),
               ),
@@ -177,7 +177,7 @@ class _GameBoardState extends ConsumerState<GameBoard> {
           );
         },
         loading: () => const Center(child: GridLoadingIndicator(size: 40)),
-        error: (e, s) => Center(child: Text('ERROR: $e')),
+        error: (e, s) => Center(child: Text('Error: $e')),
       ),
     );
   }
@@ -188,13 +188,13 @@ class _GameBoardState extends ConsumerState<GameBoard> {
       length: 3,
       child: Scaffold(
         appBar: AppBar(
-          title: Text('TURN ${game.turnNumber} | ${game.status.value}'),
+          title: Text('Turn ${game.turnNumber} | ${game.status.value}'),
           bottom: TabBar(
             unselectedLabelColor: theme.disabledColor,
             tabs: const [
-              Tab(text: 'PLAYERS'),
-              Tab(text: 'REPLAY'),
-              Tab(text: 'PLANNING'),
+              Tab(text: 'Players'),
+              Tab(text: 'Replay'),
+              Tab(text: 'Planning'),
             ],
           ),
         ),
