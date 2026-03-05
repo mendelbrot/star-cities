@@ -89,8 +89,8 @@ class _LobbyPageState extends ConsumerState<LobbyPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildListSection('Tap Required', ref.watch(tapRequiredGamesProvider), true),
-              _buildListSection('Tap Done, Waiting for Others', ref.watch(tapDoneGamesProvider), true),
+              _buildListSection('TAP Required', ref.watch(tapRequiredGamesProvider), true),
+              _buildListSection('TAP Done, Waiting for Others', ref.watch(tapDoneGamesProvider), true),
               _buildListSection('Waiting for Players to Join', ref.watch(waitingForPlayersGamesProvider), true),
               _buildListSection('Open Games', ref.watch(openGamesProvider), false),
               const SizedBox(height: 80),
@@ -99,9 +99,12 @@ class _LobbyPageState extends ConsumerState<LobbyPage> {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: Theme.of(context).primaryColor,
-        foregroundColor: Theme.of(context).scaffoldBackgroundColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        foregroundColor: Theme.of(context).primaryColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(color: Theme.of(context).primaryColor, width: 2),
+        ),
         onPressed: _isCreating ? null : _createGame,
         label: Text(_isCreating ? 'Initializing...' : 'Create New Game'),
         icon: const Icon(LucideIcons.plus),

@@ -3,7 +3,7 @@ import 'app_state_manager.dart';
 import 'package:star_cities/features/auth/presentation/screens/sign_in/sign_in.dart';
 import 'package:star_cities/features/profile/presentation/screens/profile_setup.dart';
 import 'package:star_cities/features/lobby/presentation/screens/lobby.dart';
-import 'package:star_cities/features/game/presentation/screens/game_board.dart';
+import 'package:star_cities/features/game/presentation/screens/game_room.dart';
 
 GoRouter createRouter(AppStateManager appStateManager) {
   return GoRouter(
@@ -26,7 +26,7 @@ GoRouter createRouter(AppStateManager appStateManager) {
         path: '/game/:id',
         builder: (context, state) {
           final gameId = state.pathParameters['id']!;
-          return GameBoard(gameId: gameId);
+          return GameRoom(gameId: gameId);
         },
       ),
     ],

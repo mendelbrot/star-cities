@@ -1,4 +1,4 @@
-create type "public"."faction" as enum ('BLUE', 'RED', 'PURPLE', 'GREEN');
+create type "public"."faction" as enum ('RED', 'YELLOW', 'GREEN', 'CYAN', 'BLUE', 'MAGENTA');
 
 create type "public"."game_status" as enum ('WAITING', 'STARTING', 'PLANNING', 'RESOLVING', 'FINISHED');
 
@@ -76,7 +76,7 @@ alter table "public"."turn_states" enable row level security;
 
   create table "public"."user_profiles" (
     "id" uuid not null,
-    "username" text not null,
+    "username" text,
     "created_at" timestamp with time zone not null default now(),
     "updated_at" timestamp with time zone not null default now()
       );
@@ -221,16 +221,15 @@ CREATE OR REPLACE FUNCTION public.handle_auth_user_update()
  SECURITY DEFINER
 AS $function$
 BEGIN
-    -- Sync the metadata to the profile table
-    -- Using the metadata stored in 'raw_user_meta_data'
     INSERT INTO public.user_profiles (id, username)
     VALUES (
         NEW.id,
-        COALESCE(NEW.raw_user_meta_data->>'username', 'Unknown')
+        NEW.raw_user_meta_data->>'username'
     )
     ON CONFLICT (id) DO UPDATE SET
         username = EXCLUDED.username,
-        updated_at = NOW();
+        updated_at = NOW()
+    WHERE user_profiles.username IS DISTINCT FROM EXCLUDED.username;
 
     RETURN NEW;
 END;
@@ -270,12 +269,12 @@ CREATE OR REPLACE FUNCTION public.handle_user_profile_update()
  SECURITY DEFINER
 AS $function$
 BEGIN
-  -- Update the auth.users raw_user_meta_data with the new username
   UPDATE auth.users
   SET raw_user_meta_data = 
     COALESCE(raw_user_meta_data, '{}'::jsonb) || 
     jsonb_build_object('username', NEW.username)
-  WHERE id = NEW.id;
+  WHERE id = NEW.id
+    AND (raw_user_meta_data->>'username' IS DISTINCT FROM NEW.username);
 
   RETURN NEW;
 END;
@@ -592,6 +591,17 @@ using (((is_bot = true) AND (EXISTS ( SELECT 1
   for select
   to authenticated
 using (true);
+
+
+
+  create policy "Authenticated users can update player bot data"
+  on "public"."players"
+  as permissive
+  for update
+  to authenticated
+using (((is_bot = true) AND (EXISTS ( SELECT 1
+   FROM public.games
+  WHERE ((games.id = players.game_id) AND (games.status = 'WAITING'::public.game_status))))));
 
 
 

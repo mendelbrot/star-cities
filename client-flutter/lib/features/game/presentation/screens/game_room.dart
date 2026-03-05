@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -8,30 +9,44 @@ import 'package:star_cities/shared/models/player.dart';
 import 'package:go_router/go_router.dart';
 import 'package:star_cities/shared/widgets/grid_loading_indicator.dart';
 
-class GameBoard extends ConsumerStatefulWidget {
+class GameRoom extends ConsumerStatefulWidget {
   final String gameId;
-  const GameBoard({super.key, required this.gameId});
+  const GameRoom({super.key, required this.gameId});
 
   @override
-  ConsumerState<GameBoard> createState() => _GameBoardState();
+  ConsumerState<GameRoom> createState() => _GameRoomState();
 }
 
-class _GameBoardState extends ConsumerState<GameBoard> {
+class _GameRoomState extends ConsumerState<GameRoom> {
   final _supabase = Supabase.instance.client;
 
   Future<void> _addBot() async {
     try {
       final playersAsync = ref.read(playersProvider(widget.gameId));
       final players = playersAsync.value ?? [];
-      final takenFactions = players.map((p) => p.faction.value).toList();
-      final allFactions = ['BLUE', 'RED', 'PURPLE', 'GREEN'];
-      final availableFaction = allFactions.firstWhere((f) => !takenFactions.contains(f));
+      final takenFactions = players.map((p) => p.faction).toList();
+      final availableFactions = Faction.values.where((f) => !takenFactions.contains(f)).toList();
+      
+      if (availableFactions.isEmpty) return;
+      
+      final randomFaction = availableFactions[math.Random().nextInt(availableFactions.length)];
+      
+      final botNames = [
+        'R2-D2',
+        'C-3PO',
+        'HAL 9000',
+        'Data',
+        'TARS',
+        'Skynet',
+        'Deep Blue',
+      ];
+      final randomName = botNames[math.Random().nextInt(botNames.length)];
 
       await _supabase.from('players').insert({
         'game_id': widget.gameId,
         'is_bot': true,
-        'bot_name': 'BOT $availableFaction',
-        'faction': availableFaction,
+        'bot_name': randomName,
+        'faction': randomFaction.value,
       });
     } catch (e) {
       if (mounted) {
@@ -63,15 +78,34 @@ class _GameBoardState extends ConsumerState<GameBoard> {
 
       final playersAsync = ref.read(playersProvider(widget.gameId));
       final players = playersAsync.value ?? [];
-      final takenFactions = players.map((p) => p.faction.value).toList();
-      final allFactions = ['BLUE', 'RED', 'PURPLE', 'GREEN'];
-      final availableFaction = allFactions.firstWhere((f) => !takenFactions.contains(f));
+      final takenFactions = players.map((p) => p.faction).toList();
+      final availableFactions = Faction.values.where((f) => !takenFactions.contains(f)).toList();
+
+      if (availableFactions.isEmpty) return;
+      
+      final randomFaction = availableFactions[math.Random().nextInt(availableFactions.length)];
 
       await _supabase.from('players').insert({
         'game_id': widget.gameId,
         'user_id': user.id,
-        'faction': availableFaction,
+        'faction': randomFaction.value,
       });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ));
+      }
+    }
+  }
+
+  Future<void> _changeFaction(String playerId, Faction newFaction) async {
+    try {
+      await _supabase
+          .from('players')
+          .update({'faction': newFaction.value})
+          .eq('id', playerId);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -120,28 +154,102 @@ class _GameBoardState extends ConsumerState<GameBoard> {
           final currentPlayer = players.where((p) => p.player.userId == currentUser?.id).toList();
           final isJoined = currentPlayer.isNotEmpty;
           final canJoin = players.length < game.playerCount && !isJoined;
+          final takenFactions = players.map((p) => p.player.faction).toList();
 
           return ListView(
             padding: const EdgeInsets.all(24),
             children: [
               _buildSectionTitle('Players (${players.length}/${game.playerCount})'),
-              ...players.map((p) => Card(
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: _getFactionColor(p.player.faction),
-                    radius: 6,
+              ...players.map((p) {
+                final isCurrentPlayer = p.player.userId == currentUser?.id;
+                final availableForChange = Faction.values
+                    .where((f) => !takenFactions.contains(f) || f == p.player.faction)
+                    .toList();
+
+                return Card(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    child: SizedBox(
+                      height: 56,
+                      child: Row(
+                        children: [
+                          // Left: Color dot and name
+                          Expanded(
+                            child: Row(
+                              children: [
+                              CircleAvatar(
+                                backgroundColor: p.player.faction.color,
+                                radius: 6,
+                              ),                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    p.displayName,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          // Center: Faction color selector
+                          Expanded(
+                            child: Center(
+                              child: PopupMenuButton<Faction>(
+                                enabled: isCurrentPlayer || p.player.isBot,
+                                onSelected: (faction) => _changeFaction(p.player.id, faction),
+                                itemBuilder: (context) => availableForChange.map((f) => PopupMenuItem(
+                                  value: f,
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 12,
+                                        height: 12,
+                                        decoration: BoxDecoration(
+                                          color: f.color,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Text(f.value),
+                                    ],
+                                  ),
+                                )).toList(),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: theme.disabledColor),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    'Faction: ${p.player.faction.value}',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: isCurrentPlayer || p.player.isBot 
+                                          ? theme.primaryColor 
+                                          : theme.disabledColor,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          // Right: X
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: p.player.isBot 
+                                ? IconButton(
+                                    icon: const Icon(LucideIcons.x, size: 20),
+                                    onPressed: () => _removePlayer(p.player.id),
+                                    tooltip: 'Remove Bot',
+                                  )
+                                : const SizedBox(width: 48),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                  title: Text(p.displayName),
-                  subtitle: Text('Faction: ${p.player.faction.value}'),
-                  trailing: p.player.isBot 
-                    ? IconButton(
-                        icon: const Icon(LucideIcons.x, size: 20),
-                        onPressed: () => _removePlayer(p.player.id),
-                        tooltip: 'Remove Bot',
-                      )
-                    : null,
-                ),
-              )),
+                );
+              }),
               const SizedBox(height: 32),
               if (isJoined)
                 OutlinedButton.icon(
@@ -217,14 +325,5 @@ class _GameBoardState extends ConsumerState<GameBoard> {
         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 2),
       ),
     );
-  }
-
-  Color _getFactionColor(Faction faction) {
-    switch (faction) {
-      case Faction.blue: return Colors.blue;
-      case Faction.red: return Colors.red;
-      case Faction.purple: return Colors.purple;
-      case Faction.green: return Colors.green;
-    }
   }
 }

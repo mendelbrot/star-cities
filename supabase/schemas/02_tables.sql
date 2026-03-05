@@ -1,6 +1,6 @@
 -- Enums
 CREATE TYPE game_status AS ENUM ('WAITING', 'STARTING', 'PLANNING', 'RESOLVING', 'FINISHED');
-CREATE TYPE faction AS ENUM ('BLUE', 'RED', 'PURPLE', 'GREEN');
+CREATE TYPE faction AS ENUM ('RED', 'YELLOW', 'GREEN', 'CYAN', 'BLUE', 'MAGENTA');
 
 -- User Profiles (Publicly visible user info)
 CREATE TABLE user_profiles (
