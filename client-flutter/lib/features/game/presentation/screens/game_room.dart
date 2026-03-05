@@ -5,9 +5,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:star_cities/features/lobby/domain/models/game.dart';
 import 'package:star_cities/features/game/presentation/providers/game_providers.dart';
+import 'package:star_cities/features/game/domain/models/game_models.dart';
 import 'package:star_cities/shared/models/player.dart';
 import 'package:go_router/go_router.dart';
 import 'package:star_cities/shared/widgets/grid_loading_indicator.dart';
+import 'package:star_cities/shared/widgets/ship_icon.dart';
 
 class GameRoom extends ConsumerStatefulWidget {
   final String gameId;
@@ -173,14 +175,16 @@ class _GameRoomState extends ConsumerState<GameRoom> {
                       height: 56,
                       child: Row(
                         children: [
-                          // Left: Color dot and name
+                          // Left: Ship icon and name
                           Expanded(
                             child: Row(
                               children: [
-                              CircleAvatar(
-                                backgroundColor: p.player.faction.color,
-                                radius: 6,
-                              ),                                const SizedBox(width: 12),
+                                ShipIcon(
+                                  type: PieceType.starCity,
+                                  faction: p.player.faction,
+                                  size: 24,
+                                ),
+                                const SizedBox(width: 12),
                                 Expanded(
                                   child: Text(
                                     p.displayName,
