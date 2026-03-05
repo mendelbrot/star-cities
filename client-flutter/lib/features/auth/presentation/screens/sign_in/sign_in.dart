@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:star_cities/features/auth/presentation/screens/sign_in/sign_in_controller.dart';
 import 'package:star_cities/features/auth/presentation/screens/sign_in/widgets/sign_in_page_widgets.dart';
+import 'package:star_cities/shared/widgets/branding_header.dart';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
@@ -75,14 +76,7 @@ class _SignInPageState extends State<SignInPage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    'STAR CITIES',
-                    style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                      letterSpacing: 8,
-                      fontWeight: FontWeight.w900,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
+                  const BrandingHeader(iconSize: 40, spacing: 12),
                   const SizedBox(height: 64),
                   Form(
                     key: _formKey,

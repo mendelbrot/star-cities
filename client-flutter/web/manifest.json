@@ -1,6 +1,6 @@
 {
-    "name": "star_cities",
-    "short_name": "star_cities",
+    "name": "Star Cities",
+    "short_name": "Star Cities",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

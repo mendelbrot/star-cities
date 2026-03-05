@@ -6,6 +6,7 @@ import 'package:star_cities/features/lobby/domain/models/game.dart';
 import 'package:star_cities/features/lobby/presentation/providers/lobby_providers.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:star_cities/shared/widgets/grid_loading_indicator.dart';
+import 'package:star_cities/shared/widgets/branding_header.dart';
 
 class LobbyPage extends ConsumerStatefulWidget {
   const LobbyPage({super.key});
@@ -65,7 +66,7 @@ class _LobbyPageState extends ConsumerState<LobbyPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('STAR CITIES'),
+        title: const BrandingHeader(iconSize: 24, spacing: 4),
         actions: [
           IconButton(
             icon: const Icon(LucideIcons.user),
