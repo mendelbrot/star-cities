@@ -1,37 +1,4 @@
-import 'package:flutter/material.dart';
-
-enum Faction {
-  red('RED'),
-  yellow('YELLOW'),
-  green('GREEN'),
-  cyan('CYAN'),
-  blue('BLUE'),
-  magenta('MAGENTA');
-
-  final String value;
-  const Faction(this.value);
-
-  Color get color {
-    switch (this) {
-      case Faction.red:
-        return Colors.red;
-      case Faction.yellow:
-        return Colors.yellow;
-      case Faction.green:
-        return Colors.green;
-      case Faction.cyan:
-        return Colors.cyan;
-      case Faction.blue:
-        return Colors.indigo;
-      case Faction.magenta:
-        return const Color(0xFFFF00FF);
-    }
-  }
-
-  static Faction fromString(String faction) {
-    return Faction.values.firstWhere((e) => e.value == faction);
-  }
-}
+import 'package:star_cities/shared/models/faction.dart';
 
 class Player {
   final String id;
