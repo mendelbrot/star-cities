@@ -48,7 +48,7 @@ class _LobbyPageState extends ConsumerState<LobbyPage> {
       });
 
       if (mounted) {
-        context.push('/game/$gameId');
+        context.go('/game/$gameId');
       }
     } catch (e) {
       if (mounted) {
@@ -70,7 +70,7 @@ class _LobbyPageState extends ConsumerState<LobbyPage> {
         actions: [
           IconButton(
             icon: const Icon(LucideIcons.user),
-            onPressed: () => context.push('/profile'),
+            onPressed: () => context.go('/profile'),
             tooltip: 'Profile',
           ),
           IconButton(
@@ -183,7 +183,7 @@ class _LobbyPageState extends ConsumerState<LobbyPage> {
         title: Text('Game ID: ${game.id.substring(0, 8)}'),
         subtitle: Text('Status: ${game.status.value} | Turn: ${game.turnNumber}'),
         trailing: Icon(LucideIcons.chevronRight, color: Theme.of(context).primaryColor),
-        onTap: () => context.push('/game/${game.id}'),
+        onTap: () => context.go('/game/${game.id}'),
       ),
     );
   }
