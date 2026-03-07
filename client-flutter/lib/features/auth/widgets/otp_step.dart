@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:star_cities/features/auth/presentation/screens/sign_in/widgets/auth_header.dart';
-import 'package:star_cities/features/auth/presentation/screens/sign_in/widgets/auth_error_message.dart';
-import 'package:star_cities/features/auth/presentation/screens/sign_in/widgets/loading_button.dart';
+import 'package:star_cities/features/auth/widgets/auth_header.dart';
+import 'package:star_cities/features/auth/widgets/auth_error_message.dart';
+import 'package:star_cities/features/auth/widgets/loading_button.dart';
 
 class OTPStep extends StatelessWidget {
   final TextEditingController otpController;

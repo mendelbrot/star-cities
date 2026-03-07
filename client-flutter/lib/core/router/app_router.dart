@@ -1,9 +1,9 @@
 import 'package:go_router/go_router.dart';
 import 'app_state_manager.dart';
-import 'package:star_cities/features/auth/presentation/screens/sign_in/sign_in.dart';
-import 'package:star_cities/features/profile/presentation/screens/profile_setup.dart';
-import 'package:star_cities/features/lobby/presentation/screens/lobby.dart';
-import 'package:star_cities/features/game/presentation/screens/game_room.dart';
+import 'package:star_cities/features/auth/screens/sign_in.dart';
+import 'package:star_cities/features/profile/screens/profile_setup.dart';
+import 'package:star_cities/features/lobby/screens/lobby.dart';
+import 'package:star_cities/features/game/screens/game_room.dart';
 
 GoRouter createRouter(AppStateManager appStateManager) {
   return GoRouter(

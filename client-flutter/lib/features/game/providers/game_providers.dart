@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:star_cities/features/lobby/domain/models/game.dart';
+import 'package:star_cities/features/lobby/models/game.dart';
 import 'package:star_cities/shared/models/player.dart';
-import 'package:star_cities/features/profile/domain/models/profile.dart';
+import 'package:star_cities/features/profile/models/profile.dart';
 import 'package:star_cities/shared/providers/auth_providers.dart';
 
 /// Provides a stream of a single game by its ID.

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:star_cities/shared/models/faction.dart';
-import 'package:star_cities/features/game/domain/models/game_models.dart';
+import 'package:star_cities/features/game/models/game_models.dart';
 
 class ShipIcon extends StatefulWidget {
   final PieceType type;

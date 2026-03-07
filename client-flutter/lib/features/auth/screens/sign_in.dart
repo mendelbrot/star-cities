@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:star_cities/features/auth/presentation/screens/sign_in/sign_in_controller.dart';
-import 'package:star_cities/features/auth/presentation/screens/sign_in/widgets/sign_in_page_widgets.dart';
+import 'package:star_cities/features/auth/providers/sign_in_controller.dart';
+import 'package:star_cities/features/auth/widgets/sign_in_page_widgets.dart';
 import 'package:star_cities/shared/widgets/branding_header.dart';
 
 class SignInPage extends StatefulWidget {

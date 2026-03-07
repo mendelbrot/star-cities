@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:star_cities/features/lobby/domain/models/game.dart';
+import 'package:star_cities/features/lobby/models/game.dart';
 import 'package:star_cities/shared/providers/auth_providers.dart';
 
 /// Base stream for the games table.

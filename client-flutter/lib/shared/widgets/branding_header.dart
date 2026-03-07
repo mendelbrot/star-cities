@@ -1,8 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:star_cities/features/game/domain/models/game_models.dart';
+import 'package:star_cities/features/game/models/game_models.dart';
 import 'package:star_cities/shared/models/faction.dart';
-import 'package:star_cities/shared/models/player.dart';
 import 'package:star_cities/shared/widgets/ship_icon.dart';
 
 class BrandingHeader extends StatefulWidget {
