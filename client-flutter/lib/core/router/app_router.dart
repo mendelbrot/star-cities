@@ -20,7 +20,7 @@ GoRouter createRouter(AppStateManager appStateManager) {
       ),
       GoRoute(
         path: '/',
-        builder: (context, state) => const LobbyPage(),
+        builder: (context, state) => const Lobby(),
       ),
       GoRoute(
         path: '/game/:id',

@@ -6,22 +6,22 @@ import 'package:star_cities/features/lobby/models/game.dart';
 import 'package:star_cities/features/lobby/providers/lobby_providers.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:star_cities/shared/widgets/grid_loading_indicator.dart';
-import 'package:star_cities/shared/widgets/branding_header.dart';
+import 'package:star_cities/shared/widgets/ship_banner.dart';
 
-class LobbyPage extends ConsumerStatefulWidget {
-  const LobbyPage({super.key});
+class Lobby extends ConsumerStatefulWidget {
+  const Lobby({super.key});
 
   @override
-  ConsumerState<LobbyPage> createState() => _LobbyPageState();
+  ConsumerState<Lobby> createState() => _LobbyState();
 }
 
-class _LobbyPageState extends ConsumerState<LobbyPage> {
+class _LobbyState extends ConsumerState<Lobby> {
   final _supabase = Supabase.instance.client;
   bool _isCreating = false;
 
   Future<void> _createGame() async {
     setState(() => _isCreating = true);
-    
+
     // Show instant loading overlay
     final overlay = OverlayEntry(
       builder: (context) => Container(
@@ -35,9 +35,11 @@ class _LobbyPageState extends ConsumerState<LobbyPage> {
       final user = _supabase.auth.currentUser;
       if (user == null) return;
 
-      final gameData = await _supabase.from('games').insert({
-        'player_count': 4,
-      }).select().single();
+      final gameData = await _supabase
+          .from('games')
+          .insert({'player_count': 4})
+          .select()
+          .single();
 
       final gameId = gameData['id'];
 
@@ -53,7 +55,10 @@ class _LobbyPageState extends ConsumerState<LobbyPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Theme.of(context).colorScheme.error),
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
         );
       }
     } finally {
@@ -66,7 +71,6 @@ class _LobbyPageState extends ConsumerState<LobbyPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const BrandingHeader(iconSize: 24, spacing: 4),
         actions: [
           IconButton(
             icon: const Icon(LucideIcons.user),
@@ -80,22 +84,42 @@ class _LobbyPageState extends ConsumerState<LobbyPage> {
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(userGameStatusProvider);
-        },
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildListSection('TAP Required', ref.watch(tapRequiredGamesProvider), true),
-              _buildListSection('TAP Done, Waiting for Others', ref.watch(tapDoneGamesProvider), true),
-              _buildListSection('Waiting for Players to Join', ref.watch(waitingForPlayersGamesProvider), true),
-              _buildListSection('Open Games', ref.watch(openGamesProvider), false),
-              const SizedBox(height: 80),
-            ],
+      body: SafeArea(
+        child: Expanded(
+          child: RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(userGameStatusProvider);
+            },
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildListSection(
+                    'TAP Required',
+                    ref.watch(tapRequiredGamesProvider),
+                    true,
+                  ),
+                  _buildListSection(
+                    'TAP Done, Waiting for Others',
+                    ref.watch(tapDoneGamesProvider),
+                    true,
+                  ),
+                  _buildListSection(
+                    'Waiting for Players to Join',
+                    ref.watch(waitingForPlayersGamesProvider),
+                    true,
+                  ),
+                  _buildListSection(
+                    'Open Games',
+                    ref.watch(openGamesProvider),
+                    false,
+                  ),
+                  const SizedBox(height: 80),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -113,7 +137,11 @@ class _LobbyPageState extends ConsumerState<LobbyPage> {
     );
   }
 
-  Widget _buildListSection(String title, AsyncValue<List<Game>> asyncGames, bool isParticipant) {
+  Widget _buildListSection(
+    String title,
+    AsyncValue<List<Game>> asyncGames,
+    bool isParticipant,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -126,7 +154,10 @@ class _LobbyPageState extends ConsumerState<LobbyPage> {
           ),
           error: (e, s) => Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Text('Error: $e', style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            child: Text(
+              'Error: $e',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
           ),
         ),
         const SizedBox(height: 24),
@@ -140,7 +171,7 @@ class _LobbyPageState extends ConsumerState<LobbyPage> {
       child: Text(
         title,
         style: TextStyle(
-          fontSize: 12,
+          fontSize: 10,
           fontWeight: FontWeight.bold,
           letterSpacing: 1.5,
           color: Theme.of(context).disabledColor,
@@ -172,7 +203,9 @@ class _LobbyPageState extends ConsumerState<LobbyPage> {
     }
 
     return Column(
-      children: games.map((game) => _buildGameCard(game, isParticipant: isParticipant)).toList(),
+      children: games
+          .map((game) => _buildGameCard(game, isParticipant: isParticipant))
+          .toList(),
     );
   }
 
@@ -181,8 +214,13 @@ class _LobbyPageState extends ConsumerState<LobbyPage> {
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         title: Text('Game ID: ${game.id.substring(0, 8)}'),
-        subtitle: Text('Status: ${game.status.value} | Turn: ${game.turnNumber}'),
-        trailing: Icon(LucideIcons.chevronRight, color: Theme.of(context).primaryColor),
+        subtitle: Text(
+          'Status: ${game.status.value} | Turn: ${game.turnNumber}',
+        ),
+        trailing: Icon(
+          LucideIcons.chevronRight,
+          color: Theme.of(context).primaryColor,
+        ),
         onTap: () => context.go('/game/${game.id}'),
       ),
     );

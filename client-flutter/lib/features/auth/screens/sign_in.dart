@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:star_cities/features/auth/providers/sign_in_controller.dart';
 import 'package:star_cities/features/auth/widgets/sign_in_page_widgets.dart';
-import 'package:star_cities/shared/widgets/branding_header.dart';
+import 'package:star_cities/features/game/models/game_models.dart';
+import 'package:star_cities/shared/models/faction.dart';
+import 'package:star_cities/shared/widgets/ship_icon.dart';
+import 'package:star_cities/shared/widgets/ship_banner.dart';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({super.key});
@@ -67,52 +70,79 @@ class _SignInPageState extends State<SignInPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: SizedBox(
-              width: 400,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const BrandingHeader(iconSize: 40, spacing: 12),
-                  const SizedBox(height: 64),
-                  Form(
-                    key: _formKey,
-                    child: ListenableBuilder(
-                      listenable: _controller,
-                      builder: (context, _) {
-                        if (!_controller.codeSent) {
-                          return EmailStep(
-                            emailController: _emailController,
-                            onSend: _sendCode,
-                            isLoading: _controller.isLoading,
-                            errorMessage: _controller.errorMessage,
-                          );
-                        }
-
-                        return OTPStep(
-                          otpController: _otpController,
-                          email: _emailController.text,
-                          onVerify: _verifyCode,
-                          onResend: _sendCode,
-                          onChangeEmail: () {
-                            _otpController.clear();
-                            _controller.reset();
-                          },
-                          isLoading: _controller.isLoading,
-                          errorMessage: _controller.errorMessage,
-                        );
-                      },
+        child: Expanded(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: SizedBox(
+                width: 400,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      'Star Cities',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 48,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 4,
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 32),
+                    const SizedBox(
+                      height: 200,
+                      child: ShipIcon(
+                        type: PieceType.starCity,
+                        faction: Faction.magenta,
+                        isAnchored: false,
+                        size: null,
+                      ),
+                    ),
+                    // const SizedBox(height: 32),
+                    Form(
+                      key: _formKey,
+                      child: ListenableBuilder(
+                        listenable: _controller,
+                        builder: (context, _) {
+                          if (!_controller.codeSent) {
+                            return EmailStep(
+                              emailController: _emailController,
+                              onSend: _sendCode,
+                              isLoading: _controller.isLoading,
+                              errorMessage: _controller.errorMessage,
+                            );
+                          }
+
+                          return OTPStep(
+                            otpController: _otpController,
+                            email: _emailController.text,
+                            onVerify: _verifyCode,
+                            onResend: _sendCode,
+                            onChangeEmail: () {
+                              _otpController.clear();
+                              _controller.reset();
+                            },
+                            isLoading: _controller.isLoading,
+                            errorMessage: _errorMessage(
+                              _controller.errorMessage,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
         ),
       ),
     );
+  }
+
+  String? _errorMessage(String? message) {
+    if (message == null) return null;
+    return message;
   }
 }
