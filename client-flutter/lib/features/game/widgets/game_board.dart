@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:star_cities/features/game/models/game_models.dart';
+import 'package:star_cities/features/game/providers/gameplay_ui_state.dart';
 import 'package:star_cities/features/game/providers/game_providers.dart';
 import 'package:star_cities/features/lobby/models/game.dart' as models;
 import 'package:star_cities/shared/providers/auth_providers.dart';
@@ -24,6 +25,7 @@ class GameBoard extends ConsumerWidget {
     final theme = Theme.of(context);
     final playersAsync = ref.watch(gamePlayersWithProfilesProvider(game.id));
     final currentUser = ref.watch(currentUserProvider);
+    final uiState = ref.watch(gameplayUiProvider);
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -88,16 +90,32 @@ class GameBoard extends ConsumerWidget {
                       // Pieces (only if visible)
                       ...pieces.where((piece) => piece.x != null && piece.y != null && (piece.isVisible || piece.faction == currentPlayer.player.faction) && visibleSquares.contains(math.Point(piece.x!, piece.y!))).map((piece) {
                         final pos = _getRelativePosition(piece.x!, piece.y!, centerX, centerY);
+                        final isSelected = uiState.selectedPieceId == piece.id;
+                        
                         return Positioned(
                           left: pos.x * cellSize + cellSize * 0.1,
                           top: pos.y * cellSize + cellSize * 0.1,
                           width: cellSize * 0.8,
                           height: cellSize * 0.8,
-                          child: ShipIcon(
-                            type: piece.type,
-                            faction: piece.faction,
-                            size: cellSize * 0.8,
-                            isAnchored: piece.isAnchored,
+                          child: GestureDetector(
+                            onTap: piece.faction == currentPlayer.player.faction 
+                                ? () => ref.read(gameplayUiProvider.notifier).selectPiece(isSelected ? null : piece.id)
+                                : null,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: isSelected ? Colors.white : Colors.transparent,
+                                  width: 2,
+                                ),
+                                borderRadius: BorderRadius.circular(cellSize * 0.1),
+                              ),
+                              child: ShipIcon(
+                                type: piece.type,
+                                faction: piece.faction,
+                                size: cellSize * 0.8,
+                                isAnchored: piece.isAnchored,
+                              ),
+                            ),
                           ),
                         );
                       }),

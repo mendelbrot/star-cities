@@ -10,6 +10,8 @@ import 'package:star_cities/shared/widgets/grid_loading_indicator.dart';
 import 'package:star_cities/features/game/models/game_models.dart';
 import 'package:star_cities/shared/widgets/responsive_game_header.dart';
 
+import 'package:star_cities/features/game/widgets/planning_panel.dart';
+
 class GamePlay extends ConsumerWidget {
   final Game game;
   const GamePlay({super.key, required this.game});
@@ -94,9 +96,11 @@ class GamePlay extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  const Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Text('Planning Tray (Coming Soon)'),
+                  Expanded(
+                    child: PlanningPanel(
+                      game: game,
+                      pieces: currentPieces,
+                    ),
                   ),
                 ],
               ),
