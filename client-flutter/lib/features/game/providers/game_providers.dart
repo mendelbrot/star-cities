@@ -44,26 +44,6 @@ final allProfilesProvider = StreamProvider<Map<String, Profile>>((ref) {
       });
 });
 
-/// Provides the current turn state (pieces) for a game.
-final turnStateProvider = StreamProvider.family<List<Map<String, dynamic>>, String>((ref, gameId) {
-  final gameAsync = ref.watch(gameProvider(gameId));
-  return gameAsync.when(
-    data: (game) {
-      if (game == null) return Stream.value([]);
-      final supabase = ref.watch(supabaseClientProvider);
-      return supabase
-          .from('turn_states')
-          .stream(primaryKey: ['id'])
-          .map((data) {
-            final turnData = data.where((m) => m['game_id'] == gameId && m['turn_number'] == game.turnNumber).toList();
-            return turnData.isNotEmpty ? (turnData.first['state'] as List).cast<Map<String, dynamic>>() : [];
-          });
-    },
-    loading: () => Stream.value([]),
-    error: (e, s) => Stream.value([]),
-  );
-});
-
 /// Represents a Player combined with their Profile data.
 class PlayerWithProfile {
   final Player player;

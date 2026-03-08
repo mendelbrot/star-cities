@@ -1,12 +1,12 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:star_cities/features/game/models/game_models.dart';
 import 'package:star_cities/features/game/providers/game_providers.dart';
+import 'package:star_cities/features/game/providers/gameplay_providers.dart';
 import 'package:star_cities/features/lobby/models/game.dart';
-import 'package:star_cities/shared/models/faction.dart';
 import 'package:star_cities/shared/providers/auth_providers.dart';
 import 'package:star_cities/shared/widgets/ship_icon.dart';
+import 'package:star_cities/shared/widgets/grid_loading_indicator.dart';
 
 class GameBoard extends ConsumerWidget {
   final Game game;
@@ -15,7 +15,7 @@ class GameBoard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final piecesAsync = ref.watch(turnStateProvider(game.id));
+    final turnStatesAsync = ref.watch(gameplayTurnStateProvider(game.id));
     final playersAsync = ref.watch(gamePlayersWithProfilesProvider(game.id));
     final currentUser = ref.watch(currentUserProvider);
 
@@ -36,13 +36,13 @@ class GameBoard extends ConsumerWidget {
               final centerX = homeStar?['x'] ?? 4;
               final centerY = homeStar?['y'] ?? 4;
 
-              return piecesAsync.when(
-                data: (piecesData) {
-                  // Convert raw piece data to Piece models and filter for on-board pieces
-                  final pieces = piecesData
-                      .map((p) => _mapToPiece(p))
+              return turnStatesAsync.when(
+                data: (turnStates) {
+                  // The first state is the most recent (turnNumber desc)
+                  final currentTurnState = turnStates.isNotEmpty ? turnStates.first : null;
+                  final pieces = currentTurnState?.pieces
                       .where((p) => p.x != null && p.y != null)
-                      .toList();
+                      .toList() ?? [];
 
                   return ClipRRect(
                     borderRadius: BorderRadius.circular(8),
@@ -97,7 +97,7 @@ class GameBoard extends ConsumerWidget {
                               height: cellSize * 0.8,
                               child: ShipIcon(
                                 type: piece.type,
-                                faction: _getFactionFromColor(piece.color), // Temporary hack
+                                faction: piece.faction,
                                 size: cellSize * 0.8,
                                 isAnchored: piece.isAnchored,
                               ),
@@ -111,11 +111,11 @@ class GameBoard extends ConsumerWidget {
                     ),
                   );
                 },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, s) => Center(child: Text('Error loading pieces: $e')),
+                loading: () => const Center(child: GridLoadingIndicator(size: 40)),
+                error: (e, s) => Center(child: Text('Error loading turn state: $e')),
               );
             },
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => const Center(child: GridLoadingIndicator(size: 40)),
             error: (e, s) => Center(child: Text('Error loading players: $e')),
           );
         },
@@ -131,25 +131,5 @@ class GameBoard extends ConsumerWidget {
     if (relX < 0) relX += 9;
     if (relY < 0) relY += 9;
     return math.Point(relX, relY);
-  }
-
-  Piece _mapToPiece(Map<String, dynamic> data) {
-    return Piece(
-      id: data['id'],
-      x: data['x'],
-      y: data['y'],
-      type: PieceType.values.firstWhere((e) => e.name.toUpperCase() == (data['type'] as String).replaceAll('_', '')),
-      color: _getColorFromFactionName(data['faction']),
-      isAnchored: data['is_anchored'] ?? false,
-    );
-  }
-
-  Color _getColorFromFactionName(String name) {
-    final faction = Faction.values.firstWhere((f) => f.value == name);
-    return faction.color;
-  }
-
-  Faction _getFactionFromColor(Color color) {
-    return Faction.values.firstWhere((f) => f.color.toARGB32() == color.toARGB32());
   }
 }
