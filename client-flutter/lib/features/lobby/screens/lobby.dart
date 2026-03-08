@@ -6,7 +6,7 @@ import 'package:star_cities/features/lobby/models/game.dart';
 import 'package:star_cities/features/lobby/providers/lobby_providers.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:star_cities/shared/widgets/grid_loading_indicator.dart';
-import 'package:star_cities/shared/widgets/game_settings_row.dart';
+import 'package:star_cities/shared/widgets/responsive_game_header.dart';
 
 class Lobby extends ConsumerStatefulWidget {
   const Lobby({super.key});
@@ -166,7 +166,7 @@ class _LobbyState extends ConsumerState<Lobby> {
 
   Widget _buildGameCard(Game game, {required bool isParticipant}) {
     final theme = Theme.of(context);
-    
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: InkWell(
@@ -174,57 +174,25 @@ class _LobbyState extends ConsumerState<Lobby> {
         borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Left: Game Info (Takes all available space)
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Game ID: ${game.id.substring(0, 8)}',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Status:\u00A0${game.status.value}  |  Turn:\u00A0${game.turnNumber}',
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  // Right Unit: Chips + Chevron
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: constraints.maxWidth * 0.5),
-                        child: GameSettingsRow(
-                          game: game, 
-                          iconSize: 10, 
-                          fontSize: 8,
-                          alignment: WrapAlignment.end,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Icon(
-                          LucideIcons.chevronRight,
-                          color: theme.primaryColor,
-                          size: 20,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              );
-            },
+          child: ResponsiveGameHeader(
+            game: game,
+            showChevron: true,
+            chipFontSize: 8,
+            chipIconSize: 10,
+            leading: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Game ID: ${game.id.substring(0, 8)}',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Status:\u00A0${game.status.value}  |  Turn:\u00A0${game.turnNumber}',
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ],
+            ),
           ),
         ),
       ),

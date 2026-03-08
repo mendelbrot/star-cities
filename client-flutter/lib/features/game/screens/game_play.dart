@@ -2,13 +2,13 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:star_cities/features/lobby/models/game.dart';
-import 'package:star_cities/shared/widgets/game_settings_row.dart';
 import 'package:star_cities/features/game/widgets/game_board.dart';
-import 'package:star_cities/features/game/widgets/section_title.dart';
+import 'package:star_cities/shared/widgets/section_title.dart';
 import 'package:star_cities/features/game/providers/gameplay_providers.dart';
 import 'package:star_cities/features/game/providers/vision_provider.dart';
 import 'package:star_cities/shared/widgets/grid_loading_indicator.dart';
 import 'package:star_cities/features/game/models/game_models.dart';
+import 'package:star_cities/shared/widgets/responsive_game_header.dart';
 
 class GamePlay extends ConsumerWidget {
   final Game game;
@@ -36,7 +36,24 @@ class GamePlay extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    GameSettingsRow(game: game),
+                    ResponsiveGameHeader(
+                      game: game,
+                      chipsOnTop: true,
+                      leading: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Game ID: ${game.id.substring(0, 8)}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Turn: ${game.turnNumber}',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: 32),
                     const SectionTitle('scoreboard'),
                     const Expanded(child: Center(child: Text('Scoreboard content will go here'))),

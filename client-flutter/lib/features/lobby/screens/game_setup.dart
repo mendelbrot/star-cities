@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:star_cities/shared/models/faction.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:star_cities/shared/widgets/grid_loading_indicator.dart';
@@ -51,7 +52,7 @@ class _GameSetupState extends State<GameSetup> {
       await _supabase.from('players').insert({
         'game_id': gameId,
         'user_id': user.id,
-        'faction': 'BLUE',
+        'faction': Faction.random().value,
       });
 
       if (mounted) {

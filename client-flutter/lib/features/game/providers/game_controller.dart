@@ -14,11 +14,8 @@ class GameController {
     final playersAsync = _ref.read(playersProvider(gameId));
     final players = playersAsync.value ?? [];
     final takenFactions = players.map((p) => p.faction).toList();
-    final availableFactions = Faction.values.where((f) => !takenFactions.contains(f)).toList();
     
-    if (availableFactions.isEmpty) return;
-    
-    final randomFaction = availableFactions[math.Random().nextInt(availableFactions.length)];
+    final randomFaction = Faction.random(takenFactions: takenFactions);
     
     final botNames = [
       'R2-D2',
@@ -29,12 +26,18 @@ class GameController {
       'Skynet',
       'Deep Blue',
     ];
-    final randomName = botNames[math.Random().nextInt(botNames.length)];
+
+    final takenNames = players.map((p) => p.botName).whereType<String>().toList();
+    final availableNames = botNames.where((name) => !takenNames.contains(name)).toList();
+
+    final botName = availableNames.isEmpty 
+        ? 'Vaal' 
+        : availableNames[math.Random().nextInt(availableNames.length)];
 
     await supabase.from('players').insert({
       'game_id': gameId,
       'is_bot': true,
-      'bot_name': randomName,
+      'bot_name': botName,
       'faction': randomFaction.value,
     });
   }
@@ -52,11 +55,8 @@ class GameController {
     final playersAsync = _ref.read(playersProvider(gameId));
     final players = playersAsync.value ?? [];
     final takenFactions = players.map((p) => p.faction).toList();
-    final availableFactions = Faction.values.where((f) => !takenFactions.contains(f)).toList();
 
-    if (availableFactions.isEmpty) return;
-    
-    final randomFaction = availableFactions[math.Random().nextInt(availableFactions.length)];
+    final randomFaction = Faction.random(takenFactions: takenFactions);
 
     await supabase.from('players').insert({
       'game_id': gameId,

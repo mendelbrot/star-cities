@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 enum Faction {
@@ -30,5 +31,11 @@ enum Faction {
 
   static Faction fromString(String faction) {
     return Faction.values.firstWhere((e) => e.value == faction);
+  }
+
+  static Faction random({List<Faction> takenFactions = const []}) {
+    final available = Faction.values.where((f) => !takenFactions.contains(f)).toList();
+    if (available.isEmpty) return Faction.blue; // Fallback
+    return available[math.Random().nextInt(available.length)];
   }
 }

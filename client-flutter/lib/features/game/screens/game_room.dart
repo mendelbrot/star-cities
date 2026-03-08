@@ -5,10 +5,10 @@ import 'package:star_cities/shared/providers/auth_providers.dart';
 import 'package:star_cities/features/lobby/models/game.dart';
 import 'package:star_cities/features/game/providers/game_providers.dart';
 import 'package:star_cities/shared/widgets/grid_loading_indicator.dart';
-import 'package:star_cities/shared/widgets/game_settings_row.dart';
-import 'package:star_cities/features/game/widgets/section_title.dart';
+import 'package:star_cities/shared/widgets/section_title.dart';
 import 'package:star_cities/features/game/widgets/player_list_item.dart';
 import 'package:star_cities/features/game/widgets/game_room_controls.dart';
+import 'package:star_cities/shared/widgets/responsive_game_header.dart';
 
 class GameRoom extends ConsumerWidget {
   final Game game;
@@ -31,15 +31,10 @@ class GameRoom extends ConsumerWidget {
         return ListView(
           padding: const EdgeInsets.all(24),
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(child: SectionTitle('players (${players.length}/${game.playerCount})')),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: GameSettingsRow(game: game),
-                ),
-              ],
+            ResponsiveGameHeader(
+              game: game,
+              chipsOnTop: true,
+              leading: SectionTitle('players (${players.length}/${game.playerCount})'),
             ),
             const SizedBox(height: 16),
             ...players.map((p) {
