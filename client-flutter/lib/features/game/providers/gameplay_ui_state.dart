@@ -1,0 +1,88 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:math' as math;
+
+class GameplayUiState {
+  final String? selectedPieceId;
+  final String? placingPieceId; // Current piece being placed from tray
+  final String? selectedCityId;  // Target city for tethering during placement
+  final math.Point<int>? hoveredSquare;
+  final int currentReplayStep;
+  final bool isPanning;
+
+  GameplayUiState({
+    this.selectedPieceId,
+    this.placingPieceId,
+    this.selectedCityId,
+    this.hoveredSquare,
+    this.currentReplayStep = 1,
+    this.isPanning = false,
+  });
+
+  GameplayUiState copyWith({
+    String? selectedPieceId,
+    String? placingPieceId,
+    String? selectedCityId,
+    math.Point<int>? hoveredSquare,
+    int? currentReplayStep,
+    bool? isPanning,
+    bool clearSelectedPiece = false,
+    bool clearPlacingPiece = false,
+    bool clearSelectedCity = false,
+    bool clearHoveredSquare = false,
+  }) {
+    return GameplayUiState(
+      selectedPieceId: clearSelectedPiece ? null : (selectedPieceId ?? this.selectedPieceId),
+      placingPieceId: clearPlacingPiece ? null : (placingPieceId ?? this.placingPieceId),
+      selectedCityId: clearSelectedCity ? null : (selectedCityId ?? this.selectedCityId),
+      hoveredSquare: clearHoveredSquare ? null : (hoveredSquare ?? this.hoveredSquare),
+      currentReplayStep: currentReplayStep ?? this.currentReplayStep,
+      isPanning: isPanning ?? this.isPanning,
+    );
+  }
+}
+
+class GameplayUiNotifier extends StateNotifier<GameplayUiState> {
+  GameplayUiNotifier() : super(GameplayUiState());
+
+  void selectPiece(String? id) {
+    state = state.copyWith(
+      selectedPieceId: id, 
+      clearSelectedPiece: id == null,
+      clearPlacingPiece: true, // Reset placement if selecting board piece
+      clearSelectedCity: true,
+    );
+  }
+
+  void setPlacingPiece(String? id) {
+    state = state.copyWith(
+      placingPieceId: id,
+      clearPlacingPiece: id == null,
+      clearSelectedPiece: true, // Reset board selection if placing
+      clearSelectedCity: true,
+    );
+  }
+
+  void setSelectedCity(String? id) {
+    state = state.copyWith(selectedCityId: id, clearSelectedCity: id == null);
+  }
+
+  void hoverSquare(math.Point<int>? point) {
+    state = state.copyWith(hoveredSquare: point, clearHoveredSquare: point == null);
+  }
+
+  void setReplayStep(int step) {
+    state = state.copyWith(currentReplayStep: step);
+  }
+
+  void setPanning(bool panning) {
+    state = state.copyWith(isPanning: panning);
+  }
+
+  void resetPlacement() {
+    state = state.copyWith(clearPlacingPiece: true, clearSelectedCity: true);
+  }
+}
+
+final gameplayUiProvider = StateNotifierProvider<GameplayUiNotifier, GameplayUiState>((ref) {
+  return GameplayUiNotifier();
+});

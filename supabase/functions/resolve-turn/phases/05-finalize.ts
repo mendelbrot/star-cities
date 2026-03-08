@@ -4,6 +4,7 @@ import { getAdjacentCoordinates, isSameCoordinate } from "../../_shared/map.ts";
 import { TurnContext } from "../context.ts";
 
 export async function finalize(sql: postgres.Sql, context: TurnContext) {
+  context.currentStep = 7;
   const { game_id, turn_number, params, stars, players, pieceMap, factionPlacedPiecesMap, events } = context;
   const size = params.grid_size;
 

@@ -1,9 +1,10 @@
 import 'package:go_router/go_router.dart';
 import 'app_state_manager.dart';
-import 'package:star_cities/features/auth/presentation/screens/sign_in/sign_in.dart';
-import 'package:star_cities/features/profile/presentation/screens/profile_setup.dart';
-import 'package:star_cities/features/lobby/presentation/screens/lobby.dart';
-import 'package:star_cities/features/game/presentation/screens/game_room.dart';
+import 'package:star_cities/features/auth/screens/sign_in.dart';
+import 'package:star_cities/features/profile/screens/profile_setup.dart';
+import 'package:star_cities/features/lobby/screens/lobby.dart';
+import 'package:star_cities/features/lobby/screens/game_setup.dart';
+import 'package:star_cities/features/game/screens/game_screen.dart';
 
 GoRouter createRouter(AppStateManager appStateManager) {
   return GoRouter(
@@ -20,13 +21,17 @@ GoRouter createRouter(AppStateManager appStateManager) {
       ),
       GoRoute(
         path: '/',
-        builder: (context, state) => const LobbyPage(),
+        builder: (context, state) => const Lobby(),
+      ),
+      GoRoute(
+        path: '/game-setup',
+        builder: (context, state) => const GameSetup(),
       ),
       GoRoute(
         path: '/game/:id',
         builder: (context, state) {
           final gameId = state.pathParameters['id']!;
-          return GameRoom(gameId: gameId);
+          return GameScreen(gameId: gameId);
         },
       ),
     ],

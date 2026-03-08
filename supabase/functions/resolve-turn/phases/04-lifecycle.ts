@@ -5,6 +5,7 @@ import { ACQUISITION_PROBABILITIES, MAX_TRAY_SIZE } from "../constants.ts";
 import { weightedRoll } from "../utils.ts";
 
 export async function resolveLifecycle(sql: postgres.Sql, context: TurnContext) {
+  context.currentStep = 6;
   const { game_id, turn_number, pieceMap, factionPlacedPiecesMap, factionTrayMap, players } = context;
 
   const activePlayers = players.filter((p: Player) => !p.is_eliminated);

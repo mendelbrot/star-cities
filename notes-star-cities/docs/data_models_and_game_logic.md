@@ -147,7 +147,16 @@ The `actions` field in `turn_planned_actions` is a list of action objects.
 ```
 
 ### Turn Events
-The `events` field in `turn_events` is a list of event objects. The server generates these in a specific order for the client to "replay" (e.g., Bombardments first, then Moves, etc.).
+The `events` field in `turn_events` is a list of event objects. Each event includes a `replay_step` (integer) which the client uses to group and sequence the visual playback of the turn.
+
+**Replay Steps Map:**
+1. **Structural**: `PLACE`, `TETHER`, `ANCHOR` actions.
+2. **Bombardment**: Eclipse bombardments.
+3. **Primary Movement**: Initial movement into non-conflicting squares.
+4. **Combat**: Battles and collisions in contested squares.
+5. **Resolution Movement**: Winners moving into contested squares and final movement cleanup.
+6. **Lifecycle**: Acquisitions and Faction Eliminations.
+7. **Conclusion**: Game Over events.
 
 ```json
 [
@@ -157,25 +166,29 @@ The `events` field in `turn_events` is a list of event objects. The server gener
     "piece_id": "UUID",
     "from": { "x": 1, "y": 3 },
     "to": { "x": 2, "y": 3 },
+    "replay_step": 3
   },
   {
     "type": "TETHER",
     "faction": "RED",
     "ship_id": "UUID",
-    "city_id": "UUID"
+    "city_id": "UUID",
+    "replay_step": 1
   },
   {
     "type": "ANCHOR",
     "faction": "RED",
     "piece_id": "UUID",
-    "is_anchored": true
+    "is_anchored": true,
+    "replay_step": 1
   },
   {
     "type": "PLACE",
     "faction": "RED",
     "tray_piece_id": "UUID",
     "city_id": "UUID",
-    "target": { "x": 1, "y": 2 }
+    "target": { "x": 1, "y": 2 },
+    "replay_step": 1
   },
   {
     "type": "BOMBARD",
@@ -187,12 +200,14 @@ The `events` field in `turn_events` is a list of event objects. The server gener
     "target": { "piece_id": "UUID", "piece_type": "PARALLAX", "faction": "BLUE" },
     "attack_strength": 4,
     "target_strength": 6,
-    "is_destroyed": false
+    "is_destroyed": false,
+    "replay_step": 2
   },
   {
     "type": "SHIP_LOST_TETHER",
     "faction": "RED",
     "piece_id": "UUID",
+    "replay_step": 4
   },
   {
     "type": "BATTLE_COLLISION",
@@ -209,47 +224,54 @@ The `events` field in `turn_events` is a list of event objects. The server gener
     ],
     "supporting_bombardments": [
       { "piece_id": "UUID", "piece_type": "ECLIPSE", "faction": "RED" }
-    ]
+    ],
     "calculated_strengths": [
       {"faction": "BLUE", "strength": 9.0 },
       {"faction": "RED", "strength": 11.0 },
     ],
     "winning_faction": "BLUE",
-    "result": "CAPTURE | DESTROY"
+    "result": "CAPTURE | DESTROY",
+    "replay_step": 4
   },
   {
     "type": "PIECE_ACQUIRED",
     "faction": "RED",
     "piece_type": "ECLIPSE",
-    "new_piece_id": "UUID"
+    "new_piece_id": "UUID",
+    "replay_step": 6
   },
   {
     "type": "CITY_CAPTURED",
     "city_id": "UUID",
     "from_faction": "RED",
-    "to_faction": "BLUE"
+    "to_faction": "BLUE",
+    "replay_step": 5
   },
   {
     "type": "SHIP_DESTROYED_IN_BATTLE",
     "piece_id": "UUID", 
     "piece_type": "PARALLAX", 
-    "faction": "BLUE"
+    "faction": "BLUE",
+    "replay_step": 4
   },
   {
     "type": "SHIP_DESTROYED_IN_BOMBARDMENT",
     "piece_id": "UUID", 
     "piece_type": "PARALLAX", 
-    "faction": "BLUE"
+    "faction": "BLUE",
+    "replay_step": 2
   },
   {
     "type": "FACTION_ELIMINATED",
-    "faction": "RED"
+    "faction": "RED",
+    "replay_step": 6
   },
   {
     "type": "GAME_OVER",
     "winner": "BLUE",
     "did_someone_win": true,
-  },
+    "replay_step": 7
+  }
 ]
 ```
 

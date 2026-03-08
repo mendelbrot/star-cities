@@ -84,6 +84,7 @@ export type MoveEvent = {
   piece_id: string;
   from: Coordinate;
   to: Coordinate;
+  replay_step?: number;
 };
 
 export type TetherEvent = {
@@ -91,6 +92,7 @@ export type TetherEvent = {
   faction: Faction;
   ship_id: string;
   city_id: string;
+  replay_step?: number;
 };
 
 export type AnchorEvent = {
@@ -98,6 +100,7 @@ export type AnchorEvent = {
   faction: Faction;
   piece_id: string;
   is_anchored: boolean;
+  replay_step?: number;
 };
 
 export type PlaceEvent = {
@@ -106,6 +109,7 @@ export type PlaceEvent = {
   tray_piece_id: string;
   city_id: string | null;
   target: Coordinate;
+  replay_step?: number;
 };
 
 export type BombardEvent = {
@@ -116,12 +120,14 @@ export type BombardEvent = {
   attack_strength: number;
   target_strength: number;
   is_destroyed: boolean;
+  replay_step?: number;
 };
 
 export type ShipLostTetherEvent = {
   type: "SHIP_LOST_TETHER";
   faction: Faction;
   piece_id: string;
+  replay_step?: number;
 };
 
 export type BattleCollisionEvent = {
@@ -134,6 +140,7 @@ export type BattleCollisionEvent = {
   calculated_strengths: { faction: Faction; strength: number }[];
   winning_faction: Faction;
   result: "CAPTURE" | "DESTROY";
+  replay_step?: number;
 };
 
 export type PieceAcquiredEvent = {
@@ -141,6 +148,7 @@ export type PieceAcquiredEvent = {
   faction: Faction;
   piece_type: PieceType;
   new_piece_id: string;
+  replay_step?: number;
 };
 
 export type CityCapturedEvent = {
@@ -148,6 +156,7 @@ export type CityCapturedEvent = {
   city_id: string;
   from_faction: Faction;
   to_faction: Faction;
+  replay_step?: number;
 };
 
 export type ShipDestroyedInBattleEvent = {
@@ -155,6 +164,7 @@ export type ShipDestroyedInBattleEvent = {
   piece_id: string;
   piece_type: PieceType;
   faction: Faction;
+  replay_step?: number;
 };
 
 export type ShipDestroyedInBombardmentEvent = {
@@ -162,17 +172,20 @@ export type ShipDestroyedInBombardmentEvent = {
   piece_id: string;
   piece_type: PieceType;
   faction: Faction;
+  replay_step?: number;
 };
 
 export type FactionEliminatedEvent = {
   type: "FACTION_ELIMINATED";
   faction: Faction;
+  replay_step?: number;
 };
 
 export type GameOverEvent = {
   type: "GAME_OVER";
   winner: Faction | null;
   did_someone_win: boolean;
+  replay_step?: number;
 };
 
 export type GameEvent =
