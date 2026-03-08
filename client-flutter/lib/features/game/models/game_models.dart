@@ -61,3 +61,23 @@ class PlannedAction {
     );
   }
 }
+
+class TurnEvent {
+  final String type;
+  final int replayStep;
+  final Map<String, dynamic> data;
+
+  TurnEvent({
+    required this.type,
+    required this.replayStep,
+    required this.data,
+  });
+
+  factory TurnEvent.fromMap(Map<String, dynamic> map) {
+    return TurnEvent(
+      type: map['type'] as String,
+      replayStep: map['replay_step'] as int? ?? 0,
+      data: map,
+    );
+  }
+}

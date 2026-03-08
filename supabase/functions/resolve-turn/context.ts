@@ -21,6 +21,7 @@ export class TurnContext {
   tetherMap = new Map<string, string[]>(); // city_id -> list of ship_ids
   pieceContexts = new Map<string, PieceTurnContext>(); // piece_id -> PieceTurnContext
   events: GameEvent[] = [];
+  currentStep: number = 0;
 
   constructor(
     game_id: string,
@@ -63,6 +64,7 @@ export class TurnContext {
   }
 
   addEvent(event: GameEvent) {
+    event.replay_step = this.currentStep;
     this.events.push(event);
   }
 

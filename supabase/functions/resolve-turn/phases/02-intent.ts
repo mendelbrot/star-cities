@@ -8,6 +8,7 @@ export function resolveIntents(
   plannedActions: { player_id: string; actions: PlannedAction[] }[],
   factionMoveTargetsMap: Map<string, Set<string>>
 ) {
+  context.currentStep = 1;
   const { params, stars, players, pieceMap, coordinateMap, factionPlacedPiecesMap, tetherMap, pieceContexts } = context;
   const size = params.grid_size;
 

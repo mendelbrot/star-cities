@@ -20,6 +20,7 @@ export function resolveCombat(
   const size = params.grid_size;
 
   // 3a. Resolve BOMBARD actions
+  context.currentStep = 2;
   const bombardEventsMap = new Map<string, BombardEvent>();
   const bombardmentsByCoord = new Map<string, { piece_id: string; piece_type: PieceType; faction: Faction }[]>();
 
@@ -83,6 +84,7 @@ export function resolveCombat(
   }
 
   // 3b. Resolve MOVE_ACT actions
+  context.currentStep = 3;
   const validatedMoves: ValidatedMove[] = [];
   const moveTargetCount = new Map<string, number>();
 
@@ -194,6 +196,7 @@ export function resolveCombat(
   }
 
   // 3d. Resolve Battles (Weighted Probability)
+  context.currentStep = 4;
   const battleEvents: BattleCollisionEvent[] = [];
   for (const coordKey of battleCoords) {
     const [x, y] = coordKey.split(',').map(Number);
@@ -275,6 +278,7 @@ export function resolveCombat(
   }
 
   // 3f. Apply Victor Moves and Capture Cities
+  context.currentStep = 5;
   for (const b of battleEvents) {
     const winningMove = finalValidatedMoves.find((m: ValidatedMove) => 
       !m.applied && 

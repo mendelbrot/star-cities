@@ -190,7 +190,7 @@ class _LobbyState extends ConsumerState<Lobby> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Status: ${game.status.value} | Turn: ${game.turnNumber}',
+                          'Status:\u00A0${game.status.value}  |  Turn:\u00A0${game.turnNumber}',
                           style: theme.textTheme.bodyMedium,
                         ),
                       ],
