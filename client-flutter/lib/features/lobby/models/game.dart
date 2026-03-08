@@ -18,6 +18,7 @@ class Game {
   final GameStatus status;
   final int turnNumber;
   final int playerCount;
+  final List<Map<String, int>> stars;
   final Map<String, dynamic> gameParameters;
   final DateTime createdAt;
 
@@ -26,6 +27,7 @@ class Game {
     required this.status,
     required this.turnNumber,
     required this.playerCount,
+    required this.stars,
     required this.gameParameters,
     required this.createdAt,
   });
@@ -36,6 +38,9 @@ class Game {
       status: GameStatus.fromString(map['status']),
       turnNumber: map['turn_number'],
       playerCount: map['player_count'],
+      stars: (map['stars'] as List? ?? [])
+          .map((s) => Map<String, int>.from(s))
+          .toList(),
       gameParameters: map['game_parameters'] as Map<String, dynamic>? ?? {},
       createdAt: DateTime.parse(map['created_at']),
     );

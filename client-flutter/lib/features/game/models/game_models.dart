@@ -18,8 +18,8 @@ enum PieceType {
 
 class Piece {
   final String id;
-  final int x;
-  final int y;
+  final int? x;
+  final int? y;
   final PieceType type;
   final Color color; // Keep Color for now as used in existing code
   final String? tetheredToId;
@@ -27,8 +27,8 @@ class Piece {
 
   Piece({
     required this.id,
-    required this.x,
-    required this.y,
+    this.x,
+    this.y,
     required this.type,
     required this.color,
     this.tetheredToId,

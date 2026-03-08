@@ -7,6 +7,7 @@ class Player {
   final bool isBot;
   final String? botName;
   final Faction faction;
+  final Map<String, int>? homeStar;
   final bool isReady;
   final bool isEliminated;
   final bool isWinner;
@@ -18,6 +19,7 @@ class Player {
     required this.isBot,
     this.botName,
     required this.faction,
+    this.homeStar,
     required this.isReady,
     required this.isEliminated,
     required this.isWinner,
@@ -31,6 +33,7 @@ class Player {
       isBot: map['is_bot'] ?? false,
       botName: map['bot_name'],
       faction: Faction.fromString(map['faction']),
+      homeStar: map['home_star'] != null ? Map<String, int>.from(map['home_star']) : null,
       isReady: map['is_ready'] ?? false,
       isEliminated: map['is_eliminated'] ?? false,
       isWinner: map['is_winner'] ?? false,
