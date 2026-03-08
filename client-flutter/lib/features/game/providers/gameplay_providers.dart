@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:star_cities/features/game/models/game_models.dart';
+import 'package:star_cities/features/game/models/game_events.dart';
 import 'package:star_cities/features/game/providers/game_providers.dart';
 import 'package:star_cities/features/lobby/models/game.dart';
 import 'package:star_cities/shared/providers/auth_providers.dart';

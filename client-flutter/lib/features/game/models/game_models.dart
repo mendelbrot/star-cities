@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:star_cities/shared/models/faction.dart';
 
 enum PieceType {
@@ -79,56 +78,6 @@ class TurnState {
       turnNumber: map['turn_number'],
       pieces: (map['state'] as List? ?? [])
           .map((p) => Piece.fromMap(p as Map<String, dynamic>))
-          .toList(),
-    );
-  }
-}
-
-class PlannedAction {
-  final math.Point<int> target;
-  final String? tetherId;
-
-  PlannedAction({required this.target, this.tetherId});
-
-  PlannedAction copyWith({math.Point<int>? target, String? tetherId}) {
-    return PlannedAction(
-      target: target ?? this.target,
-      tetherId: tetherId ?? this.tetherId,
-    );
-  }
-}
-
-class TurnEvent {
-  final String type;
-  final int replayStep;
-  final Map<String, dynamic> data;
-
-  TurnEvent({
-    required this.type,
-    required this.replayStep,
-    required this.data,
-  });
-
-  factory TurnEvent.fromMap(Map<String, dynamic> map) {
-    return TurnEvent(
-      type: map['type'] as String,
-      replayStep: map['replay_step'] as int? ?? 0,
-      data: map,
-    );
-  }
-}
-
-class TurnEventList {
-  final int turnNumber;
-  final List<TurnEvent> events;
-
-  TurnEventList({required this.turnNumber, required this.events});
-
-  factory TurnEventList.fromMap(Map<String, dynamic> map) {
-    return TurnEventList(
-      turnNumber: map['turn_number'],
-      events: (map['events'] as List? ?? [])
-          .map((e) => TurnEvent.fromMap(e as Map<String, dynamic>))
           .toList(),
     );
   }
