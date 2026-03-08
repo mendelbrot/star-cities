@@ -2,12 +2,45 @@ import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:star_cities/shared/models/faction.dart';
 import 'package:star_cities/shared/providers/auth_providers.dart';
+import 'package:star_cities/features/game/providers/gameplay_providers.dart';
 import 'package:star_cities/features/game/providers/game_providers.dart';
 
 class GameController {
   final Ref _ref;
 
   GameController(this._ref);
+
+  Future<void> submitActions(String gameId) async {
+    final supabase = _ref.read(supabaseClientProvider);
+    final actions = _ref.read(pendingActionsProvider(gameId));
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    final playersAsync = _ref.read(playersProvider(gameId));
+    final players = playersAsync.value ?? [];
+    final currentPlayer = players.firstWhere((p) => p.userId == user.id);
+
+    final gameAsync = _ref.read(gameProvider(gameId));
+    final game = gameAsync.value;
+    if (game == null) return;
+
+    final actionsMap = actions.map((a) => a.toMap()).toList();
+
+    await supabase.from('turn_planned_actions').upsert({
+      'game_id': gameId,
+      'turn_number': game.turnNumber,
+      'player_id': currentPlayer.id,
+      'actions': actionsMap,
+      'submitted_at': DateTime.now().toIso8601String(),
+    });
+
+    // Mark player as ready
+    await supabase.from('players').update({'is_ready': true}).eq('id', currentPlayer.id);
+  }
+
+  Future<void> resetActions(String gameId) async {
+    _ref.read(pendingActionsProvider(gameId).notifier).reset();
+  }
 
   Future<void> addBot(String gameId) async {
     final supabase = _ref.read(supabaseClientProvider);

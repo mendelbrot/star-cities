@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:star_cities/features/game/models/game_models.dart';
 import 'package:star_cities/features/game/models/game_events.dart';
+import 'package:star_cities/features/game/models/game_actions.dart';
 import 'package:star_cities/features/game/providers/game_providers.dart';
 import 'package:star_cities/features/lobby/models/game.dart';
 import 'package:star_cities/shared/providers/auth_providers.dart';
@@ -75,4 +76,34 @@ class TurnEventsNotifier extends FamilyAsyncNotifier<TurnEventList?, String> {
 
 final gameplayTurnEventsProvider = AsyncNotifierProvider.family<TurnEventsNotifier, TurnEventList?, String>(() {
   return TurnEventsNotifier();
+});
+
+class PendingActionsNotifier extends FamilyNotifier<List<GameAction>, String> {
+  @override
+  List<GameAction> build(String arg) => [];
+
+  void addAction(GameAction action) {
+    state = [...state, action];
+  }
+
+  void removeAction(String pieceId) {
+    // Basic implementation: remove all actions for a piece. 
+    // In a more complex version, we might want to only remove the last action.
+    state = state.where((a) {
+      if (a is MoveAction) return a.pieceId != pieceId;
+      if (a is BombardAction) return a.pieceId != pieceId;
+      if (a is TetherAction) return a.shipId != pieceId;
+      if (a is AnchorAction) return a.pieceId != pieceId;
+      if (a is PlaceAction) return a.trayPieceId != pieceId;
+      return true;
+    }).toList();
+  }
+
+  void reset() {
+    state = [];
+  }
+}
+
+final pendingActionsProvider = NotifierProvider.family<PendingActionsNotifier, List<GameAction>, String>(() {
+  return PendingActionsNotifier();
 });
