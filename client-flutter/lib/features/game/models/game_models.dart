@@ -31,6 +31,7 @@ class Piece {
   final Faction faction;
   final String? tetheredToId;
   final bool isAnchored;
+  final bool isVisible;
 
   Piece({
     required this.id,
@@ -40,6 +41,7 @@ class Piece {
     required this.faction,
     this.tetheredToId,
     this.isAnchored = false,
+    this.isVisible = true,
   });
 
   factory Piece.fromMap(Map<String, dynamic> map) {
@@ -51,10 +53,11 @@ class Piece {
       faction: Faction.fromString(map['faction']),
       tetheredToId: map['tether_id'],
       isAnchored: map['is_anchored'] ?? false,
+      isVisible: map['is_visible'] ?? true,
     );
   }
 
-  Piece copyWith({int? x, int? y, String? tetheredToId, bool? isAnchored}) {
+  Piece copyWith({int? x, int? y, String? tetheredToId, bool? isAnchored, bool? isVisible}) {
     return Piece(
       id: id,
       x: x ?? this.x,
@@ -63,6 +66,7 @@ class Piece {
       faction: faction,
       tetheredToId: tetheredToId ?? this.tetheredToId,
       isAnchored: isAnchored ?? this.isAnchored,
+      isVisible: isVisible ?? this.isVisible,
     );
   }
 }
