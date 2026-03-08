@@ -55,6 +55,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         if (!isWaiting) {
           return DefaultTabController(
             length: 3,
+            initialIndex: 2,
             child: scaffold,
           );
         }

@@ -13,13 +13,39 @@ enum GameStatus {
   }
 }
 
+class GameParameters {
+  final int gridSize;
+  final int starCount;
+  final int starCountToWin;
+  final int maxShipsPerCity;
+  final List<String> startingShips;
+
+  GameParameters({
+    this.gridSize = 9,
+    this.starCount = 6,
+    this.starCountToWin = 3,
+    this.maxShipsPerCity = 5,
+    this.startingShips = const ["NEUTRINO", "NEUTRINO", "PARALLAX", "ECLIPSE"],
+  });
+
+  factory GameParameters.fromMap(Map<String, dynamic> map) {
+    return GameParameters(
+      gridSize: map['grid_size'] ?? 9,
+      starCount: map['star_count'] ?? 6,
+      starCountToWin: map['star_count_to_win'] ?? 3,
+      maxShipsPerCity: map['max_ships_per_city'] ?? 5,
+      startingShips: List<String>.from(map['starting_ships'] ?? []),
+    );
+  }
+}
+
 class Game {
   final String id;
   final GameStatus status;
   final int turnNumber;
   final int playerCount;
   final List<Map<String, int>> stars;
-  final Map<String, dynamic> gameParameters;
+  final GameParameters gameParameters;
   final DateTime createdAt;
 
   Game({
@@ -41,7 +67,7 @@ class Game {
       stars: (map['stars'] as List? ?? [])
           .map((s) => Map<String, int>.from(s))
           .toList(),
-      gameParameters: map['game_parameters'] as Map<String, dynamic>? ?? {},
+      gameParameters: GameParameters.fromMap(map['game_parameters'] as Map<String, dynamic>? ?? {}),
       createdAt: DateTime.parse(map['created_at']),
     );
   }

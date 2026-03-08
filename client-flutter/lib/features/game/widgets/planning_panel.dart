@@ -38,9 +38,12 @@ class PlanningPanel extends ConsumerWidget {
 
         final trayPieces = pieces.where((p) => p.x == null && p.y == null && p.faction == currentPlayer.player.faction).toList();
         
-        // Piece selection logic
+        // Virtual State calculation (consistent with GameBoard)
+        final virtualPieces = _calculateVirtualPieces(pieces, pendingActions);
+
+        // Selection logic
         final selectedPiece = uiState.selectedPieceId != null
-            ? pieces.firstWhere((p) => p.id == uiState.selectedPieceId)
+            ? virtualPieces.firstWhere((p) => p.id == uiState.selectedPieceId)
             : null;
             
         final placingPiece = uiState.placingPieceId != null
@@ -122,17 +125,6 @@ class PlanningPanel extends ConsumerWidget {
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
-                      if (placingPiece.type.requiresTether && uiState.selectedCityId == null)
-                        const Text('Step 2: Select an anchored Star City to tether to.')
-                      else if (placingPiece.type.requiresTether && uiState.selectedCityId != null)
-                        const Text('Step 3: Select an empty square adjacent to the city.')
-                      else
-                        const Text('Step 2: Select an empty square adjacent to any of your cities.'),
-                      const SizedBox(height: 8),
-                      TextButton(
-                        onPressed: () => ref.read(gameplayUiProvider.notifier).resetPlacement(),
-                        child: const Text('Cancel Placement'),
-                      ),
                     ] else if (selectedPiece != null) ...[
                       Text(
                         'Selected: ${selectedPiece.type.label}',
@@ -141,16 +133,30 @@ class PlanningPanel extends ConsumerWidget {
                       const SizedBox(height: 8),
                       Row(
                         children: [
-                          if (selectedPiece.type == PieceType.starCity)
-                            ElevatedButton.icon(
-                              onPressed: () {
-                                ref.read(pendingActionsProvider(game.id).notifier).addAction(
-                                  AnchorAction(pieceId: selectedPiece.id, isAnchored: !selectedPiece.isAnchored)
-                                );
-                              },
-                              icon: Icon(selectedPiece.isAnchored ? Icons.anchor : Icons.anchor_outlined),
-                              label: Text(selectedPiece.isAnchored ? 'De-anchor' : 'Anchor'),
-                            ),
+                          if (selectedPiece.type == PieceType.starCity) ...[
+                             if (!selectedPiece.isAnchored)
+                               ElevatedButton.icon(
+                                 onPressed: () {
+                                   ref.read(pendingActionsProvider(game.id).notifier).addAction(
+                                     AnchorAction(pieceId: selectedPiece.id, isAnchored: true)
+                                   );
+                                 },
+                                 icon: const Icon(Icons.anchor),
+                                 label: const Text('Anchor'),
+                               ),
+                             if (selectedPiece.isAnchored)
+                               ElevatedButton.icon(
+                                 onPressed: virtualPieces.any((p) => p.tetheredToId == selectedPiece.id)
+                                   ? null 
+                                   : () {
+                                       ref.read(pendingActionsProvider(game.id).notifier).addAction(
+                                         AnchorAction(pieceId: selectedPiece.id, isAnchored: false)
+                                       );
+                                     },
+                                 icon: const Icon(Icons.anchor_outlined),
+                                 label: const Text('De-anchor'),
+                               ),
+                          ],
                           if (selectedPiece.type.requiresTether) ...[
                             ElevatedButton.icon(
                               onPressed: () {}, // TODO: Implement Re-tether flow
@@ -197,5 +203,34 @@ class PlanningPanel extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, s) => Center(child: Text('Error loading players: $e')),
     );
+  }
+
+  // Duplicate calculation for consistency (ideally this should be in a provider)
+  List<Piece> _calculateVirtualPieces(List<Piece> basePieces, List<GameAction> actions) {
+    var virtual = List<Piece>.from(basePieces);
+    for (var action in actions) {
+      if (action is PlaceAction) {
+        int idx = virtual.indexWhere((p) => p.id == action.trayPieceId);
+        if (idx != -1) {
+          virtual[idx] = virtual[idx].copyWith(x: action.target.x, y: action.target.y, tetheredToId: action.cityId);
+        }
+      } else if (action is MoveAction) {
+        int idx = virtual.indexWhere((p) => p.id == action.pieceId);
+        if (idx != -1) {
+          virtual[idx] = virtual[idx].copyWith(x: action.to.x, y: action.to.y);
+        }
+      } else if (action is AnchorAction) {
+        int idx = virtual.indexWhere((p) => p.id == action.pieceId);
+        if (idx != -1) {
+          virtual[idx] = virtual[idx].copyWith(isAnchored: action.isAnchored);
+        }
+      } else if (action is TetherAction) {
+        int idx = virtual.indexWhere((p) => p.id == action.shipId);
+        if (idx != -1) {
+          virtual[idx] = virtual[idx].copyWith(tetheredToId: action.cityId);
+        }
+      }
+    }
+    return virtual;
   }
 }

@@ -5,6 +5,8 @@ import 'package:star_cities/shared/providers/auth_providers.dart';
 import 'package:star_cities/features/game/providers/gameplay_providers.dart';
 import 'package:star_cities/features/game/providers/game_providers.dart';
 
+import 'package:star_cities/features/game/providers/gameplay_ui_state.dart';
+
 class GameController {
   final Ref _ref;
 
@@ -36,6 +38,11 @@ class GameController {
 
     // Mark player as ready
     await supabase.from('players').update({'is_ready': true}).eq('id', currentPlayer.id);
+
+    // Clear local state
+    _ref.read(pendingActionsProvider(gameId).notifier).reset();
+    _ref.read(gameplayUiProvider.notifier).selectPiece(null);
+    _ref.read(gameplayUiProvider.notifier).resetPlacement();
   }
 
   Future<void> resetActions(String gameId) async {
