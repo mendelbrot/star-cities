@@ -116,6 +116,11 @@ class _ProfileSetupPageState extends State<ProfileSetupPage> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(LucideIcons.arrowLeft),
+          onPressed: () => context.go('/'),
+          tooltip: 'Back to Lobby',
+        ),
         title: const Text('Profile'),
         actions: [
           IconButton(

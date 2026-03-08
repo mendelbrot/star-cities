@@ -6,7 +6,7 @@ import 'package:star_cities/features/lobby/models/game.dart';
 import 'package:star_cities/features/lobby/providers/lobby_providers.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:star_cities/shared/widgets/grid_loading_indicator.dart';
-import 'package:star_cities/shared/widgets/ship_banner.dart';
+import 'package:star_cities/shared/widgets/game_settings_row.dart';
 
 class Lobby extends ConsumerStatefulWidget {
   const Lobby({super.key});
@@ -17,60 +17,12 @@ class Lobby extends ConsumerStatefulWidget {
 
 class _LobbyState extends ConsumerState<Lobby> {
   final _supabase = Supabase.instance.client;
-  bool _isCreating = false;
-
-  Future<void> _createGame() async {
-    setState(() => _isCreating = true);
-
-    // Show instant loading overlay
-    final overlay = OverlayEntry(
-      builder: (context) => Container(
-        color: Colors.black54,
-        child: const Center(child: GridLoadingIndicator(size: 60)),
-      ),
-    );
-    Overlay.of(context).insert(overlay);
-
-    try {
-      final user = _supabase.auth.currentUser;
-      if (user == null) return;
-
-      final gameData = await _supabase
-          .from('games')
-          .insert({'player_count': 4})
-          .select()
-          .single();
-
-      final gameId = gameData['id'];
-
-      await _supabase.from('players').insert({
-        'game_id': gameId,
-        'user_id': user.id,
-        'faction': 'BLUE',
-      });
-
-      if (mounted) {
-        context.go('/game/$gameId');
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-      }
-    } finally {
-      overlay.remove();
-      if (mounted) setState(() => _isCreating = false);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        title: const Text('Star Cities Lobby', style: TextStyle(letterSpacing: 1.2, fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
             icon: const Icon(LucideIcons.user),
@@ -85,39 +37,42 @@ class _LobbyState extends ConsumerState<Lobby> {
         ],
       ),
       body: SafeArea(
-        child: Expanded(
-          child: RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(userGameStatusProvider);
-            },
-            child: SingleChildScrollView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildListSection(
-                    'TAP Required',
-                    ref.watch(tapRequiredGamesProvider),
-                    true,
-                  ),
-                  _buildListSection(
-                    'TAP Done, Waiting for Others',
-                    ref.watch(tapDoneGamesProvider),
-                    true,
-                  ),
-                  _buildListSection(
-                    'Waiting for Players to Join',
-                    ref.watch(waitingForPlayersGamesProvider),
-                    true,
-                  ),
-                  _buildListSection(
-                    'Open Games',
-                    ref.watch(openGamesProvider),
-                    false,
-                  ),
-                  const SizedBox(height: 80),
-                ],
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1000),
+            child: RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(userGameStatusProvider);
+              },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildListSection(
+                      'TAP Required',
+                      ref.watch(tapRequiredGamesProvider),
+                      true,
+                    ),
+                    _buildListSection(
+                      'TAP Done, Waiting for Others',
+                      ref.watch(tapDoneGamesProvider),
+                      true,
+                    ),
+                    _buildListSection(
+                      'Waiting for Players to Join',
+                      ref.watch(waitingForPlayersGamesProvider),
+                      true,
+                    ),
+                    _buildListSection(
+                      'Open Games',
+                      ref.watch(openGamesProvider),
+                      false,
+                    ),
+                    const SizedBox(height: 80),
+                  ],
+                ),
               ),
             ),
           ),
@@ -130,8 +85,8 @@ class _LobbyState extends ConsumerState<Lobby> {
           borderRadius: BorderRadius.circular(8),
           side: BorderSide(color: Theme.of(context).primaryColor, width: 2),
         ),
-        onPressed: _isCreating ? null : _createGame,
-        label: Text(_isCreating ? 'Initializing...' : 'Create New Game'),
+        onPressed: () => context.push('/game-setup'),
+        label: const Text('Create New Game'),
         icon: const Icon(LucideIcons.plus),
       ),
     );
@@ -210,18 +165,68 @@ class _LobbyState extends ConsumerState<Lobby> {
   }
 
   Widget _buildGameCard(Game game, {required bool isParticipant}) {
+    final theme = Theme.of(context);
+    
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        title: Text('Game ID: ${game.id.substring(0, 8)}'),
-        subtitle: Text(
-          'Status: ${game.status.value} | Turn: ${game.turnNumber}',
-        ),
-        trailing: Icon(
-          LucideIcons.chevronRight,
-          color: Theme.of(context).primaryColor,
-        ),
+      child: InkWell(
         onTap: () => context.go('/game/${game.id}'),
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Left: Game Info (Takes all available space)
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Game ID: ${game.id.substring(0, 8)}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Status: ${game.status.value} | Turn: ${game.turnNumber}',
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // Right Unit: Chips + Chevron
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: constraints.maxWidth * 0.5),
+                        child: GameSettingsRow(
+                          game: game, 
+                          iconSize: 10, 
+                          fontSize: 8,
+                          alignment: WrapAlignment.end,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Icon(
+                          LucideIcons.chevronRight,
+                          color: theme.primaryColor,
+                          size: 20,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
       ),
     );
   }
