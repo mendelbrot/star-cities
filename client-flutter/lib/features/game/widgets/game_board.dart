@@ -69,7 +69,7 @@ class GameBoard extends ConsumerWidget {
                   ),
                   child: Stack(
                     children: [
-                      // Grid lines
+                      // 1. Grid lines
                       ...List.generate(10, (i) => Positioned(
                         left: i * cellSize,
                         top: 0,
@@ -83,45 +83,7 @@ class GameBoard extends ConsumerWidget {
                         child: Container(height: 1, color: theme.dividerColor.withValues(alpha: 0.1)),
                       )),
 
-                      // Tether Lines (Local Faction Only)
-                      CustomPaint(
-                        size: Size(size, size),
-                        painter: TetherPainter(
-                          pieces: virtualPieces,
-                          faction: currentPlayer.player.faction,
-                          centerX: centerX,
-                          centerY: centerY,
-                          cellSize: cellSize,
-                        ),
-                      ),
-
-                      // Move Arrows
-                      CustomPaint(
-                        size: Size(size, size),
-                        painter: MoveArrowPainter(
-                          basePieces: pieces,
-                          pendingActions: pendingActions,
-                          faction: currentPlayer.player.faction,
-                          centerX: centerX,
-                          centerY: centerY,
-                          cellSize: cellSize,
-                        ),
-                      ),
-
-                      // Bombardment Visuals
-                      CustomPaint(
-                        size: Size(size, size),
-                        painter: BombardPainter(
-                          basePieces: pieces,
-                          pendingActions: pendingActions,
-                          faction: currentPlayer.player.faction,
-                          centerX: centerX,
-                          centerY: centerY,
-                          cellSize: cellSize,
-                        ),
-                      ),
-
-                      // Clickable Grid Squares
+                      // 2. Clickable Grid Squares (with selection dots)
                       ...List.generate(81, (i) {
                         final x = i % 9;
                         final y = i ~/ 9;
@@ -148,14 +110,13 @@ class GameBoard extends ConsumerWidget {
                                     ),
                                   ),
                                 )
-
                                 : null,
                             ),
                           ),
                         );
                       }),
                       
-                      // Stars (only if visible)
+                      // 3. Stars (only if visible)
                       ...game.stars.where((star) => visibleSquares.contains(math.Point(star['x']!, star['y']!))).map((star) {
                         final pos = _getRelativePosition(star['x']!, star['y']!, centerX, centerY);
                         return Positioned(
@@ -172,7 +133,7 @@ class GameBoard extends ConsumerWidget {
                         );
                       }),
 
-                      // Pieces
+                      // 4. Pieces
                       ...virtualPieces.where((piece) => piece.x != null && piece.y != null && (piece.isVisible || piece.faction == currentPlayer.player.faction) && visibleSquares.contains(math.Point(piece.x!, piece.y!))).map((piece) {
                         final pos = _getRelativePosition(piece.x!, piece.y!, centerX, centerY);
                         final isSelected = uiState.selectedPieceId == piece.id || uiState.selectedCityId == piece.id;
@@ -189,10 +150,9 @@ class GameBoard extends ConsumerWidget {
                           child: GestureDetector(
                             onTap: () => _handlePieceTap(ref, piece, uiState, virtualPieces, currentPlayer.player.faction, pendingActions, availableSquares),
                             child: Opacity(
-                              opacity: isPendingPlace ? 0.6 : 1.0, // Only place dimmed, not move
+                              opacity: isPendingPlace ? 0.6 : 1.0,
                               child: Stack(
                                 children: [
-                                  // Special dashed border for bombard targets
                                   if (isBombardTarget)
                                     CustomPaint(
                                       size: Size(cellSize * 0.8, cellSize * 0.8),
@@ -220,7 +180,7 @@ class GameBoard extends ConsumerWidget {
                         );
                       }),
 
-                      // Fog of War Overlay
+                      // 5. Fog of War Overlay (Behind arrows but on top of pieces)
                       ...List.generate(81, (i) {
                         final x = i % 9;
                         final y = i ~/ 9;
@@ -237,6 +197,46 @@ class GameBoard extends ConsumerWidget {
                           ),
                         );
                       }),
+
+                      // 6. Action Painters (On top of everything)
+                      IgnorePointer(
+                        child: CustomPaint(
+                          size: Size(size, size),
+                          painter: TetherPainter(
+                            pieces: virtualPieces,
+                            faction: currentPlayer.player.faction,
+                            centerX: centerX,
+                            centerY: centerY,
+                            cellSize: cellSize,
+                          ),
+                        ),
+                      ),
+                      IgnorePointer(
+                        child: CustomPaint(
+                          size: Size(size, size),
+                          painter: MoveArrowPainter(
+                            basePieces: pieces,
+                            pendingActions: pendingActions,
+                            faction: currentPlayer.player.faction,
+                            centerX: centerX,
+                            centerY: centerY,
+                            cellSize: cellSize,
+                          ),
+                        ),
+                      ),
+                      IgnorePointer(
+                        child: CustomPaint(
+                          size: Size(size, size),
+                          painter: BombardPainter(
+                            basePieces: pieces,
+                            pendingActions: pendingActions,
+                            faction: currentPlayer.player.faction,
+                            centerX: centerX,
+                            centerY: centerY,
+                            cellSize: cellSize,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -273,7 +273,7 @@ class GameBoard extends ConsumerWidget {
           virtual[idx] = virtual[idx].copyWith(x: action.target.x, y: action.target.y, tetheredToId: action.cityId);
         }
       } else if (action is MoveAction) {
-        // Pieces stay put visually during planning
+        // pieces stay put visually during planning
       } else if (action is AnchorAction) {
         int idx = virtual.indexWhere((p) => p.id == action.pieceId);
         if (idx != -1) {
@@ -312,8 +312,12 @@ class GameBoard extends ConsumerWidget {
     } else if (uiState.selectedPieceId != null) {
       // Handle Movement
       final selectedPiece = pieces.firstWhere((p) => p.id == uiState.selectedPieceId);
-      // Anchor cities can't move if anchored.
-      if (selectedPiece.type == PieceType.starCity && selectedPiece.isAnchored) return {};
+      
+      // Anchor cities can't move if anchored OR if planning to change anchor status
+      if (selectedPiece.type == PieceType.starCity) {
+        if (selectedPiece.isAnchored) return {};
+        if (actions.any((a) => a is AnchorAction && a.pieceId == selectedPiece.id)) return {};
+      }
       
       // Just placed pieces can't move
       if (actions.any((a) => a is PlaceAction && a.trayPieceId == selectedPiece.id)) return {};

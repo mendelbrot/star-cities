@@ -133,17 +133,20 @@ class PlanningPanel extends ConsumerWidget {
                         if (selectedPiece.type == PieceType.starCity) ...[
                            if (!selectedPiece.isAnchored)
                              _ActionButton(
-                               onPressed: () {
-                                 ref.read(pendingActionsProvider(game.id).notifier).addOrReplaceAction(
-                                   AnchorAction(pieceId: selectedPiece.id, isAnchored: true)
-                                 );
-                               },
+                               onPressed: pendingActions.any((a) => a is MoveAction && a.pieceId == selectedPiece.id)
+                                 ? null
+                                 : () {
+                                     ref.read(pendingActionsProvider(game.id).notifier).addOrReplaceAction(
+                                       AnchorAction(pieceId: selectedPiece.id, isAnchored: true)
+                                     );
+                                   },
                                icon: Icons.anchor,
                                tooltip: 'Anchor',
                              ),
                            if (selectedPiece.isAnchored)
                              _ActionButton(
-                               onPressed: virtualPieces.any((p) => p.tetheredToId == selectedPiece.id)
+                               onPressed: virtualPieces.any((p) => p.tetheredToId == selectedPiece.id) || 
+                                          pendingActions.any((a) => a is MoveAction && a.pieceId == selectedPiece.id)
                                  ? null 
                                  : () {
                                      ref.read(pendingActionsProvider(game.id).notifier).addOrReplaceAction(
@@ -154,6 +157,7 @@ class PlanningPanel extends ConsumerWidget {
                                tooltip: 'De-anchor',
                              ),
                         ],
+
                         if (selectedPiece.type.requiresTether) ...[
                           _ActionButton(
                             onPressed: () {}, // TODO: Implement Re-tether flow
