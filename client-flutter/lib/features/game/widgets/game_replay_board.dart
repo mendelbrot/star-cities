@@ -76,15 +76,8 @@ class GameReplayBoard extends ConsumerWidget {
                       centerX: centerX,
                       centerY: centerY,
                       cellSize: cellSize,
-                      onSquareTap: (x, y) {
-                        // Select event at this square
-                        final eventAtSquare = currentEvents.where((e) {
-                          if (e is BombardEvent) return e.coord.x == x && e.coord.y == y;
-                          if (e is BattleCollisionEvent) return e.coord.x == x && e.coord.y == y;
-                          return false;
-                        }).firstOrNull;
-                        ref.read(gameplayUiProvider.notifier).selectEvent(eventAtSquare);
-                      },
+                      onSquareTap: (x, y) => _handleReplayTap(ref, x, y, currentEvents, replayPieces),
+                      onPieceTap: (piece) => _handleReplayTap(ref, piece.x!, piece.y!, currentEvents, replayPieces),
                       overlays: [
                         if (uiState.currentReplayStep == 1)
                           IgnorePointer(
@@ -217,6 +210,22 @@ class GameReplayBoard extends ConsumerWidget {
     }
 
     return replay;
+  }
+
+  void _handleReplayTap(WidgetRef ref, int x, int y, List<GameEvent> currentEvents, List<Piece> pieces) {
+    final eventAtSquare = currentEvents.where((e) {
+      if (e is BombardEvent) return e.coord.x == x && e.coord.y == y;
+      if (e is BattleCollisionEvent) return e.coord.x == x && e.coord.y == y;
+      if (e is CityCapturedEvent) {
+        final city = pieces.firstWhere((p) => p.id == e.cityId, orElse: () => pieces.first);
+        return city.x == x && city.y == y;
+      }
+      return false;
+    }).firstOrNull;
+
+    if (eventAtSquare != null) {
+      ref.read(gameplayUiProvider.notifier).selectEvent(eventAtSquare);
+    }
   }
 
   Widget _buildEventOverlay(GameEvent event, VoidCallback onDismiss) {
