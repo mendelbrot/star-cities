@@ -6,6 +6,7 @@ class GameplayUiState {
   final String? placingPieceId; // Current piece being placed from tray
   final String? selectedCityId;  // Target city for tethering during placement
   final bool isBombarding;      // Whether we are currently selecting a target for bombardment
+  final bool isRetethering;     // Whether we are currently selecting a target for re-tethering
   final math.Point<int>? hoveredSquare;
   final int currentReplayStep;
   final bool isPanning;
@@ -15,6 +16,7 @@ class GameplayUiState {
     this.placingPieceId,
     this.selectedCityId,
     this.isBombarding = false,
+    this.isRetethering = false,
     this.hoveredSquare,
     this.currentReplayStep = 1,
     this.isPanning = false,
@@ -25,6 +27,7 @@ class GameplayUiState {
     String? placingPieceId,
     String? selectedCityId,
     bool? isBombarding,
+    bool? isRetethering,
     math.Point<int>? hoveredSquare,
     int? currentReplayStep,
     bool? isPanning,
@@ -38,6 +41,7 @@ class GameplayUiState {
       placingPieceId: clearPlacingPiece ? null : (placingPieceId ?? this.placingPieceId),
       selectedCityId: clearSelectedCity ? null : (selectedCityId ?? this.selectedCityId),
       isBombarding: isBombarding ?? this.isBombarding,
+      isRetethering: isRetethering ?? this.isRetethering,
       hoveredSquare: clearHoveredSquare ? null : (hoveredSquare ?? this.hoveredSquare),
       currentReplayStep: currentReplayStep ?? this.currentReplayStep,
       isPanning: isPanning ?? this.isPanning,
@@ -55,6 +59,7 @@ class GameplayUiNotifier extends StateNotifier<GameplayUiState> {
       clearPlacingPiece: true, // Reset placement if selecting board piece
       clearSelectedCity: true,
       isBombarding: false,
+      isRetethering: false,
     );
   }
 
@@ -65,6 +70,7 @@ class GameplayUiNotifier extends StateNotifier<GameplayUiState> {
       clearSelectedPiece: true, // Reset board selection if placing
       clearSelectedCity: true,
       isBombarding: false,
+      isRetethering: false,
     );
   }
 
@@ -73,7 +79,11 @@ class GameplayUiNotifier extends StateNotifier<GameplayUiState> {
   }
 
   void setBombarding(bool bombarding) {
-    state = state.copyWith(isBombarding: bombarding);
+    state = state.copyWith(isBombarding: bombarding, isRetethering: false);
+  }
+
+  void setRetethering(bool retethering) {
+    state = state.copyWith(isRetethering: retethering, isBombarding: false);
   }
 
   void hoverSquare(math.Point<int>? point) {

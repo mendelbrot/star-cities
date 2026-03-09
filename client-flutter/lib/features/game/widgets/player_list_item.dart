@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:star_cities/shared/models/faction.dart';
 import 'package:star_cities/features/game/models/game_models.dart';
-import 'package:star_cities/shared/widgets/ship_icon.dart';
+import 'package:star_cities/shared/icon_widgets/ship_icon.dart';
 import 'package:star_cities/features/game/providers/game_providers.dart';
 import 'package:star_cities/features/game/providers/game_controller.dart';
 

@@ -3,7 +3,7 @@ import 'package:star_cities/features/auth/providers/sign_in_controller.dart';
 import 'package:star_cities/features/auth/widgets/sign_in_page_widgets.dart';
 import 'package:star_cities/features/game/models/game_models.dart';
 import 'package:star_cities/shared/models/faction.dart';
-import 'package:star_cities/shared/widgets/ship_icon.dart';
+import 'package:star_cities/shared/icon_widgets/ship_icon.dart';
 import 'package:star_cities/shared/widgets/ship_banner.dart';
 
 class SignInPage extends StatefulWidget {

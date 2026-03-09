@@ -10,7 +10,8 @@ import 'package:star_cities/features/game/providers/game_providers.dart';
 import 'package:star_cities/features/game/utils/game_constants.dart';
 import 'package:star_cities/features/lobby/models/game.dart' as models;
 import 'package:star_cities/shared/providers/auth_providers.dart';
-import 'package:star_cities/shared/widgets/ship_icon.dart';
+import 'package:star_cities/shared/icon_widgets/ship_icon.dart';
+import 'package:star_cities/features/game/icon_widgets/target_icon.dart';
 
 class GameBoard extends ConsumerWidget {
   final models.Game game;
@@ -74,13 +75,13 @@ class GameBoard extends ConsumerWidget {
                         left: i * cellSize,
                         top: 0,
                         bottom: 0,
-                        child: Container(width: 1, color: theme.dividerColor.withValues(alpha: 0.1)),
+                        child: IgnorePointer(child: Container(width: 1, color: theme.dividerColor.withValues(alpha: 0.1))),
                       )),
                       ...List.generate(10, (i) => Positioned(
                         top: i * cellSize,
                         left: 0,
                         right: 0,
-                        child: Container(height: 1, color: theme.dividerColor.withValues(alpha: 0.1)),
+                        child: IgnorePointer(child: Container(height: 1, color: theme.dividerColor.withValues(alpha: 0.1))),
                       )),
 
                       // 2. Clickable Grid Squares (with selection dots)
@@ -124,10 +125,12 @@ class GameBoard extends ConsumerWidget {
                           top: pos.y * cellSize + cellSize * 0.25,
                           width: cellSize * 0.5,
                           height: cellSize * 0.5,
-                          child: Container(
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
+                          child: IgnorePointer(
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                              ),
                             ),
                           ),
                         );
@@ -141,6 +144,10 @@ class GameBoard extends ConsumerWidget {
                         
                         final isSelectableCity = _isCitySelectableForPlacement(uiState, piece, virtualPieces, currentPlayer.player.faction);
                         final isBombardTarget = uiState.isBombarding && availableSquares.contains(math.Point(piece.x!, piece.y!));
+                        final isRetetherTarget = uiState.isRetethering && availableSquares.contains(math.Point(piece.x!, piece.y!));
+                        
+                        // Already planned bombardments for this turn
+                        final isPlannedBombardTarget = pendingActions.any((a) => a is BombardAction && a.targetId == piece.id);
 
                         return Positioned(
                           left: pos.x * cellSize + cellSize * 0.1,
@@ -161,8 +168,8 @@ class GameBoard extends ConsumerWidget {
                                   Container(
                                     decoration: BoxDecoration(
                                       border: Border.all(
-                                        color: (isSelected || isSelectableCity) ? Colors.white : Colors.transparent,
-                                        width: (isSelected || isSelectableCity) ? 2 : 0,
+                                        color: (isSelected || isSelectableCity || isRetetherTarget) ? Colors.white : Colors.transparent,
+                                        width: (isSelected || isSelectableCity || isRetetherTarget) ? 2 : 0,
                                       ),
                                       borderRadius: BorderRadius.circular(cellSize * 0.1),
                                     ),
@@ -173,6 +180,13 @@ class GameBoard extends ConsumerWidget {
                                       isAnchored: piece.isAnchored,
                                     ),
                                   ),
+                                  if (isPlannedBombardTarget)
+                                     Center(
+                                      child: TargetIcon(
+                                        size: cellSize * 0.6,
+                                        color: Colors.white.withValues(alpha: 0.8),
+                                      ),
+                                    ),
                                 ],
                               ),
                             ),
@@ -192,8 +206,10 @@ class GameBoard extends ConsumerWidget {
                           top: pos.y * cellSize,
                           width: cellSize,
                           height: cellSize,
-                          child: Container(
-                            color: theme.colorScheme.secondary.withValues(alpha: 0.2),
+                          child: IgnorePointer(
+                            child: Container(
+                              color: theme.colorScheme.secondary.withValues(alpha: 0.2),
+                            ),
                           ),
                         );
                       }),
@@ -309,6 +325,26 @@ class GameBoard extends ConsumerWidget {
     } else if (uiState.isBombarding && uiState.selectedPieceId != null) {
       final selectedPiece = pieces.firstWhere((p) => p.id == uiState.selectedPieceId);
       return _calculateAvailableBombardSquares(selectedPiece, pieces, faction);
+    } else if (uiState.isRetethering && uiState.selectedPieceId != null) {
+      final piece = pieces.firstWhere((p) => p.id == uiState.selectedPieceId);
+      final squares = <math.Point<int>>{};
+      for (var other in pieces) {
+        if (other.type == PieceType.starCity &&
+            other.faction == faction &&
+            other.isAnchored &&
+            other.id != piece.tetheredToId) {
+          // Check capacity
+          final tetheredCount = pieces.where((p) => p.tetheredToId == other.id).length;
+          if (tetheredCount < game.gameParameters.maxShipsPerCity) {
+            // Check range
+            int dist = _getTorusDist(piece.x!, piece.y!, other.x!, other.y!);
+            if (dist <= GameConstants.tetherRange) {
+              squares.add(math.Point(other.x!, other.y!));
+            }
+          }
+        }
+      }
+      return squares;
     } else if (uiState.selectedPieceId != null) {
       // Handle Movement
       final selectedPiece = pieces.firstWhere((p) => p.id == uiState.selectedPieceId);
@@ -434,6 +470,13 @@ class GameBoard extends ConsumerWidget {
           ref.read(gameplayUiProvider.notifier).setBombarding(false);
           return;
         }
+        if (uiState.isRetethering) {
+          // Create TetherAction
+          final notifier = ref.read(pendingActionsProvider(game.id).notifier);
+          notifier.addOrReplaceAction(TetherAction(shipId: uiState.selectedPieceId!, cityId: piece.id));
+          ref.read(gameplayUiProvider.notifier).setRetethering(false);
+          return;
+        }
         _handleSquareTap(ref, piece.x!, piece.y!, uiState, virtualPieces, faction, actions, availableSquares);
         return;
       }
@@ -447,11 +490,19 @@ class GameBoard extends ConsumerWidget {
     }
 
     if (piece.faction == faction) {
-      // Check if just placed - can't move or act
-      bool isJustPlaced = actions.any((a) => a is PlaceAction && a.trayPieceId == piece.id);
-      if (isJustPlaced) return;
+      final isDeselecting = uiState.selectedPieceId == piece.id;
+      
+      if (isDeselecting) {
+        // Cancel pending moves and bombards when deselecting
+        ref.read(pendingActionsProvider(game.id).notifier).removeAction(piece.id);
+        ref.read(gameplayUiProvider.notifier).selectPiece(null);
+      } else {
+        // Check if just placed - can't move or act (unless deselecting it to cancel placement)
+        bool isJustPlaced = actions.any((a) => a is PlaceAction && a.trayPieceId == piece.id);
+        if (isJustPlaced) return;
 
-      ref.read(gameplayUiProvider.notifier).selectPiece(uiState.selectedPieceId == piece.id ? null : piece.id);
+        ref.read(gameplayUiProvider.notifier).selectPiece(piece.id);
+      }
     }
   }
 
@@ -582,27 +633,23 @@ class MoveArrowPainter extends CustomPainter {
   }
 
   void _drawArrow(Canvas canvas, Offset start, Offset end, Paint paint) {
-    // Check for torus wrap (don't draw arrow across the board if wrapping)
-    if ((start.dx - end.dx).abs() > cellSize * 4.5 || (start.dy - end.dy).abs() > cellSize * 4.5) {
-      return;
-    }
-
     canvas.drawLine(start, end, paint);
 
     // Draw arrowhead
     final angle = math.atan2(end.dy - start.dy, end.dx - start.dx);
-    const arrowSize = 8.0;
-    
-    final path = Path();
-    path.moveTo(end.dx, end.dy);
-    path.lineTo(end.dx - arrowSize * math.cos(angle - math.pi / 6), end.dy - arrowSize * math.sin(angle - math.pi / 6));
-    path.lineTo(end.dx - arrowSize * math.cos(angle + math.pi / 6), end.dy - arrowSize * math.sin(angle + math.pi / 6));
-    path.close();
+    const arrowSize = 16.0; 
 
-    final fillPaint = Paint()
-      ..color = paint.color
-      ..style = PaintingStyle.fill;
-    canvas.drawPath(path, fillPaint);
+    // Draw two lines for the arrowhead instead of a filled triangle
+    canvas.drawLine(
+      end,
+      Offset(end.dx - arrowSize * math.cos(angle - math.pi / 6), end.dy - arrowSize * math.sin(angle - math.pi / 6)),
+      paint,
+    );
+    canvas.drawLine(
+      end,
+      Offset(end.dx - arrowSize * math.cos(angle + math.pi / 6), end.dy - arrowSize * math.sin(angle + math.pi / 6)),
+      paint,
+    );
   }
 
   Offset _getDrawPos(int x, int y) {
@@ -641,11 +688,6 @@ class BombardPainter extends CustomPainter {
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
 
-    final targetPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.8)
-      ..strokeWidth = 2.0
-      ..style = PaintingStyle.stroke;
-
     for (var action in pendingActions) {
       if (action is BombardAction) {
         final attacker = basePieces.firstWhere((p) => p.id == action.pieceId);
@@ -655,21 +697,13 @@ class BombardPainter extends CustomPainter {
         final start = _getDrawPos(attacker.x!, attacker.y!);
         final end = _getDrawPos(target.x!, target.y!);
 
-        // Draw dashed red line
+        // Draw dashed white line
         _drawDashedLine(canvas, start, end, linePaint);
-
-        // Draw crosshair on target
-        _drawCrosshair(canvas, end, targetPaint);
       }
     }
   }
 
   void _drawDashedLine(Canvas canvas, Offset start, Offset end, Paint paint) {
-    // Check for torus wrap
-    if ((start.dx - end.dx).abs() > cellSize * 4.5 || (start.dy - end.dy).abs() > cellSize * 4.5) {
-      return;
-    }
-
     const dashWidth = 5.0;
     const dashSpace = 3.0;
     double distance = (end - start).distance;
@@ -684,16 +718,6 @@ class BombardPainter extends CustomPainter {
       );
       currentDistance += dashWidth + dashSpace;
     }
-  }
-
-  void _drawCrosshair(Canvas canvas, Offset pos, Paint paint) {
-    const size = 12.0;
-    // Draw circle
-    canvas.drawCircle(pos, size * 0.8, paint);
-    // Draw vertical line
-    canvas.drawLine(Offset(pos.dx, pos.dy - size), Offset(pos.dx, pos.dy + size), paint);
-    // Draw horizontal line
-    canvas.drawLine(Offset(pos.dx - size, pos.dy), Offset(pos.dx + size, pos.dy), paint);
   }
 
   Offset _getDrawPos(int x, int y) {

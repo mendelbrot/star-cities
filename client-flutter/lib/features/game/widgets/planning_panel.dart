@@ -8,7 +8,7 @@ import 'package:star_cities/features/game/providers/gameplay_ui_state.dart';
 import 'package:star_cities/features/game/providers/game_controller.dart';
 import 'package:star_cities/features/lobby/models/game.dart' as models;
 import 'package:star_cities/shared/providers/auth_providers.dart';
-import 'package:star_cities/shared/widgets/ship_icon.dart';
+import 'package:star_cities/shared/icon_widgets/ship_icon.dart';
 
 class PlanningPanel extends ConsumerWidget {
   final models.Game game;
@@ -157,9 +157,12 @@ class PlanningPanel extends ConsumerWidget {
                         ],
                         if (selectedPiece.type.requiresTether) ...[
                           _ActionButton(
-                            onPressed: () {}, // TODO: Implement Re-tether flow
+                            onPressed: () {
+                              ref.read(gameplayUiProvider.notifier).setRetethering(!uiState.isRetethering);
+                            },
                             icon: Icons.link,
-                            tooltip: 'Re-tether',
+                            tooltip: uiState.isRetethering ? 'Cancel Re-tether' : 'Re-tether',
+                            color: uiState.isRetethering ? theme.colorScheme.primary : Colors.black,
                           ),
                           if (selectedPiece.type == PieceType.eclipse)
                             Padding(
@@ -168,7 +171,7 @@ class PlanningPanel extends ConsumerWidget {
                                 onPressed: () {
                                   ref.read(gameplayUiProvider.notifier).setBombarding(!uiState.isBombarding);
                                 },
-                                icon: uiState.isBombarding ? Icons.close : Icons.gps_fixed,
+                                icon: Icons.gps_fixed,
                                 tooltip: uiState.isBombarding ? 'Cancel Bombard' : 'Bombard',
                                 color: uiState.isBombarding ? theme.colorScheme.error : Colors.black,
                               ),
