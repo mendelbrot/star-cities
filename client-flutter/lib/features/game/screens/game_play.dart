@@ -84,25 +84,59 @@ class GamePlay extends ConsumerWidget {
               ),
 
               // Tab 3: Planning
-              Column(
-                children: [
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.topCenter,
-                      child: GameBoard(
-                        game: game,
-                        pieces: currentPieces,
-                        visibleSquares: currentVision,
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final bool isWide = constraints.maxWidth > 800;
+                  
+                  final boardWidget = GameBoard(
+                    game: game,
+                    pieces: currentPieces,
+                    visibleSquares: currentVision,
+                    isPlanning: true,
+                  );
+
+                  final panel = PlanningPanel(
+                    game: game,
+                    pieces: currentPieces,
+                  );
+
+                  if (isWide) {
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          flex: 3,
+                          child: AspectRatio(
+                            aspectRatio: 1,
+                            child: boardWidget,
+                          ),
+                        ),
+                        // Gap is provided by GameBoard's internal 16px padding
+                        Flexible(
+                          flex: 1,
+                          child: SingleChildScrollView(child: panel),
+                        ),
+                      ],
+                    );
+                  }
+
+                  return Column(
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          child: boardWidget,
+                        ),
                       ),
-                    ),
-                  ),
-                  Expanded(
-                    child: PlanningPanel(
-                      game: game,
-                      pieces: currentPieces,
-                    ),
-                  ),
-                ],
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16.0),
+                        child: panel,
+                      ),
+                    ],
+                  );
+                },
               ),
             ],
           );

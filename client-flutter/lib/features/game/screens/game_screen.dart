@@ -86,15 +86,16 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       ),
       title: Text(title),
       bottom: isWaiting
-          ? null
-          : TabBar(
-              unselectedLabelColor: theme.disabledColor,
-              tabs: const [
-                Tab(text: 'Players'),
-                Tab(text: 'Replay'),
-                Tab(text: 'Planning'),
-              ],
-            ),
+      ? null
+      : TabBar(
+        unselectedLabelColor: theme.disabledColor,
+        tabs: const [
+          Tab(text: 'Info'),
+          Tab(text: 'Replay'),
+          Tab(text: 'Planning'),
+        ],
+      ),
+
     );
   }
 }

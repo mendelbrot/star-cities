@@ -5,6 +5,7 @@ class GameplayUiState {
   final String? selectedPieceId;
   final String? placingPieceId; // Current piece being placed from tray
   final String? selectedCityId;  // Target city for tethering during placement
+  final bool isBombarding;      // Whether we are currently selecting a target for bombardment
   final math.Point<int>? hoveredSquare;
   final int currentReplayStep;
   final bool isPanning;
@@ -13,6 +14,7 @@ class GameplayUiState {
     this.selectedPieceId,
     this.placingPieceId,
     this.selectedCityId,
+    this.isBombarding = false,
     this.hoveredSquare,
     this.currentReplayStep = 1,
     this.isPanning = false,
@@ -22,6 +24,7 @@ class GameplayUiState {
     String? selectedPieceId,
     String? placingPieceId,
     String? selectedCityId,
+    bool? isBombarding,
     math.Point<int>? hoveredSquare,
     int? currentReplayStep,
     bool? isPanning,
@@ -34,6 +37,7 @@ class GameplayUiState {
       selectedPieceId: clearSelectedPiece ? null : (selectedPieceId ?? this.selectedPieceId),
       placingPieceId: clearPlacingPiece ? null : (placingPieceId ?? this.placingPieceId),
       selectedCityId: clearSelectedCity ? null : (selectedCityId ?? this.selectedCityId),
+      isBombarding: isBombarding ?? this.isBombarding,
       hoveredSquare: clearHoveredSquare ? null : (hoveredSquare ?? this.hoveredSquare),
       currentReplayStep: currentReplayStep ?? this.currentReplayStep,
       isPanning: isPanning ?? this.isPanning,
@@ -50,6 +54,7 @@ class GameplayUiNotifier extends StateNotifier<GameplayUiState> {
       clearSelectedPiece: id == null,
       clearPlacingPiece: true, // Reset placement if selecting board piece
       clearSelectedCity: true,
+      isBombarding: false,
     );
   }
 
@@ -59,11 +64,16 @@ class GameplayUiNotifier extends StateNotifier<GameplayUiState> {
       clearPlacingPiece: id == null,
       clearSelectedPiece: true, // Reset board selection if placing
       clearSelectedCity: true,
+      isBombarding: false,
     );
   }
 
   void setSelectedCity(String? id) {
     state = state.copyWith(selectedCityId: id, clearSelectedCity: id == null);
+  }
+
+  void setBombarding(bool bombarding) {
+    state = state.copyWith(isBombarding: bombarding);
   }
 
   void hoverSquare(math.Point<int>? point) {

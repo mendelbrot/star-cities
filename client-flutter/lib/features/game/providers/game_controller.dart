@@ -47,7 +47,10 @@ class GameController {
 
   Future<void> resetActions(String gameId) async {
     _ref.read(pendingActionsProvider(gameId).notifier).reset();
+    _ref.read(gameplayUiProvider.notifier).selectPiece(null);
+    _ref.read(gameplayUiProvider.notifier).resetPlacement();
   }
+
 
   Future<void> addBot(String gameId) async {
     final supabase = _ref.read(supabaseClientProvider);

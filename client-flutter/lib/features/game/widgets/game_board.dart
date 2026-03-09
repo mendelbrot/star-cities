@@ -16,12 +16,14 @@ class GameBoard extends ConsumerWidget {
   final models.Game game;
   final List<Piece> pieces;
   final Set<math.Point<int>> visibleSquares;
+  final bool isPlanning;
 
   const GameBoard({
     super.key,
     required this.game,
     required this.pieces,
     required this.visibleSquares,
+    this.isPlanning = false,
   });
 
   @override
@@ -29,8 +31,10 @@ class GameBoard extends ConsumerWidget {
     final theme = Theme.of(context);
     final playersAsync = ref.watch(gamePlayersWithProfilesProvider(game.id));
     final currentUser = ref.watch(currentUserProvider);
-    final uiState = ref.watch(gameplayUiProvider);
-    final pendingActions = ref.watch(pendingActionsProvider(game.id));
+    
+    // Only watch these in planning mode
+    final uiState = isPlanning ? ref.watch(gameplayUiProvider) : GameplayUiState();
+    final pendingActions = isPlanning ? ref.watch(pendingActionsProvider(game.id)) : <GameAction>[];
 
     return playersAsync.when(
       data: (players) {
@@ -104,6 +108,19 @@ class GameBoard extends ConsumerWidget {
                         ),
                       ),
 
+                      // Bombardment Visuals
+                      CustomPaint(
+                        size: Size(size, size),
+                        painter: BombardPainter(
+                          basePieces: pieces,
+                          pendingActions: pendingActions,
+                          faction: currentPlayer.player.faction,
+                          centerX: centerX,
+                          centerY: centerY,
+                          cellSize: cellSize,
+                        ),
+                      ),
+
                       // Clickable Grid Squares
                       ...List.generate(81, (i) {
                         final x = i % 9;
@@ -117,20 +134,21 @@ class GameBoard extends ConsumerWidget {
                           width: cellSize,
                           height: cellSize,
                           child: GestureDetector(
-                            onTap: () => _handleSquareTap(ref, x, y, uiState, virtualPieces, currentPlayer.player.faction, pendingActions),
+                            onTap: () => _handleSquareTap(ref, x, y, uiState, virtualPieces, currentPlayer.player.faction, pendingActions, availableSquares),
                             child: Container(
                               color: Colors.transparent,
                               child: isAvailable 
-                                ? Center(
-                                    child: Container(
-                                      width: cellSize * 0.3,
-                                      height: cellSize * 0.3,
-                                      decoration: BoxDecoration(
-                                        color: theme.colorScheme.secondary.withValues(alpha: 0.5),
-                                        shape: BoxShape.circle,
-                                      ),
+                              ? Center(
+                                  child: Container(
+                                    width: cellSize * 0.3,
+                                    height: cellSize * 0.3,
+                                    decoration: BoxDecoration(
+                                      color: theme.colorScheme.secondary.withValues(alpha: 0.5),
+                                      shape: BoxShape.circle,
                                     ),
-                                  )
+                                  ),
+                                )
+
                                 : null,
                             ),
                           ),
@@ -159,9 +177,9 @@ class GameBoard extends ConsumerWidget {
                         final pos = _getRelativePosition(piece.x!, piece.y!, centerX, centerY);
                         final isSelected = uiState.selectedPieceId == piece.id || uiState.selectedCityId == piece.id;
                         final isPendingPlace = pendingActions.any((a) => a is PlaceAction && a.trayPieceId == piece.id);
-                        final isPendingMove = pendingActions.any((a) => a is MoveAction && a.pieceId == piece.id);
                         
                         final isSelectableCity = _isCitySelectableForPlacement(uiState, piece, virtualPieces, currentPlayer.player.faction);
+                        final isBombardTarget = uiState.isBombarding && availableSquares.contains(math.Point(piece.x!, piece.y!));
 
                         return Positioned(
                           left: pos.x * cellSize + cellSize * 0.1,
@@ -171,21 +189,31 @@ class GameBoard extends ConsumerWidget {
                           child: GestureDetector(
                             onTap: () => _handlePieceTap(ref, piece, uiState, virtualPieces, currentPlayer.player.faction, pendingActions, availableSquares),
                             child: Opacity(
-                              opacity: (isPendingPlace || isPendingMove) ? 0.6 : 1.0,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  border: Border.all(
-                                    color: (isSelected || isSelectableCity) ? Colors.white : Colors.transparent,
-                                    width: (isSelected || isSelectableCity) ? 2 : 0,
+                              opacity: isPendingPlace ? 0.6 : 1.0, // Only place dimmed, not move
+                              child: Stack(
+                                children: [
+                                  // Special dashed border for bombard targets
+                                  if (isBombardTarget)
+                                    CustomPaint(
+                                      size: Size(cellSize * 0.8, cellSize * 0.8),
+                                      painter: DashedCirclePainter(color: Colors.white, strokeWidth: 2),
+                                    ),
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: (isSelected || isSelectableCity) ? Colors.white : Colors.transparent,
+                                        width: (isSelected || isSelectableCity) ? 2 : 0,
+                                      ),
+                                      borderRadius: BorderRadius.circular(cellSize * 0.1),
+                                    ),
+                                    child: ShipIcon(
+                                      type: piece.type,
+                                      faction: piece.faction,
+                                      size: cellSize * 0.8,
+                                      isAnchored: piece.isAnchored,
+                                    ),
                                   ),
-                                  borderRadius: BorderRadius.circular(cellSize * 0.1),
-                                ),
-                                child: ShipIcon(
-                                  type: piece.type,
-                                  faction: piece.faction,
-                                  size: cellSize * 0.8,
-                                  isAnchored: piece.isAnchored,
-                                ),
+                                ],
                               ),
                             ),
                           ),
@@ -278,6 +306,9 @@ class GameBoard extends ConsumerWidget {
         }
         return squares;
       }
+    } else if (uiState.isBombarding && uiState.selectedPieceId != null) {
+      final selectedPiece = pieces.firstWhere((p) => p.id == uiState.selectedPieceId);
+      return _calculateAvailableBombardSquares(selectedPiece, pieces, faction);
     } else if (uiState.selectedPieceId != null) {
       // Handle Movement
       final selectedPiece = pieces.firstWhere((p) => p.id == uiState.selectedPieceId);
@@ -290,6 +321,22 @@ class GameBoard extends ConsumerWidget {
       return _calculateAvailableMoves(selectedPiece, pieces, actions);
     }
     return {};
+  }
+
+  Set<math.Point<int>> _calculateAvailableBombardSquares(Piece piece, List<Piece> pieces, Faction faction) {
+    final available = <math.Point<int>>{};
+    const range = GameConstants.bombardRange;
+
+    for (var other in pieces) {
+      if (other.faction == faction) continue; // Enemy only
+      if (other.x == null || other.y == null) continue;
+
+      int dist = _getTorusDist(piece.x!, piece.y!, other.x!, other.y!);
+      if (dist <= range) {
+        available.add(math.Point(other.x!, other.y!));
+      }
+    }
+    return available;
   }
 
   Set<math.Point<int>> _calculateAvailableMoves(Piece piece, List<Piece> pieces, List<GameAction> actions) {
@@ -341,7 +388,7 @@ class GameBoard extends ConsumerWidget {
     return available;
   }
 
-  int _getTorusDist(int x1, int y1, int x2, int y2) {
+  static int _getTorusDist(int x1, int y1, int x2, int y2) {
     int dx = (x1 - x2).abs();
     int dy = (y1 - y2).abs();
     if (dx > 4) dx = 9 - dx;
@@ -372,11 +419,18 @@ class GameBoard extends ConsumerWidget {
   }
 
   void _handlePieceTap(WidgetRef ref, Piece piece, GameplayUiState uiState, List<Piece> virtualPieces, Faction faction, List<GameAction> actions, Set<math.Point<int>> availableSquares) {
-    // If we're tapping a piece on an available square, treat it as a move/placement target
+    // If we're tapping a piece on an available square, treat it as a move/placement/bombard target
     if (piece.x != null && piece.y != null) {
       final target = math.Point(piece.x!, piece.y!);
       if (availableSquares.contains(target)) {
-        _handleSquareTap(ref, piece.x!, piece.y!, uiState, virtualPieces, faction, actions);
+        if (uiState.isBombarding) {
+          // Create BombardAction
+          final notifier = ref.read(pendingActionsProvider(game.id).notifier);
+          notifier.addOrReplaceAction(BombardAction(pieceId: uiState.selectedPieceId!, targetId: piece.id));
+          ref.read(gameplayUiProvider.notifier).setBombarding(false);
+          return;
+        }
+        _handleSquareTap(ref, piece.x!, piece.y!, uiState, virtualPieces, faction, actions, availableSquares);
         return;
       }
     }
@@ -397,13 +451,12 @@ class GameBoard extends ConsumerWidget {
     }
   }
 
-  void _handleSquareTap(WidgetRef ref, int x, int y, GameplayUiState uiState, List<Piece> pieces, Faction faction, List<GameAction> actions) {
+  void _handleSquareTap(WidgetRef ref, int x, int y, GameplayUiState uiState, List<Piece> pieces, Faction faction, List<GameAction> actions, Set<math.Point<int>> availableSquares) {
     final target = math.Point(x, y);
-    final available = _calculateAvailableSquares(uiState, pieces, faction, actions);
     
-    if (available.contains(target)) {
+    if (availableSquares.contains(target)) {
       if (uiState.placingPieceId != null) {
-        ref.read(pendingActionsProvider(game.id).notifier).addAction(
+        ref.read(pendingActionsProvider(game.id).notifier).addOrReplaceAction(
           PlaceAction(
             trayPieceId: uiState.placingPieceId!,
             cityId: uiState.selectedCityId,
@@ -412,10 +465,12 @@ class GameBoard extends ConsumerWidget {
         );
         ref.read(gameplayUiProvider.notifier).resetPlacement();
       } else if (uiState.selectedPieceId != null) {
+        if (uiState.isBombarding) {
+          return;
+        }
         // Create MoveAction
         final notifier = ref.read(pendingActionsProvider(game.id).notifier);
-        notifier.removeAction(uiState.selectedPieceId!);
-        notifier.addAction(
+        notifier.addOrReplaceAction(
           MoveAction(pieceId: uiState.selectedPieceId!, to: target)
         );
         ref.read(gameplayUiProvider.notifier).selectPiece(null);
@@ -525,8 +580,6 @@ class MoveArrowPainter extends CustomPainter {
   void _drawArrow(Canvas canvas, Offset start, Offset end, Paint paint) {
     // Check for torus wrap (don't draw arrow across the board if wrapping)
     if ((start.dx - end.dx).abs() > cellSize * 4.5 || (start.dy - end.dy).abs() > cellSize * 4.5) {
-      // For now, just skip drawing arrows that wrap.
-      // In a more complex implementation, we'd draw two partial arrows.
       return;
     }
 
@@ -558,4 +611,133 @@ class MoveArrowPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+class BombardPainter extends CustomPainter {
+  final List<Piece> basePieces;
+  final List<GameAction> pendingActions;
+  final Faction faction;
+  final int centerX;
+  final int centerY;
+  final double cellSize;
+
+  BombardPainter({
+    required this.basePieces,
+    required this.pendingActions,
+    required this.faction,
+    required this.centerX,
+    required this.centerY,
+    required this.cellSize,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final linePaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.6)
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+
+    final targetPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.8)
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke;
+
+    for (var action in pendingActions) {
+      if (action is BombardAction) {
+        final attacker = basePieces.firstWhere((p) => p.id == action.pieceId);
+        final target = basePieces.firstWhere((p) => p.id == action.targetId);
+        if (attacker.faction != faction) continue;
+
+        final start = _getDrawPos(attacker.x!, attacker.y!);
+        final end = _getDrawPos(target.x!, target.y!);
+
+        // Draw dashed red line
+        _drawDashedLine(canvas, start, end, linePaint);
+
+        // Draw crosshair on target
+        _drawCrosshair(canvas, end, targetPaint);
+      }
+    }
+  }
+
+  void _drawDashedLine(Canvas canvas, Offset start, Offset end, Paint paint) {
+    // Check for torus wrap
+    if ((start.dx - end.dx).abs() > cellSize * 4.5 || (start.dy - end.dy).abs() > cellSize * 4.5) {
+      return;
+    }
+
+    const dashWidth = 5.0;
+    const dashSpace = 3.0;
+    double distance = (end - start).distance;
+    double currentDistance = 0;
+    final direction = (end - start) / distance;
+
+    while (currentDistance < distance) {
+      canvas.drawLine(
+        start + direction * currentDistance,
+        start + direction * math.min(currentDistance + dashWidth, distance),
+        paint,
+      );
+      currentDistance += dashWidth + dashSpace;
+    }
+  }
+
+  void _drawCrosshair(Canvas canvas, Offset pos, Paint paint) {
+    const size = 12.0;
+    // Draw circle
+    canvas.drawCircle(pos, size * 0.8, paint);
+    // Draw vertical line
+    canvas.drawLine(Offset(pos.dx, pos.dy - size), Offset(pos.dx, pos.dy + size), paint);
+    // Draw horizontal line
+    canvas.drawLine(Offset(pos.dx - size, pos.dy), Offset(pos.dx + size, pos.dy), paint);
+  }
+
+  Offset _getDrawPos(int x, int y) {
+    int relX = (x - centerX + 4) % 9;
+    int relY = (y - centerY + 4) % 9;
+    if (relX < 0) relX += 9;
+    if (relY < 0) relY += 9;
+    return Offset(relX * cellSize + cellSize / 2, relY * cellSize + cellSize / 2);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
+class DashedCirclePainter extends CustomPainter {
+  final Color color;
+  final double strokeWidth;
+
+  DashedCirclePainter({required this.color, required this.strokeWidth});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = strokeWidth
+      ..style = PaintingStyle.stroke;
+
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+
+    const dashWidth = 4.0;
+    const dashSpace = 2.0;
+    final circumference = 2 * math.pi * radius;
+    final totalDashes = (circumference / (dashWidth + dashSpace)).floor();
+
+    for (int i = 0; i < totalDashes; i++) {
+      final startAngle = i * (dashWidth + dashSpace) / radius;
+      final sweepAngle = dashWidth / radius;
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        sweepAngle,
+        false,
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
