@@ -52,7 +52,7 @@ class PlanningPanel extends ConsumerWidget {
 
         return Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 250, maxWidth: 350),
+            constraints: const BoxConstraints(minWidth: 370, maxWidth: 370),
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -116,48 +116,45 @@ class PlanningPanel extends ConsumerWidget {
                   const SizedBox(height: 8),
 
                   // Selection Status and Action Icons
-                  if (placingPiece != null)
-                    Text(
-                      'Placing: ${placingPiece.type.label}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                  Text(
+                    placingPiece != null
+                        ? 'Placing: ${placingPiece.type.label}'
+                        : (selectedPiece != null ? 'Selected: ${selectedPiece.type.label}' : 'No Selection'),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: (placingPiece == null && selectedPiece == null) ? theme.disabledColor : null,
                     ),
-                  if (selectedPiece != null) ...[
-                    Text(
-                      'Selected: ${selectedPiece.type.label}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      if (selectedPiece != null) ...[
                         if (selectedPiece.type == PieceType.starCity) ...[
-                           if (!selectedPiece.isAnchored)
-                             _ActionButton(
-                               onPressed: pendingActions.any((a) => a is MoveAction && a.pieceId == selectedPiece.id)
-                                 ? null
-                                 : () {
-                                     ref.read(pendingActionsProvider(game.id).notifier).addOrReplaceAction(
-                                       AnchorAction(pieceId: selectedPiece.id, isAnchored: true)
-                                     );
-                                   },
-                               icon: Icons.anchor,
-                               tooltip: 'Anchor',
-                             ),
-                           if (selectedPiece.isAnchored)
-                             _ActionButton(
-                               onPressed: virtualPieces.any((p) => p.tetheredToId == selectedPiece.id) || 
-                                          pendingActions.any((a) => a is MoveAction && a.pieceId == selectedPiece.id)
-                                 ? null 
-                                 : () {
-                                     ref.read(pendingActionsProvider(game.id).notifier).addOrReplaceAction(
-                                       AnchorAction(pieceId: selectedPiece.id, isAnchored: false)
-                                     );
-                                   },
-                               icon: Icons.anchor_outlined,
-                               tooltip: 'De-anchor',
-                             ),
+                          if (!selectedPiece.isAnchored)
+                            _ActionButton(
+                              onPressed: pendingActions.any((a) => a is MoveAction && a.pieceId == selectedPiece.id)
+                                  ? null
+                                  : () {
+                                      ref.read(pendingActionsProvider(game.id).notifier).addOrReplaceAction(
+                                          AnchorAction(pieceId: selectedPiece.id, isAnchored: true));
+                                    },
+                              icon: Icons.anchor,
+                              tooltip: 'Anchor',
+                            ),
+                          if (selectedPiece.isAnchored)
+                            _ActionButton(
+                              onPressed: virtualPieces.any((p) => p.tetheredToId == selectedPiece.id) ||
+                                      pendingActions.any((a) => a is MoveAction && a.pieceId == selectedPiece.id)
+                                  ? null
+                                  : () {
+                                      ref.read(pendingActionsProvider(game.id).notifier).addOrReplaceAction(
+                                          AnchorAction(pieceId: selectedPiece.id, isAnchored: false));
+                                    },
+                              icon: Icons.anchor_outlined,
+                              tooltip: 'De-anchor',
+                            ),
                         ],
-
                         if (selectedPiece.type.requiresTether) ...[
                           _ActionButton(
                             onPressed: () {}, // TODO: Implement Re-tether flow
@@ -178,8 +175,19 @@ class PlanningPanel extends ConsumerWidget {
                             ),
                         ],
                       ],
-                    ),
-                  ],
+                      // Placeholder to maintain height if no actions are available
+                      if (selectedPiece == null ||
+                          (selectedPiece.type != PieceType.starCity && !selectedPiece.type.requiresTether))
+                        const Opacity(
+                          opacity: 0.0,
+                          child: _ActionButton(
+                            onPressed: null,
+                            icon: Icons.circle,
+                            tooltip: '',
+                          ),
+                        ),
+                    ],
+                  ),
 
                   const SizedBox(height: 12),
 

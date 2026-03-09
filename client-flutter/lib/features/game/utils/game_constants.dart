@@ -8,7 +8,7 @@ class GameConstants {
   static const double bombardStrength = 2.0;
   static const double supportStrengthFactor = 0.5;
   static const double bombardSupportStrength = 1.0;
-  static const int maxTraySize = 9;
+  static const int maxTraySize = 5;
 
   static const Map<PieceType, int> visionRange = {
     PieceType.starCity: 2,

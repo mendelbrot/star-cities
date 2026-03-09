@@ -24,70 +24,94 @@ class GamePlay extends ConsumerWidget {
     return turnStatesAsync.when(
       data: (turnStates) => visionAsync.when(
         data: (visions) {
-          final currentPieces = turnStates.isNotEmpty ? turnStates.first.pieces : <Piece>[];
-          final currentVision = visions.isNotEmpty ? visions.first : <math.Point<int>>{};
-          
-          final previousPieces = turnStates.length > 1 ? turnStates[1].pieces : <Piece>[];
-          final previousVision = visions.length > 1 ? visions[1] : <math.Point<int>>{};
+          final currentPieces = turnStates.isNotEmpty
+              ? turnStates.first.pieces
+              : <Piece>[];
+          final currentVision = visions.isNotEmpty
+              ? visions.first
+              : <math.Point<int>>{};
+
+          final previousPieces = turnStates.length > 1
+              ? turnStates[1].pieces
+              : <Piece>[];
+          final previousVision = visions.length > 1
+              ? visions[1]
+              : <math.Point<int>>{};
 
           return TabBarView(
             children: [
               // Tab 1: Players / Scoreboard
-              Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ResponsiveGameHeader(
-                      game: game,
-                      chipsOnTop: true,
-                      leading: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Game ID: ${game.id.substring(0, 8)}',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1000),
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ResponsiveGameHeader(
+                          game: game,
+                          chipsOnTop: true,
+                          leading: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Game ID: ${game.id.substring(0, 8)}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Turn: ${game.turnNumber}',
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Turn: ${game.turnNumber}',
-                            style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const SizedBox(height: 32),
+                        const SectionTitle('scoreboard'),
+                        const Expanded(
+                          child: Center(
+                            child: Text('Scoreboard content will go here'),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 32),
-                    const SectionTitle('scoreboard'),
-                    const Expanded(child: Center(child: Text('Scoreboard content will go here'))),
-                  ],
+                  ),
                 ),
               ),
-              
+
               // Tab 2: Replay
-              Column(
-                children: [
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.topCenter,
-                      child: GameBoard(
-                        game: game,
-                        pieces: previousPieces,
-                        visibleSquares: previousVision,
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1000),
+                  child: Column(
+                    children: [
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          child: GameBoard(
+                            game: game,
+                            pieces: previousPieces,
+                            visibleSquares: previousVision,
+                          ),
+                        ),
                       ),
-                    ),
+                      const Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Text('Replay Controls (Coming Soon)'),
+                      ),
+                    ],
                   ),
-                  const Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Text('Replay Controls (Coming Soon)'),
-                  ),
-                ],
+                ),
               ),
 
               // Tab 3: Planning
               LayoutBuilder(
                 builder: (context, constraints) {
                   final bool isWide = constraints.maxWidth > 800;
-                  
+
                   final boardWidget = GameBoard(
                     game: game,
                     pieces: currentPieces,
@@ -100,41 +124,51 @@ class GamePlay extends ConsumerWidget {
                     pieces: currentPieces,
                   );
 
+                  Widget content;
                   if (isWide) {
-                    return Row(
+                    content = Row(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Flexible(
-                          flex: 3,
                           child: AspectRatio(
                             aspectRatio: 1,
                             child: boardWidget,
                           ),
                         ),
                         // Gap is provided by GameBoard's internal 16px padding
-                        Flexible(
-                          flex: 1,
-                          child: SingleChildScrollView(child: panel),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(0, 16, 16, 0),
+                          child: SizedBox(
+                            width: 370,
+                            child: SingleChildScrollView(child: panel),
+                          ),
+                        ),
+                      ],
+                    );
+                  } else {
+                    content = Column(
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: Align(
+                            alignment: Alignment.topCenter,
+                            child: boardWidget,
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 16.0),
+                          child: panel,
                         ),
                       ],
                     );
                   }
 
-                  return Column(
-                    children: [
-                      Expanded(
-                        flex: 3,
-                        child: Align(
-                          alignment: Alignment.topCenter,
-                          child: boardWidget,
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16.0),
-                        child: panel,
-                      ),
-                    ],
+                  return Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1000),
+                      child: content,
+                    ),
                   );
                 },
               ),

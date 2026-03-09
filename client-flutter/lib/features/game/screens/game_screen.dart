@@ -42,12 +42,12 @@ class _GameScreenState extends ConsumerState<GameScreen> {
           appBar: _buildAppBar(game),
           body: SafeArea(
             child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1000),
-                child: isWaiting 
-                    ? GameRoom(game: game) 
-                    : GamePlay(game: game),
-              ),
+              child: isWaiting 
+                  ? ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1000),
+                      child: GameRoom(game: game),
+                    )
+                  : GamePlay(game: game),
             ),
           ),
         );
