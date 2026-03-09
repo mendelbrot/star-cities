@@ -12,6 +12,7 @@ class GameBoard extends StatelessWidget {
   final Set<math.Point<int>> visibleSquares;
   final bool isPlanning;
   final List<GameEvent> events;
+  final Map<int, List<Piece>> snapshots;
 
   const GameBoard({
     super.key,
@@ -20,6 +21,7 @@ class GameBoard extends StatelessWidget {
     required this.visibleSquares,
     this.isPlanning = false,
     this.events = const [],
+    this.snapshots = const {},
   });
 
   @override
@@ -36,6 +38,7 @@ class GameBoard extends StatelessWidget {
         pieces: pieces,
         visibleSquares: visibleSquares,
         events: events,
+        snapshots: snapshots,
       );
     }
   }

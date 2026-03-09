@@ -18,9 +18,10 @@ import 'package:star_cities/features/game/widgets/event_widgets/game_over_event_
 
 class GameReplayBoard extends ConsumerWidget {
   final models.Game game;
-  final List<Piece> pieces; // Starting turn state (Turn N)
+  final List<Piece> pieces; // Initial turn state (Turn N)
   final Set<math.Point<int>> visibleSquares;
   final List<GameEvent> events;
+  final Map<int, List<Piece>> snapshots;
 
   const GameReplayBoard({
     super.key,
@@ -28,6 +29,7 @@ class GameReplayBoard extends ConsumerWidget {
     required this.pieces,
     required this.visibleSquares,
     required this.events,
+    required this.snapshots,
   });
 
   @override
@@ -47,7 +49,7 @@ class GameReplayBoard extends ConsumerWidget {
         final centerX = homeStar?['x'] ?? 4;
         final centerY = homeStar?['y'] ?? 4;
 
-        final replayPieces = _calculateReplayPieces(pieces, events, uiState.currentReplayStep);
+        final replayPieces = _getReplayPieces(uiState.currentReplayStep);
 
         return LayoutBuilder(
           builder: (context, constraints) {
@@ -147,69 +149,13 @@ class GameReplayBoard extends ConsumerWidget {
     );
   }
 
-  List<Piece> _calculateReplayPieces(List<Piece> basePieces, List<GameEvent> events, int currentStep) {
-    var replay = List<Piece>.from(basePieces);
+  List<Piece> _getReplayPieces(int currentStep) {
+    // Return the snapshot provided by backend for this step
+    // Fallback logic for steps that reuse previous state
+    int step = currentStep;
+    if (step == 7) step = 6; // Step 7 state is same as Step 6 (final turn state)
 
-    // Apply Step 1: Structural changes
-    for (var event in events.where((e) => e.replayStep == 1)) {
-      if (event is MoveEvent) {
-         int idx = replay.indexWhere((p) => p.id == event.pieceId);
-         if (idx != -1) replay[idx] = replay[idx].copyWith(x: event.to.x, y: event.to.y);
-      } else if (event is PlaceEvent) {
-         // Should we add the piece? BasePieces should already have it but maybe in tray?
-         // Actually pieces in tray have x,y as null.
-         int idx = replay.indexWhere((p) => p.id == event.trayPieceId);
-         if (idx != -1) {
-           replay[idx] = replay[idx].copyWith(x: event.target.x, y: event.target.y, tetheredToId: event.cityId);
-         }
-      } else if (event is AnchorEvent) {
-         int idx = replay.indexWhere((p) => p.id == event.pieceId);
-         if (idx != -1) replay[idx] = replay[idx].copyWith(isAnchored: event.isAnchored);
-      } else if (event is TetherEvent) {
-         int idx = replay.indexWhere((p) => p.id == event.shipId);
-         if (idx != -1) replay[idx] = replay[idx].copyWith(tetheredToId: event.cityId);
-      }
-    }
-
-    // Step 2-3: Pieces stay in Step 1 positions
-    
-    // Step 4: Handle Destructions
-    if (currentStep >= 4) {
-      final destroyedIds = events
-        .where((e) => e.replayStep <= currentStep && (e is ShipDestroyedInBattleEvent || e is ShipDestroyedInBombardmentEvent || e is ShipLostTetherEvent))
-        .map((e) {
-          if (e is ShipDestroyedInBattleEvent) return e.pieceId;
-          if (e is ShipDestroyedInBombardmentEvent) return e.pieceId;
-          if (e is ShipLostTetherEvent) return e.pieceId;
-          return '';
-        }).toSet();
-      
-      replay = replay.where((p) => !destroyedIds.contains(p.id)).toList();
-    }
-
-    // Step 5: Resolution Movement
-    if (currentStep >= 5) {
-      for (var event in events.where((e) => e.replayStep == 5)) {
-        if (event is MoveEvent) {
-           int idx = replay.indexWhere((p) => p.id == event.pieceId);
-           if (idx != -1) replay[idx] = replay[idx].copyWith(x: event.to.x, y: event.to.y);
-        } else if (event is CityCapturedEvent) {
-           int idx = replay.indexWhere((p) => p.id == event.cityId);
-           if (idx != -1) replay[idx] = replay[idx].copyWith(faction: event.toFaction);
-        }
-      }
-    }
-
-    // Step 6: Acquisitions
-    if (currentStep >= 6) {
-       for (var event in events.where((e) => e.replayStep == 6)) {
-         if (event is PieceAcquiredEvent) {
-           // These pieces are in tray, so they won't show on board anyway unless x,y is set.
-         }
-       }
-    }
-
-    return replay;
+    return snapshots[step] ?? pieces;
   }
 
   void _handleReplayTap(WidgetRef ref, int x, int y, List<GameEvent> currentEvents, List<Piece> pieces) {

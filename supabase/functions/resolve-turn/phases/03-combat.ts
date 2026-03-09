@@ -82,6 +82,7 @@ export function resolveCombat(
       context.removePiece(target.id);
     }
   }
+  context.captureSnapshot();
 
   // 3b. Resolve MOVE_ACT actions
   context.currentStep = 3;
@@ -169,6 +170,7 @@ export function resolveCombat(
   const finalValidatedMoves = validatedMoves.filter((_, i) => !invalidMoveIndices.has(i));
 
   applyNonConflictingMoves(finalValidatedMoves);
+  context.captureSnapshot();
 
   // 3c. Identify Battles and Collisions
   const unappliedMovesByCoord = new Map<string, ValidatedMove[]>();
@@ -276,6 +278,7 @@ export function resolveCombat(
       context.removePiece(id);
     }
   }
+  context.captureSnapshot();
 
   // 3f. Apply Victor Moves and Capture Cities
   context.currentStep = 5;
@@ -328,4 +331,5 @@ export function resolveCombat(
 
   // 3g. Final Movement Application
   applyNonConflictingMoves(finalValidatedMoves);
+  context.captureSnapshot();
 }

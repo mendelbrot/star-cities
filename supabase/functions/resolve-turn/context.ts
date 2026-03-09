@@ -21,6 +21,7 @@ export class TurnContext {
   tetherMap = new Map<string, string[]>(); // city_id -> list of ship_ids
   pieceContexts = new Map<string, PieceTurnContext>(); // piece_id -> PieceTurnContext
   events: GameEvent[] = [];
+  snapshots: Record<number, Piece[]> = {}; // replay_step -> list of Piece objects
   currentStep: number = 0;
 
   constructor(
@@ -136,6 +137,11 @@ export class TurnContext {
 
     this.pieceMap.delete(pieceId);
     this.pieceContexts.delete(pieceId);
+  }
+
+  captureSnapshot() {
+    // Deep clone pieces to capture state at this point in time
+    this.snapshots[this.currentStep] = Array.from(this.pieceMap.values()).map(p => ({ ...p }));
   }
 
   handleTetherLoss(lostCityId: string) {

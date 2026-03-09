@@ -43,6 +43,7 @@ class GamePlay extends ConsumerWidget {
                 : <math.Point<int>>{};
             
             final events = turnEventList?.events ?? <GameEvent>[];
+            final snapshots = turnEventList?.snapshots ?? <int, List<Piece>>{};
 
             return TabBarView(
               children: [
@@ -102,6 +103,7 @@ class GamePlay extends ConsumerWidget {
                               pieces: previousPieces,
                               visibleSquares: previousVision,
                               events: events,
+                              snapshots: snapshots,
                             ),
                           ),
                         ),
