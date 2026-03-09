@@ -57,13 +57,13 @@ class Piece {
     );
   }
 
-  Piece copyWith({int? x, int? y, String? tetheredToId, bool? isAnchored, bool? isVisible}) {
+  Piece copyWith({int? x, int? y, String? tetheredToId, bool? isAnchored, bool? isVisible, Faction? faction}) {
     return Piece(
       id: id,
       x: x ?? this.x,
       y: y ?? this.y,
       type: type,
-      faction: faction,
+      faction: faction ?? this.faction,
       tetheredToId: tetheredToId ?? this.tetheredToId,
       isAnchored: isAnchored ?? this.isAnchored,
       isVisible: isVisible ?? this.isVisible,

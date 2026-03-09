@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:math' as math;
+import 'package:star_cities/features/game/models/game_events.dart';
 
 class GameplayUiState {
   final String? selectedPieceId;
@@ -10,6 +11,7 @@ class GameplayUiState {
   final math.Point<int>? hoveredSquare;
   final int currentReplayStep;
   final bool isPanning;
+  final GameEvent? selectedEvent;
 
   GameplayUiState({
     this.selectedPieceId,
@@ -20,6 +22,7 @@ class GameplayUiState {
     this.hoveredSquare,
     this.currentReplayStep = 1,
     this.isPanning = false,
+    this.selectedEvent,
   });
 
   GameplayUiState copyWith({
@@ -31,10 +34,12 @@ class GameplayUiState {
     math.Point<int>? hoveredSquare,
     int? currentReplayStep,
     bool? isPanning,
+    GameEvent? selectedEvent,
     bool clearSelectedPiece = false,
     bool clearPlacingPiece = false,
     bool clearSelectedCity = false,
     bool clearHoveredSquare = false,
+    bool clearSelectedEvent = false,
   }) {
     return GameplayUiState(
       selectedPieceId: clearSelectedPiece ? null : (selectedPieceId ?? this.selectedPieceId),
@@ -45,6 +50,7 @@ class GameplayUiState {
       hoveredSquare: clearHoveredSquare ? null : (hoveredSquare ?? this.hoveredSquare),
       currentReplayStep: currentReplayStep ?? this.currentReplayStep,
       isPanning: isPanning ?? this.isPanning,
+      selectedEvent: clearSelectedEvent ? null : (selectedEvent ?? this.selectedEvent),
     );
   }
 }
@@ -96,6 +102,10 @@ class GameplayUiNotifier extends StateNotifier<GameplayUiState> {
 
   void setPanning(bool panning) {
     state = state.copyWith(isPanning: panning);
+  }
+
+  void selectEvent(GameEvent? event) {
+    state = state.copyWith(selectedEvent: event, clearSelectedEvent: event == null);
   }
 
   void resetPlacement() {
