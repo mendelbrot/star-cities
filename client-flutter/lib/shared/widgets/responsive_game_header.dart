@@ -87,7 +87,7 @@ class ResponsiveGameHeader extends StatelessWidget {
     return [
       GameSettingsChip(
         icon: LucideIcons.star,
-        label: '${params['star_count_to_win'] ?? 3} to win',
+        label: '${params.starCountToWin} to win',
         fontSize: chipFontSize,
         iconSize: chipIconSize,
       ),
@@ -99,7 +99,7 @@ class ResponsiveGameHeader extends StatelessWidget {
       ),
       GameSettingsChip(
         icon: LucideIcons.layoutGrid,
-        label: '${params['grid_size'] ?? 9}x${params['grid_size'] ?? 9} grid',
+        label: '${params.gridSize}x${params.gridSize} grid',
         fontSize: chipFontSize,
         iconSize: chipIconSize,
       ),

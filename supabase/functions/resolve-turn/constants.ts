@@ -6,7 +6,7 @@ export const BOMBARD_RANGE = 2;
 export const BOMBARD_STRENGTH = 2;
 export const SUPPORT_STRENGTH_FACTOR = 0.5;
 export const BOMBARD_SUPPORT_STRENGTH = 1.0;
-export const MAX_TRAY_SIZE = 9;
+export const MAX_TRAY_SIZE = 5;
 
 export const UNIT_STRENGTH: Record<PieceType, number> = {
   STAR_CITY: 8,

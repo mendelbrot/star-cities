@@ -42,12 +42,12 @@ class _GameScreenState extends ConsumerState<GameScreen> {
           appBar: _buildAppBar(game),
           body: SafeArea(
             child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1000),
-                child: isWaiting 
-                    ? GameRoom(game: game) 
-                    : GamePlay(game: game),
-              ),
+              child: isWaiting 
+                  ? ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1000),
+                      child: GameRoom(game: game),
+                    )
+                  : GamePlay(game: game),
             ),
           ),
         );
@@ -55,6 +55,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         if (!isWaiting) {
           return DefaultTabController(
             length: 3,
+            initialIndex: 2,
             child: scaffold,
           );
         }
@@ -85,15 +86,16 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       ),
       title: Text(title),
       bottom: isWaiting
-          ? null
-          : TabBar(
-              unselectedLabelColor: theme.disabledColor,
-              tabs: const [
-                Tab(text: 'Players'),
-                Tab(text: 'Replay'),
-                Tab(text: 'Planning'),
-              ],
-            ),
+      ? null
+      : TabBar(
+        unselectedLabelColor: theme.disabledColor,
+        tabs: const [
+          Tab(text: 'Info'),
+          Tab(text: 'Replay'),
+          Tab(text: 'Planning'),
+        ],
+      ),
+
     );
   }
 }

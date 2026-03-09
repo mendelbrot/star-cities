@@ -86,6 +86,23 @@ class PendingActionsNotifier extends FamilyNotifier<List<GameAction>, String> {
     state = [...state, action];
   }
 
+  void addOrReplaceAction(GameAction action) {
+    // Replaces an existing action of the same type for the same piece
+    state = [
+      ...state.where((a) {
+        if (a.runtimeType != action.runtimeType) return true;
+        // Check piece identity based on action type
+        if (a is MoveAction && action is MoveAction) return a.pieceId != action.pieceId;
+        if (a is BombardAction && action is BombardAction) return a.pieceId != action.pieceId;
+        if (a is TetherAction && action is TetherAction) return a.shipId != action.shipId;
+        if (a is AnchorAction && action is AnchorAction) return a.pieceId != action.pieceId;
+        if (a is PlaceAction && action is PlaceAction) return a.trayPieceId != action.trayPieceId;
+        return true;
+      }),
+      action,
+    ];
+  }
+
   void removeAction(String pieceId) {
     // Basic implementation: remove all actions for a piece. 
     // In a more complex version, we might want to only remove the last action.
