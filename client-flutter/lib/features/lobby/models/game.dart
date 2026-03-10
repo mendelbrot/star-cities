@@ -21,19 +21,19 @@ class GameParameters {
   final List<String> startingShips;
 
   GameParameters({
-    this.gridSize = 9,
-    this.starCount = 6,
-    this.starCountToWin = 3,
-    this.maxShipsPerCity = 5,
-    this.startingShips = const ["NEUTRINO", "NEUTRINO", "PARALLAX", "ECLIPSE"],
+    required this.gridSize,
+    required this.starCount,
+    required this.starCountToWin,
+    required this.maxShipsPerCity,
+    required this.startingShips,
   });
 
   factory GameParameters.fromMap(Map<String, dynamic> map) {
     return GameParameters(
-      gridSize: map['grid_size'] ?? 9,
-      starCount: map['star_count'] ?? 6,
-      starCountToWin: map['star_count_to_win'] ?? 3,
-      maxShipsPerCity: map['max_ships_per_city'] ?? 5,
+      gridSize: map['grid_size'],
+      starCount: map['star_count'],
+      starCountToWin: map['star_count_to_win'],
+      maxShipsPerCity: map['max_ships_per_city'],
       startingShips: List<String>.from(map['starting_ships'] ?? []),
     );
   }

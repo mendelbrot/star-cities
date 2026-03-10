@@ -32,6 +32,8 @@ final userGameStatusProvider = Provider<AsyncValue<List<Map<String, dynamic>>>>(
               'game_status': game['status'],
               'turn_number': game['turn_number'],
               'player_count': game['player_count'],
+              'game_parameters': game['game_parameters'],
+              'stars': game['stars'],
               'created_at': game['created_at'],
               'user_id': null,
               'is_ready': null,
@@ -44,6 +46,8 @@ final userGameStatusProvider = Provider<AsyncValue<List<Map<String, dynamic>>>>(
                 'game_status': game['status'],
                 'turn_number': game['turn_number'],
                 'player_count': game['player_count'],
+                'game_parameters': game['game_parameters'],
+                'stars': game['stars'],
                 'created_at': game['created_at'],
                 'user_id': player['user_id'],
                 'is_ready': player['is_ready'],
@@ -77,6 +81,8 @@ final tapRequiredGamesProvider = Provider<AsyncValue<List<Game>>>((ref) {
         'turn_number': m['turn_number'],
         'created_at': m['created_at'],
         'player_count': m['player_count'],
+        'game_parameters': m['game_parameters'],
+        'stars': m['stars'],
       }))
       .toList());
 });
@@ -96,6 +102,8 @@ final tapDoneGamesProvider = Provider<AsyncValue<List<Game>>>((ref) {
         'turn_number': m['turn_number'],
         'created_at': m['created_at'],
         'player_count': m['player_count'],
+        'game_parameters': m['game_parameters'],
+        'stars': m['stars'],
       }))
       .toList());
 });
@@ -115,6 +123,8 @@ final waitingForPlayersGamesProvider = Provider<AsyncValue<List<Game>>>((ref) {
         'turn_number': m['turn_number'],
         'created_at': m['created_at'],
         'player_count': m['player_count'],
+        'game_parameters': m['game_parameters'],
+        'stars': m['stars'],
       }))
       .toList());
 });
@@ -146,7 +156,10 @@ final openGamesProvider = Provider<AsyncValue<List<Game>>>((ref) {
               'turn_number': m['turn_number'],
               'created_at': m['created_at'],
               'player_count': m['player_count'],
+              'game_parameters': m['game_parameters'],
+              'stars': m['stars'],
             }))
         .toList();
   });
 });
+
