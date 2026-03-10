@@ -26,14 +26,15 @@ class GameBoard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    Widget board;
     if (isPlanning) {
-      return GamePlanningBoard(
+      board = GamePlanningBoard(
         game: game,
         pieces: pieces,
         visibleSquares: visibleSquares,
       );
     } else {
-      return GameReplayBoard(
+      board = GameReplayBoard(
         game: game,
         pieces: pieces,
         visibleSquares: visibleSquares,
@@ -41,5 +42,10 @@ class GameBoard extends StatelessWidget {
         snapshots: snapshots,
       );
     }
+
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: board,
+    );
   }
 }

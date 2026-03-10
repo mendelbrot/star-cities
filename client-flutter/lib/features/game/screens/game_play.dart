@@ -131,6 +131,7 @@ class GamePlay extends ConsumerWidget {
                     final panel = PlanningPanel(
                       game: game,
                       pieces: currentPieces,
+                      flatten: !isWide,
                     );
 
                     Widget content;

@@ -354,6 +354,7 @@ class GamePlanningBoard extends ConsumerWidget {
           final notifier = ref.read(pendingActionsProvider(game.id).notifier);
           notifier.addOrReplaceAction(BombardAction(pieceId: uiState.selectedPieceId!, targetId: piece.id));
           ref.read(gameplayUiProvider.notifier).setBombarding(false);
+          ref.read(gameplayUiProvider.notifier).selectPiece(null);
           return;
         }
         if (uiState.isRetethering) {

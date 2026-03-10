@@ -80,7 +80,7 @@ class GameBoardBase extends StatelessWidget {
                       width: cellSize * 0.3,
                       height: cellSize * 0.3,
                       decoration: BoxDecoration(
-                        color: theme.colorScheme.secondary.withValues(alpha: 0.5),
+                        color: Colors.white.withValues(alpha: 0.5),
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -156,7 +156,7 @@ class GameBoardBase extends StatelessWidget {
             height: cellSize,
             child: IgnorePointer(
               child: Container(
-                color: theme.colorScheme.secondary.withValues(alpha: 0.2),
+                color: Colors.white.withValues(alpha: 0.1),
               ),
             ),
           );

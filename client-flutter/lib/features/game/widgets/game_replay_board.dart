@@ -81,7 +81,7 @@ class GameReplayBoard extends ConsumerWidget {
                       onSquareTap: (x, y) => _handleReplayTap(ref, x, y, currentEvents, replayPieces),
                       onPieceTap: (piece) => _handleReplayTap(ref, piece.x!, piece.y!, currentEvents, replayPieces),
                       overlays: [
-                        if (uiState.currentReplayStep == 1)
+                        if (uiState.currentReplayStep == 3 || uiState.currentReplayStep == 5)
                           IgnorePointer(
                             child: CustomPaint(
                               size: Size(size, size),
@@ -218,7 +218,7 @@ class ReplayArrowPainter extends CustomPainter {
         if (!isFromVisible && !isToVisible) continue;
 
         final paint = Paint()
-          ..color = event.faction.color.withValues(alpha: 0.8)
+          ..color = Colors.white.withValues(alpha: 0.8)
           ..strokeWidth = 2.0
           ..style = PaintingStyle.stroke;
 
@@ -232,7 +232,7 @@ class ReplayArrowPainter extends CustomPainter {
   void _drawArrow(Canvas canvas, Offset start, Offset end, Paint paint) {
     canvas.drawLine(start, end, paint);
     final angle = math.atan2(end.dy - start.dy, end.dx - start.dx);
-    const arrowSize = 12.0; 
+    const arrowSize = 16.0; 
     canvas.drawLine(
       end,
       Offset(end.dx - arrowSize * math.cos(angle - math.pi / 6), end.dy - arrowSize * math.sin(angle - math.pi / 6)),

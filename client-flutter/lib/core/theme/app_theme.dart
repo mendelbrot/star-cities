@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
+  static const Color lightPurple = Color(0xFFD0BCFF);
+
   static ThemeData get darkTheme {
     return ThemeData(
       brightness: Brightness.dark,
@@ -9,6 +11,16 @@ class AppTheme {
       primaryColor: Colors.white,
       disabledColor: const Color(0xFF666666),
       fontFamily: GoogleFonts.jetBrainsMono().fontFamily,
+
+      colorScheme: const ColorScheme.dark(
+        primary: Colors.white,
+        onPrimary: Colors.black,
+        secondary: lightPurple,
+        onSecondary: Colors.black,
+        surface: Colors.black,
+        onSurface: Colors.white,
+        error: Colors.red,
+      ),
       
       // Text Theme
       textTheme: GoogleFonts.jetBrainsMonoTextTheme(
@@ -80,6 +92,15 @@ class AppTheme {
         labelColor: Colors.white,
         unselectedLabelColor: Color(0xFF666666),
         indicatorSize: TabBarIndicatorSize.tab,
+      ),
+
+      // Slider Theme
+      sliderTheme: SliderThemeData(
+        activeTrackColor: lightPurple,
+        inactiveTrackColor: lightPurple.withValues(alpha: 0.24),
+        thumbColor: lightPurple,
+        overlayColor: lightPurple.withValues(alpha: 0.16),
+        valueIndicatorColor: lightPurple,
       ),
 
       // Dialog Theme
