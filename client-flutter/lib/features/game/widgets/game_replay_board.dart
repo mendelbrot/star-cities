@@ -66,7 +66,7 @@ class GameReplayBoard extends ConsumerWidget {
                     width: size,
                     height: size,
                     decoration: BoxDecoration(
-                      color: Colors.black,
+                      color: theme.colorScheme.surface,
                       border: Border.all(color: theme.dividerColor),
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -91,6 +91,7 @@ class GameReplayBoard extends ConsumerWidget {
                                 centerY: centerY,
                                 cellSize: cellSize,
                                 visibleSquares: visibleSquares,
+                                color: theme.colorScheme.primary,
                               ),
                             ),
                           ),
@@ -106,7 +107,7 @@ class GameReplayBoard extends ConsumerWidget {
                                  child: Center(
                                    child: TargetIcon(
                                      size: cellSize * 0.6,
-                                     color: Colors.white.withValues(alpha: 0.8),
+                                     color: theme.colorScheme.primary.withValues(alpha: 0.8),
                                    ),
                                  ),
                                ),
@@ -200,6 +201,7 @@ class ReplayArrowPainter extends CustomPainter {
   final int centerY;
   final double cellSize;
   final Set<math.Point<int>> visibleSquares;
+  final Color color;
 
   ReplayArrowPainter({
     required this.events,
@@ -207,6 +209,7 @@ class ReplayArrowPainter extends CustomPainter {
     required this.centerY,
     required this.cellSize,
     required this.visibleSquares,
+    required this.color,
   });
 
   @override
@@ -218,7 +221,7 @@ class ReplayArrowPainter extends CustomPainter {
         if (!isFromVisible && !isToVisible) continue;
 
         final paint = Paint()
-          ..color = Colors.white.withValues(alpha: 0.8)
+          ..color = color.withValues(alpha: 0.8)
           ..strokeWidth = 2.0
           ..style = PaintingStyle.stroke;
 

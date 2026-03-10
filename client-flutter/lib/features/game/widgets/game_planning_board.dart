@@ -57,7 +57,7 @@ class GamePlanningBoard extends ConsumerWidget {
                 width: size,
                 height: size,
                 decoration: BoxDecoration(
-                  color: Colors.black,
+                  color: theme.colorScheme.surface,
                   border: Border.all(color: theme.dividerColor),
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -88,7 +88,7 @@ class GamePlanningBoard extends ConsumerWidget {
                           child: Center(
                             child: TargetIcon(
                               size: cellSize * 0.6,
-                              color: Colors.white.withValues(alpha: 0.8),
+                              color: theme.colorScheme.primary.withValues(alpha: 0.8),
                             ),
                           ),
                         ),
@@ -106,7 +106,7 @@ class GamePlanningBoard extends ConsumerWidget {
                         child: IgnorePointer(
                           child: CustomPaint(
                             size: Size(cellSize * 0.8, cellSize * 0.8),
-                            painter: DashedCirclePainter(color: Colors.white, strokeWidth: 2),
+                            painter: DashedCirclePainter(color: theme.colorScheme.primary, strokeWidth: 2),
                           ),
                         ),
                       );
@@ -134,6 +134,7 @@ class GamePlanningBoard extends ConsumerWidget {
                           centerX: centerX,
                           centerY: centerY,
                           cellSize: cellSize,
+                          color: theme.colorScheme.primary,
                         ),
                       ),
                     ),
@@ -147,6 +148,7 @@ class GamePlanningBoard extends ConsumerWidget {
                           centerX: centerX,
                           centerY: centerY,
                           cellSize: cellSize,
+                          color: theme.colorScheme.primary,
                         ),
                       ),
                     ),
@@ -461,6 +463,7 @@ class MoveArrowPainter extends CustomPainter {
   final int centerX;
   final int centerY;
   final double cellSize;
+  final Color color;
 
   MoveArrowPainter({
     required this.basePieces,
@@ -469,12 +472,13 @@ class MoveArrowPainter extends CustomPainter {
     required this.centerX,
     required this.centerY,
     required this.cellSize,
+    required this.color,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.8)
+      ..color = color.withValues(alpha: 0.8)
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke;
 
@@ -516,6 +520,7 @@ class BombardPainter extends CustomPainter {
   final int centerX;
   final int centerY;
   final double cellSize;
+  final Color color;
 
   BombardPainter({
     required this.basePieces,
@@ -524,12 +529,13 @@ class BombardPainter extends CustomPainter {
     required this.centerX,
     required this.centerY,
     required this.cellSize,
+    required this.color,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final linePaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.6)
+      ..color = color.withValues(alpha: 0.6)
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
 

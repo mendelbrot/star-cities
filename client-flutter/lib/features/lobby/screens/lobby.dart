@@ -129,7 +129,7 @@ class _LobbyState extends ConsumerState<Lobby> {
           fontSize: 10,
           fontWeight: FontWeight.bold,
           letterSpacing: 1.5,
-          color: Theme.of(context).disabledColor,
+          color: Theme.of(context).colorScheme.secondary,
         ),
       ),
     );

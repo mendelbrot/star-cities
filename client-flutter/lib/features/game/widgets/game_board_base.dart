@@ -80,7 +80,7 @@ class GameBoardBase extends StatelessWidget {
                       width: cellSize * 0.3,
                       height: cellSize * 0.3,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.5),
+                        color: theme.colorScheme.primary.withValues(alpha: 0.5),
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -101,8 +101,8 @@ class GameBoardBase extends StatelessWidget {
             height: cellSize * 0.5,
             child: IgnorePointer(
               child: Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary,
                   shape: BoxShape.circle,
                 ),
               ),
@@ -126,7 +126,7 @@ class GameBoardBase extends StatelessWidget {
               child: Container(
                 decoration: BoxDecoration(
                   border: Border.all(
-                    color: (isSelected || isHighlighted) ? Colors.white : Colors.transparent,
+                    color: (isSelected || isHighlighted) ? theme.colorScheme.primary : Colors.transparent,
                     width: (isSelected || isHighlighted) ? 2 : 0,
                   ),
                   borderRadius: BorderRadius.circular(cellSize * 0.1),
@@ -156,7 +156,7 @@ class GameBoardBase extends StatelessWidget {
             height: cellSize,
             child: IgnorePointer(
               child: Container(
-                color: Colors.white.withValues(alpha: 0.1),
+                color: theme.colorScheme.primary.withValues(alpha: 0.1),
               ),
             ),
           );

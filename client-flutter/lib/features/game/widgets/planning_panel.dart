@@ -86,7 +86,7 @@ class PlanningPanel extends ConsumerWidget {
                 },
                 icon: Icons.link,
                 tooltip: uiState.isRetethering ? 'Cancel Re-tether' : 'Re-tether',
-                color: uiState.isRetethering ? theme.colorScheme.secondary : Colors.black,
+                color: uiState.isRetethering ? theme.colorScheme.secondary : theme.colorScheme.onPrimary,
               ),
               if (selectedPiece.type == PieceType.eclipse)
                 Padding(
@@ -97,7 +97,7 @@ class PlanningPanel extends ConsumerWidget {
                     },
                     icon: Icons.gps_fixed,
                     tooltip: uiState.isBombarding ? 'Cancel Bombard' : 'Bombard',
-                    color: uiState.isBombarding ? theme.colorScheme.secondary : Colors.black,
+                    color: uiState.isBombarding ? theme.colorScheme.secondary : theme.colorScheme.onPrimary,
                   ),
                 ),
             ],
@@ -280,26 +280,29 @@ class _ActionButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final IconData icon;
   final String tooltip;
-  final Color color;
+  final Color? color;
 
   const _ActionButton({
     required this.onPressed,
     required this.icon,
     required this.tooltip,
-    this.color = Colors.black,
+    this.color,
   });
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final foregroundColor = color ?? theme.colorScheme.onPrimary;
+
     return IconButton.filled(
       onPressed: onPressed,
       icon: Icon(icon),
       tooltip: tooltip,
       style: IconButton.styleFrom(
-        backgroundColor: Colors.white,
-        foregroundColor: color,
-        disabledBackgroundColor: Colors.white.withValues(alpha: 0.3),
-        disabledForegroundColor: Colors.black.withValues(alpha: 0.3),
+        backgroundColor: theme.colorScheme.primary,
+        foregroundColor: foregroundColor,
+        disabledBackgroundColor: theme.colorScheme.primary.withValues(alpha: 0.3),
+        disabledForegroundColor: theme.colorScheme.onPrimary.withValues(alpha: 0.3),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
         ),
