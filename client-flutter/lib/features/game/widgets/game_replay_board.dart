@@ -7,8 +7,8 @@ import 'package:star_cities/features/game/providers/gameplay_ui_state.dart';
 import 'package:star_cities/features/game/providers/game_providers.dart';
 import 'package:star_cities/features/lobby/models/game.dart' as models;
 import 'package:star_cities/shared/providers/auth_providers.dart';
-import 'package:star_cities/features/game/icon_widgets/target_icon.dart';
-import 'package:star_cities/features/game/icon_widgets/battle_icon.dart';
+import 'package:star_cities/features/game/icon_widgets/bombard_event_icon.dart';
+import 'package:star_cities/features/game/icon_widgets/battle_event_icon.dart';
 import 'package:star_cities/features/game/widgets/game_board_base.dart';
 import 'package:star_cities/features/game/widgets/event_widgets/bombard_event_widget.dart';
 import 'package:star_cities/features/game/widgets/event_widgets/battle_collision_event_widget.dart';
@@ -99,15 +99,14 @@ class GameReplayBoard extends ConsumerWidget {
                            ...currentEvents.whereType<BombardEvent>().map((e) {
                              final pos = GameBoardBase.getRelativePosition(e.coord.x, e.coord.y, centerX, centerY);
                              return Positioned(
-                               left: pos.x * cellSize + cellSize * 0.1,
-                               top: pos.y * cellSize + cellSize * 0.1,
-                               width: cellSize * 0.8,
-                               height: cellSize * 0.8,
+                               left: pos.x * cellSize + cellSize * 0.025,
+                               top: pos.y * cellSize + cellSize * 0.025,
+                               width: cellSize * 0.95,
+                               height: cellSize * 0.95,
                                child: IgnorePointer(
                                  child: Center(
-                                   child: TargetIcon(
-                                     size: cellSize * 0.6,
-                                     color: theme.colorScheme.primary.withValues(alpha: 0.8),
+                                   child: BombardEventIcon(
+                                     size: cellSize * 0.9,
                                    ),
                                  ),
                                ),
@@ -117,13 +116,13 @@ class GameReplayBoard extends ConsumerWidget {
                            ...currentEvents.whereType<BattleCollisionEvent>().map((e) {
                              final pos = GameBoardBase.getRelativePosition(e.coord.x, e.coord.y, centerX, centerY);
                              return Positioned(
-                               left: pos.x * cellSize + cellSize * 0.1,
-                               top: pos.y * cellSize + cellSize * 0.1,
-                               width: cellSize * 0.8,
-                               height: cellSize * 0.8,
+                               left: pos.x * cellSize + cellSize * 0.025,
+                               top: pos.y * cellSize + cellSize * 0.025,
+                               width: cellSize * 0.95,
+                               height: cellSize * 0.95,
                                child: IgnorePointer(
                                  child: Center(
-                                   child: BattleIcon(size: cellSize * 0.7),
+                                   child: BattleEventIcon(size: cellSize * 0.9),
                                  ),
                                ),
                              );

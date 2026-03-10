@@ -1,0 +1,35 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+
+class BombardEventIcon extends StatelessWidget {
+  final double size;
+
+  const BombardEventIcon({
+    super.key,
+    required this.size,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const svgString = '''
+<svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <g style="stroke:#000000;stroke-width:10">
+    <circle style="fill:none;stroke:#000000;stroke-width:10;stroke-linecap:round;stroke-linejoin:round" cx="128" cy="128" r="116" />
+    <circle style="fill:none;stroke:#000000;stroke-width:10;stroke-linecap:round;stroke-linejoin:round" cx="128" cy="128" r="80" />
+    <circle style="fill:none;stroke:#000000;stroke-width:10;stroke-linecap:round;stroke-linejoin:round" cx="128" cy="128" r="44" />
+  </g>
+  <g style="stroke:#ffffff;stroke-width:8">
+    <circle style="fill:none;stroke:#ffffff;stroke-width:8;stroke-linecap:round;stroke-linejoin:round" cx="128" cy="128" r="116" />
+    <circle style="fill:none;stroke:#ffffff;stroke-width:8;stroke-linecap:round;stroke-linejoin:round" cx="128" cy="128" r="80" />
+    <circle style="fill:none;stroke:#ffffff;stroke-width:8;stroke-linecap:round;stroke-linejoin:round" cx="128" cy="128" r="44" />
+  </g>
+</svg>
+''';
+
+    return SvgPicture.string(
+      svgString,
+      width: size,
+      height: size,
+    );
+  }
+}

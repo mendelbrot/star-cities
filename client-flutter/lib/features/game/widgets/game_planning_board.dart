@@ -10,7 +10,7 @@ import 'package:star_cities/features/game/providers/game_providers.dart';
 import 'package:star_cities/features/game/utils/game_constants.dart';
 import 'package:star_cities/features/lobby/models/game.dart' as models;
 import 'package:star_cities/shared/providers/auth_providers.dart';
-import 'package:star_cities/features/game/icon_widgets/target_icon.dart';
+import 'package:star_cities/features/game/icon_widgets/bombard_action_icon.dart';
 import 'package:star_cities/features/game/widgets/game_board_base.dart';
 
 class GamePlanningBoard extends ConsumerWidget {
@@ -80,15 +80,14 @@ class GamePlanningBoard extends ConsumerWidget {
                     ...virtualPieces.where((p) => p.x != null && p.y != null && visibleSquares.contains(math.Point(p.x!, p.y!)) && pendingActions.any((a) => a is BombardAction && a.targetId == p.id)).map((p) {
                       final pos = GameBoardBase.getRelativePosition(p.x!, p.y!, centerX, centerY);
                       return Positioned(
-                        left: pos.x * cellSize + cellSize * 0.1,
-                        top: pos.y * cellSize + cellSize * 0.1,
-                        width: cellSize * 0.8,
-                        height: cellSize * 0.8,
+                        left: pos.x * cellSize + cellSize * 0.025,
+                        top: pos.y * cellSize + cellSize * 0.025,
+                        width: cellSize * 0.95,
+                        height: cellSize * 0.95,
                         child: IgnorePointer(
                           child: Center(
-                            child: TargetIcon(
-                              size: cellSize * 0.6,
-                              color: theme.colorScheme.primary.withValues(alpha: 0.8),
+                            child: BombardActionIcon(
+                              size: cellSize * 0.9,
                             ),
                           ),
                         ),
