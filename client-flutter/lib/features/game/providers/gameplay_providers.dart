@@ -104,14 +104,13 @@ class PendingActionsNotifier extends FamilyNotifier<List<GameAction>, String> {
   }
 
   void removeAction(String pieceId) {
-    // Basic implementation: remove all actions for a piece. 
-    // In a more complex version, we might want to only remove the last action.
+    // this function is used when selecting/deselecting to cancel move/bombard actions only
     state = state.where((a) {
       if (a is MoveAction) return a.pieceId != pieceId;
       if (a is BombardAction) return a.pieceId != pieceId;
-      if (a is TetherAction) return a.shipId != pieceId;
-      if (a is AnchorAction) return a.pieceId != pieceId;
-      if (a is PlaceAction) return a.trayPieceId != pieceId;
+      // if (a is TetherAction) return a.shipId != pieceId;
+      // if (a is AnchorAction) return a.pieceId != pieceId;
+      // if (a is PlaceAction) return a.trayPieceId != pieceId;
       return true;
     }).toList();
   }

@@ -79,4 +79,6 @@ export async function resolveLifecycle(sql: postgres.Sql, context: TurnContext) 
       }
     }
   }
+
+  context.captureSnapshot();
 }

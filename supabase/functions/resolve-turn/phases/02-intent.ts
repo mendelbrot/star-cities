@@ -141,4 +141,6 @@ export function resolveIntents(
       }
     }
   }
+
+  context.captureSnapshot();
 }

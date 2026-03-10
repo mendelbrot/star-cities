@@ -382,15 +382,24 @@ class GameOverEvent extends GameEvent {
 class TurnEventList {
   final int turnNumber;
   final List<GameEvent> events;
+  final Map<int, List<Piece>> snapshots;
 
-  TurnEventList({required this.turnNumber, required this.events});
+  TurnEventList({required this.turnNumber, required this.events, required this.snapshots});
 
   factory TurnEventList.fromMap(Map<String, dynamic> map) {
+    final snapshotsMap = (map['snapshots'] as Map<String, dynamic>?)?.map(
+      (key, value) => MapEntry(
+        int.parse(key),
+        (value as List).map((p) => Piece.fromMap(p as Map<String, dynamic>)).toList(),
+      ),
+    ) ?? {};
+
     return TurnEventList(
       turnNumber: map['turn_number'],
       events: (map['events'] as List? ?? [])
           .map((e) => GameEvent.fromMap(e as Map<String, dynamic>))
           .toList(),
+      snapshots: snapshotsMap,
     );
   }
 }

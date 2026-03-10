@@ -83,6 +83,7 @@ CREATE TABLE turn_events (
     game_id UUID NOT NULL REFERENCES games(id) ON DELETE CASCADE,
     turn_number INTEGER NOT NULL,
     events JSONB NOT NULL DEFAULT '[]', -- List of Event objects
+    snapshots JSONB NOT NULL DEFAULT '{}', -- Step index -> List of Piece objects
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE(game_id, turn_number)
 );

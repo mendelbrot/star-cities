@@ -42,14 +42,19 @@ export async function finalize(sql: postgres.Sql, context: TurnContext) {
     context.addEvent({ type: "GAME_OVER", winner: winnerF, did_someone_win: true });
   }
 
+  context.currentStep = 7;
+  context.captureSnapshot();
+
   // Final Persistence
   const finalState = Array.from(pieceMap.values());
   
   // turn_events is for the current turn being resolved
   await sql`
-    INSERT INTO turn_events (game_id, turn_number, events) 
-    VALUES (${game_id}, ${turn_number}, ${sql.json(events)})
-    ON CONFLICT (game_id, turn_number) DO UPDATE SET events = EXCLUDED.events
+    INSERT INTO turn_events (game_id, turn_number, events, snapshots) 
+    VALUES (${game_id}, ${turn_number}, ${sql.json(context.events)}, ${sql.json(context.snapshots)})
+    ON CONFLICT (game_id, turn_number) DO UPDATE SET 
+      events = EXCLUDED.events,
+      snapshots = EXCLUDED.snapshots
   `;
 
   // turn_states is for the START of the NEXT turn

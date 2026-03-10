@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:star_cities/shared/models/faction.dart';
 import 'package:star_cities/features/game/models/game_models.dart';
-import 'package:star_cities/shared/widgets/ship_icon.dart';
+import 'package:star_cities/shared/icon_widgets/ship_icon.dart';
 import 'package:star_cities/features/game/providers/game_providers.dart';
 import 'package:star_cities/features/game/providers/game_controller.dart';
 
@@ -43,9 +43,24 @@ class PlayerListItem extends ConsumerWidget {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        p.displayName,
-                        overflow: TextOverflow.ellipsis,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              p.displayName,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (p.player.isBot) ...[
+                            const SizedBox(width: 6),
+                            Icon(
+                              LucideIcons.bot,
+                              size: 16,
+                              color: theme.colorScheme.secondary,
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                   ],
@@ -59,26 +74,34 @@ class PlayerListItem extends ConsumerWidget {
                   children: [
                     PopupMenuButton<Faction>(
                       enabled: isCurrentPlayer || p.player.isBot,
-                      onSelected: (faction) => controller.changeFaction(p.player.id, faction),
-                      itemBuilder: (context) => availableFactions.map((f) => PopupMenuItem(
-                        value: f,
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 12,
-                              height: 12,
-                              decoration: BoxDecoration(
-                                color: f.color,
-                                shape: BoxShape.circle,
+                      onSelected: (faction) =>
+                          controller.changeFaction(p.player.id, faction),
+                      itemBuilder: (context) => availableFactions
+                          .map(
+                            (f) => PopupMenuItem(
+                              value: f,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 12,
+                                    height: 12,
+                                    decoration: BoxDecoration(
+                                      color: f.color,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Text(f.value),
+                                ],
                               ),
                             ),
-                            const SizedBox(width: 12),
-                            Text(f.value),
-                          ],
-                        ),
-                      )).toList(),
+                          )
+                          .toList(),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           border: Border.all(color: theme.disabledColor),
                           borderRadius: BorderRadius.circular(4),
@@ -86,8 +109,8 @@ class PlayerListItem extends ConsumerWidget {
                         child: Text(
                           'Faction: ${p.player.faction.value}',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: isCurrentPlayer || p.player.isBot 
-                                ? theme.primaryColor 
+                            color: isCurrentPlayer || p.player.isBot
+                                ? theme.primaryColor
                                 : theme.disabledColor,
                           ),
                         ),
@@ -95,19 +118,20 @@ class PlayerListItem extends ConsumerWidget {
                     ),
                     const SizedBox(width: 8),
                     // Right: X or placeholder
-                    p.player.isBot 
-                      ? IconButton(
-                          icon: const Icon(LucideIcons.x, size: 20),
-                          onPressed: () => controller.removePlayer(p.player.id),
-                          tooltip: 'Remove Bot',
-                        )
-                      : const IconButton(
-                          icon: Opacity(
-                            opacity: 0,
-                            child: Icon(LucideIcons.x, size: 20),
+                    p.player.isBot
+                        ? IconButton(
+                            icon: const Icon(LucideIcons.x, size: 20),
+                            onPressed: () =>
+                                controller.removePlayer(p.player.id),
+                            tooltip: 'Remove Bot',
+                          )
+                        : const IconButton(
+                            icon: Opacity(
+                              opacity: 0,
+                              child: Icon(LucideIcons.x, size: 20),
+                            ),
+                            onPressed: null,
                           ),
-                          onPressed: null,
-                        ),
                   ],
                 ),
               ),

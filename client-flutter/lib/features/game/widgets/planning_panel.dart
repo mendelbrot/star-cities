@@ -8,16 +8,18 @@ import 'package:star_cities/features/game/providers/gameplay_ui_state.dart';
 import 'package:star_cities/features/game/providers/game_controller.dart';
 import 'package:star_cities/features/lobby/models/game.dart' as models;
 import 'package:star_cities/shared/providers/auth_providers.dart';
-import 'package:star_cities/shared/widgets/ship_icon.dart';
+import 'package:star_cities/shared/icon_widgets/ship_icon.dart';
 
 class PlanningPanel extends ConsumerWidget {
   final models.Game game;
   final List<Piece> pieces;
+  final bool flatten;
 
   const PlanningPanel({
     super.key,
     required this.game,
     required this.pieces,
+    this.flatten = false,
   });
 
   @override
@@ -49,6 +51,88 @@ class PlanningPanel extends ConsumerWidget {
         final placingPiece = uiState.placingPieceId != null
             ? trayPieces.firstWhere((p) => p.id == uiState.placingPieceId)
             : null;
+
+        final actionButtons = [
+          if (selectedPiece != null) ...[
+            if (selectedPiece.type == PieceType.starCity) ...[
+              if (!selectedPiece.isAnchored)
+                _ActionButton(
+                  onPressed: pendingActions.any((a) => a is MoveAction && a.pieceId == selectedPiece.id)
+                      ? null
+                      : () {
+                          ref.read(pendingActionsProvider(game.id).notifier).addOrReplaceAction(
+                              AnchorAction(pieceId: selectedPiece.id, isAnchored: true));
+                        },
+                  icon: Icons.anchor,
+                  tooltip: 'Anchor',
+                ),
+              if (selectedPiece.isAnchored)
+                _ActionButton(
+                  onPressed: virtualPieces.any((p) => p.tetheredToId == selectedPiece.id) ||
+                          pendingActions.any((a) => a is MoveAction && a.pieceId == selectedPiece.id)
+                      ? null
+                      : () {
+                          ref.read(pendingActionsProvider(game.id).notifier).addOrReplaceAction(
+                              AnchorAction(pieceId: selectedPiece.id, isAnchored: false));
+                        },
+                  icon: Icons.anchor_outlined,
+                  tooltip: 'De-anchor',
+                ),
+            ],
+            if (selectedPiece.type.requiresTether) ...[
+              _ActionButton(
+                onPressed: () {
+                  ref.read(gameplayUiProvider.notifier).setRetethering(!uiState.isRetethering);
+                },
+                icon: Icons.link,
+                tooltip: uiState.isRetethering ? 'Cancel Re-tether' : 'Re-tether',
+                color: uiState.isRetethering ? theme.colorScheme.secondary : Colors.black,
+              ),
+              if (selectedPiece.type == PieceType.eclipse)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8.0),
+                  child: _ActionButton(
+                    onPressed: () {
+                      ref.read(gameplayUiProvider.notifier).setBombarding(!uiState.isBombarding);
+                    },
+                    icon: Icons.gps_fixed,
+                    tooltip: uiState.isBombarding ? 'Cancel Bombard' : 'Bombard',
+                    color: uiState.isBombarding ? theme.colorScheme.secondary : Colors.black,
+                  ),
+                ),
+            ],
+          ],
+          // Placeholder to maintain height if no actions are available
+          if (selectedPiece == null ||
+              (selectedPiece.type != PieceType.starCity && !selectedPiece.type.requiresTether))
+            const Opacity(
+              opacity: 0.0,
+              child: _ActionButton(
+                onPressed: null,
+                icon: Icons.circle,
+                tooltip: '',
+              ),
+            ),
+        ];
+
+        final systemButtons = [
+          TextButton(
+            onPressed: () => controller.resetActions(game.id),
+            style: TextButton.styleFrom(
+              foregroundColor: theme.colorScheme.secondary,
+              side: BorderSide(color: theme.colorScheme.secondary, width: 1),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Reset'),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: () => controller.submitActions(game.id),
+            child: const Text('Done'),
+          ),
+        ];
 
         return Center(
           child: ConstrainedBox(
@@ -115,7 +199,7 @@ class PlanningPanel extends ConsumerWidget {
                   const Divider(),
                   const SizedBox(height: 8),
 
-                  // Selection Status and Action Icons
+                  // Selection Status
                   Text(
                     placingPiece != null
                         ? 'Placing: ${placingPiece.type.label}'
@@ -126,86 +210,34 @@ class PlanningPanel extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      if (selectedPiece != null) ...[
-                        if (selectedPiece.type == PieceType.starCity) ...[
-                          if (!selectedPiece.isAnchored)
-                            _ActionButton(
-                              onPressed: pendingActions.any((a) => a is MoveAction && a.pieceId == selectedPiece.id)
-                                  ? null
-                                  : () {
-                                      ref.read(pendingActionsProvider(game.id).notifier).addOrReplaceAction(
-                                          AnchorAction(pieceId: selectedPiece.id, isAnchored: true));
-                                    },
-                              icon: Icons.anchor,
-                              tooltip: 'Anchor',
-                            ),
-                          if (selectedPiece.isAnchored)
-                            _ActionButton(
-                              onPressed: virtualPieces.any((p) => p.tetheredToId == selectedPiece.id) ||
-                                      pendingActions.any((a) => a is MoveAction && a.pieceId == selectedPiece.id)
-                                  ? null
-                                  : () {
-                                      ref.read(pendingActionsProvider(game.id).notifier).addOrReplaceAction(
-                                          AnchorAction(pieceId: selectedPiece.id, isAnchored: false));
-                                    },
-                              icon: Icons.anchor_outlined,
-                              tooltip: 'De-anchor',
-                            ),
-                        ],
-                        if (selectedPiece.type.requiresTether) ...[
-                          _ActionButton(
-                            onPressed: () {}, // TODO: Implement Re-tether flow
-                            icon: Icons.link,
-                            tooltip: 'Re-tether',
-                          ),
-                          if (selectedPiece.type == PieceType.eclipse)
-                            Padding(
-                              padding: const EdgeInsets.only(left: 8.0),
-                              child: _ActionButton(
-                                onPressed: () {
-                                  ref.read(gameplayUiProvider.notifier).setBombarding(!uiState.isBombarding);
-                                },
-                                icon: uiState.isBombarding ? Icons.close : Icons.gps_fixed,
-                                tooltip: uiState.isBombarding ? 'Cancel Bombard' : 'Bombard',
-                                color: uiState.isBombarding ? theme.colorScheme.error : Colors.black,
-                              ),
-                            ),
-                        ],
-                      ],
-                      // Placeholder to maintain height if no actions are available
-                      if (selectedPiece == null ||
-                          (selectedPiece.type != PieceType.starCity && !selectedPiece.type.requiresTether))
-                        const Opacity(
-                          opacity: 0.0,
-                          child: _ActionButton(
-                            onPressed: null,
-                            icon: Icons.circle,
-                            tooltip: '',
+
+                  if (flatten)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            children: actionButtons,
                           ),
                         ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // System Buttons (Reset / Done)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: () => controller.resetActions(game.id),
-                        child: const Text('Reset'),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: () => controller.submitActions(game.id),
-                        child: const Text('Done'),
-                      ),
-                    ],
-                  ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: systemButtons,
+                        ),
+                      ],
+                    )
+                  else ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: actionButtons,
+                    ),
+                    const SizedBox(height: 12),
+                    // System Buttons (Reset / Done)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: systemButtons,
+                    ),
+                  ],
                 ],
               ),
             ),
