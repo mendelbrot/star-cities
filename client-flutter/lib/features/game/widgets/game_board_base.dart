@@ -16,6 +16,7 @@ class GameBoardBase extends StatelessWidget {
   final String? selectedPieceId;
   final String? selectedCityId;
   final Set<String> highlightPieceIds;
+  final Set<String> dimmedPieceIds;
   final Function(int x, int y)? onSquareTap;
   final Function(Piece piece)? onPieceTap;
   final List<Widget> overlays;
@@ -33,6 +34,7 @@ class GameBoardBase extends StatelessWidget {
     this.selectedPieceId,
     this.selectedCityId,
     this.highlightPieceIds = const {},
+    this.dimmedPieceIds = const {},
     this.onSquareTap,
     this.onPieceTap,
     this.overlays = const [],
@@ -115,6 +117,7 @@ class GameBoardBase extends StatelessWidget {
           final pos = getRelativePosition(piece.x!, piece.y!, centerX, centerY);
           final isSelected = selectedPieceId == piece.id || selectedCityId == piece.id;
           final isHighlighted = highlightPieceIds.contains(piece.id);
+          final isDimmed = dimmedPieceIds.contains(piece.id);
 
           return Positioned(
             left: pos.x * cellSize + cellSize * 0.1,
@@ -123,19 +126,22 @@ class GameBoardBase extends StatelessWidget {
             height: cellSize * 0.8,
             child: GestureDetector(
               onTap: onPieceTap != null ? () => onPieceTap!(piece) : null,
-              child: Container(
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: (isSelected || isHighlighted) ? theme.colorScheme.primary : Colors.transparent,
-                    width: (isSelected || isHighlighted) ? 2 : 0,
+              child: Opacity(
+                opacity: isDimmed ? 0.3 : 1.0,
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: (isSelected || isHighlighted) ? theme.colorScheme.primary : Colors.transparent,
+                      width: (isSelected || isHighlighted) ? 2 : 0,
+                    ),
+                    borderRadius: BorderRadius.circular(cellSize * 0.1),
                   ),
-                  borderRadius: BorderRadius.circular(cellSize * 0.1),
-                ),
-                child: ShipIcon(
-                  type: piece.type,
-                  faction: piece.faction,
-                  size: cellSize * 0.8,
-                  isAnchored: piece.isAnchored,
+                  child: ShipIcon(
+                    type: piece.type,
+                    faction: piece.faction,
+                    size: cellSize * 0.8,
+                    isAnchored: piece.isAnchored,
+                  ),
                 ),
               ),
             ),

@@ -94,11 +94,20 @@ class PlanningPanel extends ConsumerWidget {
                   padding: const EdgeInsets.only(left: 8.0),
                   child: _ActionButton(
                     onPressed: () {
-                      ref.read(gameplayUiProvider(game.id).notifier).setBombarding(!uiState.isBombarding);
+                      if (pendingActions.any((a) => a is BombardAction && a.pieceId == selectedPiece.id)) {
+                        ref.read(pendingActionsProvider(game.id).notifier).removeBombardment(selectedPiece.id);
+                        ref.read(gameplayUiProvider(game.id).notifier).setBombarding(false);
+                      } else {
+                        ref.read(gameplayUiProvider(game.id).notifier).setBombarding(!uiState.isBombarding);
+                      }
                     },
                     icon: Icons.gps_fixed,
-                    tooltip: uiState.isBombarding ? 'Cancel Bombard' : 'Bombard',
-                    color: uiState.isBombarding ? theme.colorScheme.secondary : theme.colorScheme.onPrimary,
+                    tooltip: pendingActions.any((a) => a is BombardAction && a.pieceId == selectedPiece.id) 
+                      ? 'Cancel Bombard' 
+                      : (uiState.isBombarding ? 'Stop Selecting' : 'Bombard'),
+                    color: (uiState.isBombarding || pendingActions.any((a) => a is BombardAction && a.pieceId == selectedPiece.id)) 
+                      ? theme.colorScheme.secondary 
+                      : theme.colorScheme.onPrimary,
                   ),
                 ),
             ],
@@ -162,7 +171,12 @@ class PlanningPanel extends ConsumerWidget {
                         final hasPlaceAction = pendingActions.any((a) => a is PlaceAction && a.trayPieceId == piece.id);
                         
                         return GestureDetector(
-                          onTap: hasPlaceAction ? null : () {
+                          onTap: () {
+                            if (hasPlaceAction) {
+                              // Cancel placement if already placed
+                              ref.read(pendingActionsProvider(game.id).notifier).removePlacement(piece.id);
+                              return;
+                            }
                             if (isPlacing) {
                               ref.read(gameplayUiProvider(game.id).notifier).setPlacingPiece(null);
                             } else {

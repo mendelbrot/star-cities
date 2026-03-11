@@ -109,14 +109,37 @@ class PendingActionsNotifier extends FamilyNotifier<List<GameAction>, String> {
     ];
   }
 
-  void removeAction(String pieceId) {
-    // this function is used when selecting/deselecting to cancel move/bombard actions only
+  void removeMovementAndBombardment(String pieceId) {
     state = state.where((a) {
       if (a is MoveAction) return a.pieceId != pieceId;
       if (a is BombardAction) return a.pieceId != pieceId;
-      // if (a is TetherAction) return a.shipId != pieceId;
-      // if (a is AnchorAction) return a.pieceId != pieceId;
-      // if (a is PlaceAction) return a.trayPieceId != pieceId;
+      return true;
+    }).toList();
+  }
+
+  void removeBombardment(String pieceId) {
+    state = state.where((a) => !(a is BombardAction && a.pieceId == pieceId)).toList();
+  }
+
+  void removePlacement(String pieceId) {
+    state = state.where((a) => !(a is PlaceAction && a.trayPieceId == pieceId)).toList();
+  }
+
+  void removeTether(String pieceId) {
+    state = state.where((a) => !(a is TetherAction && a.shipId == pieceId)).toList();
+  }
+
+  void removeAnchor(String pieceId) {
+    state = state.where((a) => !(a is AnchorAction && a.pieceId == pieceId)).toList();
+  }
+
+  void removeAllActionsForPiece(String pieceId) {
+    state = state.where((a) {
+      if (a is MoveAction) return a.pieceId != pieceId;
+      if (a is BombardAction) return a.pieceId != pieceId;
+      if (a is TetherAction) return a.shipId != pieceId;
+      if (a is AnchorAction) return a.pieceId != pieceId;
+      if (a is PlaceAction) return a.trayPieceId != pieceId;
       return true;
     }).toList();
   }

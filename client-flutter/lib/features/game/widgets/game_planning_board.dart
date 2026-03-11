@@ -74,6 +74,7 @@ class GamePlanningBoard extends ConsumerWidget {
                   selectedPieceId: uiState.selectedPieceId,
                   selectedCityId: uiState.selectedCityId,
                   highlightPieceIds: _calculateHighlightPieces(uiState, virtualPieces, currentPlayer.player.faction),
+                  dimmedPieceIds: pendingActions.whereType<PlaceAction>().map((a) => a.trayPieceId).toSet(),
                   onSquareTap: (x, y) => _handleSquareTap(ref, x, y, uiState, virtualPieces, currentPlayer.player.faction, pendingActions, availableSquares),
                   onPieceTap: (piece) => _handlePieceTap(ref, piece, uiState, virtualPieces, currentPlayer.player.faction, pendingActions, availableSquares),
                   overlays: [
@@ -354,6 +355,15 @@ class GamePlanningBoard extends ConsumerWidget {
   }
 
   void _handlePieceTap(WidgetRef ref, Piece piece, GameplayUiState uiState, List<Piece> virtualPieces, Faction faction, List<GameAction> actions, Set<math.Point<int>> availableSquares) {
+    // Check if tapping a piece that was just placed to cancel placement
+    final placeAction = actions.whereType<PlaceAction>().firstWhereOrNull((a) => a.trayPieceId == piece.id);
+    if (placeAction != null) {
+      ref.read(pendingActionsProvider(game.id).notifier).removePlacement(piece.id);
+      ref.read(gameplayUiProvider(game.id).notifier).selectPiece(null);
+      ref.read(gameplayUiProvider(game.id).notifier).resetPlacement();
+      return;
+    }
+
     if (piece.x != null && piece.y != null) {
       final target = math.Point(piece.x!, piece.y!);
       if (availableSquares.contains(target)) {
@@ -393,7 +403,7 @@ class GamePlanningBoard extends ConsumerWidget {
     if (piece.faction == faction) {
       final isDeselecting = uiState.selectedPieceId == piece.id;
       if (isDeselecting) {
-        ref.read(pendingActionsProvider(game.id).notifier).removeAction(piece.id);
+        ref.read(pendingActionsProvider(game.id).notifier).removeMovementAndBombardment(piece.id);
         ref.read(gameplayUiProvider(game.id).notifier).selectPiece(null);
       } else {
         bool isJustPlaced = actions.any((a) => a is PlaceAction && a.trayPieceId == piece.id);
