@@ -2,80 +2,74 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:star_cities/features/game/models/game_models.dart';
 import 'package:star_cities/features/game/models/game_events.dart';
 import 'package:star_cities/features/game/models/game_actions.dart';
-import 'package:star_cities/features/game/providers/game_providers.dart';
-import 'package:star_cities/features/lobby/models/game.dart';
-import 'package:star_cities/shared/providers/auth_providers.dart';
+import 'package:star_cities/shared/providers/robust_stream_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Manages fetching the current and previous turn states via REST.
-/// Only re-fetches when the game enters the PLANNING status.
-class TurnStateNotifier extends FamilyAsyncNotifier<List<TurnState>, String> {
+/// Robust notifier for turn states.
+class TurnStatesNotifier extends RobustSupabaseNotifier<TurnState, String> {
   @override
-  Future<List<TurnState>> build(String arg) async {
-    final gameId = arg;
-    // Watch status and turn number
-    final game = ref.watch(gameProvider(gameId)).value;
-    
-    // We only trigger fetch if in PLANNING mode
-    if (game?.status == GameStatus.planning) {
-      return _fetch(gameId);
-    }
-    
-    // If we're loading or in other states, return what we have or empty
-    return state.value ?? [];
+  String get tableName => 'turn_states';
+
+  @override
+  ModelFactory<TurnState> get factory => TurnState.fromMap;
+
+  @override
+  PostgrestTransformBuilder<PostgrestList> filter(PostgrestFilterBuilder<PostgrestList> query, String arg) {
+    return query.eq('game_id', arg).order('turn_number', ascending: false).limit(2);
   }
 
-  Future<List<TurnState>> _fetch(String gameId) async {
-    final supabase = ref.read(supabaseClientProvider);
-    
-    final response = await supabase
-        .from('turn_states')
-        .select()
-        .eq('game_id', gameId)
-        .order('turn_number', ascending: false)
-        .limit(2);
+  @override
+  PostgresChangeFilter? getRealtimeFilter(String arg) => PostgresChangeFilter(
+    type: PostgresChangeFilterType.eq,
+    column: 'game_id',
+    value: arg,
+  );
 
-    final List<dynamic> data = response;
-    return data.map((m) => TurnState.fromMap(m)).toList();
-  }
+  @override
+  String getId(TurnState item) => '${item.turnNumber}'; // Composite ID isn't used for deletion here, but we need something unique.
 }
 
-final gameplayTurnStateProvider = AsyncNotifierProvider.family<TurnStateNotifier, List<TurnState>, String>(() {
-  return TurnStateNotifier();
+final robustTurnStatesProvider = AsyncNotifierProvider.family<TurnStatesNotifier, List<TurnState>, String>(() {
+  return TurnStatesNotifier();
 });
 
-/// Manages fetching the most recent turn events via REST.
-/// Only re-fetches when the game enters the PLANNING status.
-class TurnEventsNotifier extends FamilyAsyncNotifier<TurnEventList?, String> {
+/// Manages providing the current and previous turn states.
+final gameplayTurnStateProvider = Provider.family<AsyncValue<List<TurnState>>, String>((ref, gameId) {
+  return ref.watch(robustTurnStatesProvider(gameId));
+});
+
+/// Robust notifier for turn events.
+class TurnEventsNotifier extends RobustSupabaseNotifier<TurnEventList, String> {
   @override
-  Future<TurnEventList?> build(String arg) async {
-    final gameId = arg;
-    final game = ref.watch(gameProvider(gameId)).value;
+  String get tableName => 'turn_events';
 
-    if (game?.status == GameStatus.planning) {
-      return _fetch(gameId);
-    }
+  @override
+  ModelFactory<TurnEventList> get factory => TurnEventList.fromMap;
 
-    return state.value;
+  @override
+  PostgrestTransformBuilder<PostgrestList> filter(PostgrestFilterBuilder<PostgrestList> query, String arg) {
+    return query.eq('game_id', arg).order('turn_number', ascending: false).limit(1);
   }
 
-  Future<TurnEventList?> _fetch(String gameId) async {
-    final supabase = ref.read(supabaseClientProvider);
+  @override
+  PostgresChangeFilter? getRealtimeFilter(String arg) => PostgresChangeFilter(
+    type: PostgresChangeFilterType.eq,
+    column: 'game_id',
+    value: arg,
+  );
 
-    final response = await supabase
-        .from('turn_events')
-        .select()
-        .eq('game_id', gameId)
-        .order('turn_number', ascending: false)
-        .limit(1)
-        .maybeSingle();
-
-    if (response == null) return null;
-    return TurnEventList.fromMap(response);
-  }
+  @override
+  String getId(TurnEventList item) => '${item.turnNumber}';
 }
 
-final gameplayTurnEventsProvider = AsyncNotifierProvider.family<TurnEventsNotifier, TurnEventList?, String>(() {
+final robustTurnEventsProvider = AsyncNotifierProvider.family<TurnEventsNotifier, List<TurnEventList>, String>(() {
   return TurnEventsNotifier();
+});
+
+/// Provides the most recent turn events.
+final gameplayTurnEventsProvider = Provider.family<AsyncValue<TurnEventList?>, String>((ref, gameId) {
+  final asyncValue = ref.watch(robustTurnEventsProvider(gameId));
+  return asyncValue.whenData((list) => list.isNotEmpty ? list.first : null);
 });
 
 class PendingActionsNotifier extends FamilyNotifier<List<GameAction>, String> {

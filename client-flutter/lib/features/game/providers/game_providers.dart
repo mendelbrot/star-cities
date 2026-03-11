@@ -3,31 +3,74 @@ import 'package:star_cities/features/lobby/models/game.dart';
 import 'package:star_cities/shared/models/player.dart';
 import 'package:star_cities/features/profile/models/profile.dart';
 import 'package:star_cities/shared/providers/auth_providers.dart';
+import 'package:star_cities/shared/providers/robust_stream_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// Robust notifier for a single game.
+class GameNotifier extends RobustSupabaseNotifier<Game, String> {
+  @override
+  String get tableName => 'games';
+
+  @override
+  ModelFactory<Game> get factory => Game.fromMap;
+
+  @override
+  PostgrestTransformBuilder<PostgrestList> filter(PostgrestFilterBuilder<PostgrestList> query, String arg) {
+    return query.eq('id', arg);
+  }
+
+  @override
+  PostgresChangeFilter? getRealtimeFilter(String arg) => PostgresChangeFilter(
+    type: PostgresChangeFilterType.eq,
+    column: 'id',
+    value: arg,
+  );
+
+  @override
+  String getId(Game item) => item.id;
+}
+
+final robustGameProvider = AsyncNotifierProvider.family<GameNotifier, List<Game>, String>(() {
+  return GameNotifier();
+});
 
 /// Provides a stream of a single game by its ID.
-final gameProvider = StreamProvider.family<Game?, String>((ref, gameId) {
-  final user = ref.watch(currentUserProvider);
-  if (user == null) return const Stream.empty();
+final gameProvider = Provider.family<AsyncValue<Game?>, String>((ref, gameId) {
+  final asyncValue = ref.watch(robustGameProvider(gameId));
+  return asyncValue.whenData((list) => list.isNotEmpty ? list.first : null);
+});
 
-  final supabase = ref.watch(supabaseClientProvider);
-  return supabase
-      .from('games')
-      .stream(primaryKey: ['id'])
-      .eq('id', gameId)
-      .map((data) => data.isNotEmpty ? Game.fromMap(data.first) : null);
+/// Robust notifier for players in a game.
+class PlayersNotifier extends RobustSupabaseNotifier<Player, String> {
+  @override
+  String get tableName => 'players';
+
+  @override
+  ModelFactory<Player> get factory => Player.fromMap;
+
+  @override
+  PostgrestTransformBuilder<PostgrestList> filter(PostgrestFilterBuilder<PostgrestList> query, String arg) {
+    return query.eq('game_id', arg);
+  }
+
+  @override
+  PostgresChangeFilter? getRealtimeFilter(String arg) => PostgresChangeFilter(
+    type: PostgresChangeFilterType.eq,
+    column: 'game_id',
+    value: arg,
+  );
+
+  @override
+  String getId(Player item) => item.id;
+}
+
+final robustPlayersProvider = AsyncNotifierProvider.family<PlayersNotifier, List<Player>, String>(() {
+  return PlayersNotifier();
 });
 
 /// Provides a stream of all players in a specific game.
-final playersProvider = StreamProvider.family<List<Player>, String>((ref, gameId) {
-  final user = ref.watch(currentUserProvider);
-  if (user == null) return const Stream.empty();
-
-  final supabase = ref.watch(supabaseClientProvider);
-  return supabase
-      .from('players')
-      .stream(primaryKey: ['id'])
-      .eq('game_id', gameId)
-      .map((data) => data.map((m) => Player.fromMap(m)).toList());
+final playersProvider = Provider.family<AsyncValue<List<Player>>, String>((ref, gameId) {
+  return ref.watch(robustPlayersProvider(gameId));
 });
 
 /// Provides a stream of all user profiles.
