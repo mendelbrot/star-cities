@@ -19,6 +19,12 @@ class TurnStatesNotifier extends RobustSupabaseNotifier<TurnState, String> {
   }
 
   @override
+  List<TurnState> postProcess(List<TurnState> data) {
+    data.sort((a, b) => b.turnNumber.compareTo(a.turnNumber));
+    return data.take(2).toList();
+  }
+
+  @override
   PostgresChangeFilter? getRealtimeFilter(String arg) => PostgresChangeFilter(
     type: PostgresChangeFilterType.eq,
     column: 'game_id',
@@ -49,6 +55,12 @@ class TurnEventsNotifier extends RobustSupabaseNotifier<TurnEventList, String> {
   @override
   PostgrestTransformBuilder<PostgrestList> filter(PostgrestFilterBuilder<PostgrestList> query, String arg) {
     return query.eq('game_id', arg).order('turn_number', ascending: false).limit(1);
+  }
+
+  @override
+  List<TurnEventList> postProcess(List<TurnEventList> data) {
+    data.sort((a, b) => b.turnNumber.compareTo(a.turnNumber));
+    return data.take(1).toList();
   }
 
   @override

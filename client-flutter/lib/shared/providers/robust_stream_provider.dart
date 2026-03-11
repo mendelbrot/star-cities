@@ -40,7 +40,7 @@ abstract class RobustSupabaseNotifier<T, ID> extends FamilyAsyncNotifier<List<T>
     // 3. Secondary REST Sync (delayed slightly to ensure subscription is active)
     _sync(arg);
 
-    return initialData;
+    return postProcess(initialData);
   }
 
   Future<List<T>> _fetch(String arg) async {
@@ -80,10 +80,9 @@ abstract class RobustSupabaseNotifier<T, ID> extends FamilyAsyncNotifier<List<T>
       if (_isDisposed) return;
 
       // Merge sync data into current state
-      state = AsyncValue.data(_merge(state.value ?? [], syncData));
+      state = AsyncValue.data(postProcess(_merge(state.value ?? [], syncData)));
     } catch (e) {
       // If sync fails, we don't want to crash, just log or ignore as we have initial data and subscription
-      // Using a simple print as requested by the original code style for errors
     }
   }
 
@@ -94,15 +93,15 @@ abstract class RobustSupabaseNotifier<T, ID> extends FamilyAsyncNotifier<List<T>
     switch (payload.eventType) {
       case PostgresChangeEvent.insert:
         final newItem = factory(payload.newRecord);
+        final id = getId(newItem);
         // Avoid duplicates if already present from a sync
-        final id = payload.newRecord[primaryKey];
         if (!newState.any((item) => getId(item) == id)) {
           newState.add(newItem);
         }
         break;
       case PostgresChangeEvent.update:
         final updatedItem = factory(payload.newRecord);
-        final id = payload.newRecord[primaryKey];
+        final id = getId(updatedItem);
         final index = newState.indexWhere((item) => getId(item) == id);
         if (index != -1) {
           newState[index] = updatedItem;
@@ -111,14 +110,24 @@ abstract class RobustSupabaseNotifier<T, ID> extends FamilyAsyncNotifier<List<T>
         }
         break;
       case PostgresChangeEvent.delete:
-        final id = payload.oldRecord[primaryKey];
-        newState.removeWhere((item) => getId(item) == id);
+        newState.removeWhere((item) => _getIdFromRecord(item, payload.oldRecord));
         break;
       default:
         break;
     }
 
-    state = AsyncValue.data(newState);
+    state = AsyncValue.data(postProcess(newState));
+  }
+
+  /// Helper to check if an item matches a record ID during deletion.
+  bool _getIdFromRecord(T item, Map<String, dynamic> record) {
+    // This is a bit tricky since getId is on the model. 
+    // If primaryKey is 'id', we compare that.
+    if (primaryKey == 'id' && record.containsKey('id')) {
+      // We assume ID is the type of the 'id' field
+      return getId(item).toString() == record['id'].toString();
+    }
+    return false;
   }
 
   List<T> _merge(List<T> current, List<T> incoming) {
@@ -128,6 +137,9 @@ abstract class RobustSupabaseNotifier<T, ID> extends FamilyAsyncNotifier<List<T>
     }
     return map.values.toList();
   }
+
+  /// Optional: override to provide custom post-processing (sorting, limiting).
+  List<T> postProcess(List<T> data) => data;
 
   /// Must be implemented to extract the ID from a model instance.
   ID getId(T item);
