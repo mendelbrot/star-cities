@@ -230,7 +230,7 @@ export function resolveCombat(
     const adj = getAdjacentCoordinates({ x, y }, size);
     for (const a of adj) {
       const sId = coordinateMap.get(`${a.x},${a.y}`);
-      if (sId && sId !== occupantId) {
+      if (sId && sId !== occupantId && !battle.entering_participants.some((ship) => ship.piece_id === sId)) {
         const p = pieceMap.get(sId)!;
         battle.supporting_participants.push({ piece_id: p.id, piece_type: p.type, faction: p.faction });
       }
