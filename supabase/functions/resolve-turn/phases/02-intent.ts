@@ -48,7 +48,7 @@ export function resolveIntents(
         } else {
           const factionCities = (factionPlacedPiecesMap.get(player.faction) || [])
             .map((id: string) => pieceMap.get(id)!)
-            .filter((p: Piece) => p.type === "STAR_CITY");
+            .filter((p: Piece) => p.type === "STAR_CITY" && p.is_anchored);
           
           isNearValidCity = factionCities.some((city: Piece) => {
             const adj = getAdjacentCoordinates(city as Coordinate, size);

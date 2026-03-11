@@ -234,7 +234,7 @@ class GamePlanningBoard extends ConsumerWidget {
           return _getAdjacentEmptySquares(city.x!, city.y!, pieces);
         }
       } else {
-        final friendlyCities = pieces.where((p) => p.faction == faction && p.type == PieceType.starCity && p.x != null);
+        final friendlyCities = pieces.where((p) => p.faction == faction && p.type == PieceType.starCity && p.x != null && p.isAnchored);
         final squares = <math.Point<int>>{};
         for (var city in friendlyCities) {
           squares.addAll(_getAdjacentEmptySquares(city.x!, city.y!, pieces));
@@ -376,9 +376,15 @@ class GamePlanningBoard extends ConsumerWidget {
     }
     if (uiState.placingPieceId != null) {
        final placingPiece = virtualPieces.firstWhereOrNull((p) => p.id == uiState.placingPieceId);
-       if (placingPiece != null && placingPiece.type.requiresTether && piece.type == PieceType.starCity && piece.faction == faction && piece.isAnchored) {
-          final tetheredCount = virtualPieces.where((p) => p.tetheredToId == piece.id).length;
-          if (tetheredCount < game.gameParameters.maxShipsPerCity) {
+       if (placingPiece != null && piece.type == PieceType.starCity && piece.faction == faction && piece.isAnchored) {
+          if (placingPiece.type.requiresTether) {
+            final tetheredCount = virtualPieces.where((p) => p.tetheredToId == piece.id).length;
+            if (tetheredCount < game.gameParameters.maxShipsPerCity) {
+              ref.read(gameplayUiProvider(game.id).notifier).setSelectedCity(piece.id);
+              return;
+            }
+          } else {
+            // For Neutrino/Star City, just select the city to show available squares around it
             ref.read(gameplayUiProvider(game.id).notifier).setSelectedCity(piece.id);
             return;
           }
