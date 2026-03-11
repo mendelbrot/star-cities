@@ -12,12 +12,15 @@ export function planExpansion(context: BotContext) {
       continue;
     }
 
-    // Try to anchor if adjacent to a star
-    const adjacentStars = context.stars.filter(
+    const untappedStars = getUntappedStars(context);
+    if (untappedStars.length === 0) continue;
+
+    // Check if we are adjacent to any untapped star
+    const isAdjacentToUntapped = untappedStars.some(
       (s) => context.getDistance(city as Coordinate, s) === 1
     );
 
-    if (adjacentStars.length > 0) {
+    if (isAdjacentToUntapped) {
       context.addAction({
         type: "ANCHOR_ACT",
         piece_id: city.id,
@@ -25,20 +28,17 @@ export function planExpansion(context: BotContext) {
       });
     } else {
       // Move toward nearest untapped star
-      const untappedStars = getUntappedStars(context);
-      if (untappedStars.length > 0) {
-        const nearestStar = untappedStars.sort((a, b) => {
-          return context.getDistance(city as Coordinate, a) - context.getDistance(city as Coordinate, b);
-        })[0];
+      const nearestStar = untappedStars.sort((a, b) => {
+        return context.getDistance(city as Coordinate, a) - context.getDistance(city as Coordinate, b);
+      })[0];
 
-        const bestMove = getBestMoveTowardStar(context, city, nearestStar);
-        if (bestMove) {
-          context.addAction({
-            type: "MOVE_ACT",
-            piece_id: city.id,
-            to: bestMove,
-          });
-        }
+      const bestMove = getBestMoveTowardStar(context, city, nearestStar);
+      if (bestMove) {
+        context.addAction({
+          type: "MOVE_ACT",
+          piece_id: city.id,
+          to: bestMove,
+        });
       }
     }
   }

@@ -18,20 +18,22 @@ export function planMovement(context: BotContext) {
 }
 
 function planNeutrinoMove(context: BotContext, piece: Piece) {
-  // Move away from nearest enemy star city
-  const enemyCities = Array.from(context.pieceMap.values()).filter(
-    (p) => p.faction !== context.currentFaction && p.type === "STAR_CITY"
-  );
+  // Move away from friendly star cities (Explorer)
+  const friendlyCities = (context.factionPlacedPiecesMap.get(context.currentFaction) || [])
+    .map((id) => context.getPiece(id)!)
+    .filter((p) => p !== undefined && p.type === "STAR_CITY");
 
-  if (enemyCities.length === 0) return;
+  const avoidanceTargets = friendlyCities;
 
-  const nearestCity = getNearest(context, piece as Coordinate, enemyCities);
+  if (avoidanceTargets.length === 0) return;
+
+  const nearestTarget = getNearest(context, piece as Coordinate, avoidanceTargets);
   const moves = context.getAdjacent(piece as Coordinate);
   const bestMove = moves
     .filter((m) => !context.isOccupied(m))
     .sort((a, b) => {
-      const distA = context.getDistance(a, nearestCity as Coordinate);
-      const distB = context.getDistance(b, nearestCity as Coordinate);
+      const distA = context.getDistance(a, nearestTarget as Coordinate);
+      const distB = context.getDistance(b, nearestTarget as Coordinate);
       return distB - distA; // Descending distance (farther is better)
     })[0];
 
