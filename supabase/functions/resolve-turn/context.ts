@@ -5,6 +5,7 @@ export interface PieceTurnContext {
   wasJustPlaced?: boolean;
   wasJustDeanchored?: boolean;
   wasJustAnchored?: boolean;
+  wasJustBombarded?: boolean;
 }
 
 export class TurnContext {
