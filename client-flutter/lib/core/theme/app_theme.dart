@@ -8,7 +8,7 @@ class AppTheme {
     return ThemeData(
       brightness: Brightness.dark,
       scaffoldBackgroundColor: Colors.black,
-      primaryColor: Colors.white70,
+      primaryColor: const Color(0xFFF5F5F5),
       disabledColor: const Color(0xFF666666),
       fontFamily: GoogleFonts.jetBrainsMono().fontFamily,
 

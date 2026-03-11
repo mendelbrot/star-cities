@@ -44,7 +44,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
             child: Center(
               child: isWaiting 
                   ? ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 1000),
+                      constraints: const BoxConstraints(maxWidth: 800),
                       child: GameRoom(game: game),
                     )
                   : GamePlay(game: game),
@@ -91,7 +91,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         unselectedLabelColor: theme.disabledColor,
         tabs: const [
           Tab(text: 'Info'),
-          Tab(text: 'Replay'),
+          Tab(text: 'Events'),
           Tab(text: 'Planning'),
         ],
       ),

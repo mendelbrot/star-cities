@@ -89,7 +89,7 @@ class GamePlay extends ConsumerWidget {
                   ),
                 ),
 
-                // Tab 2: Replay
+                // Tab 2: Events
                 Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 1000),

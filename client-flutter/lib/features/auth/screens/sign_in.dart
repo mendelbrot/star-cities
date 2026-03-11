@@ -60,7 +60,7 @@ class _SignInPageState extends State<SignInPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(_controller.errorMessage ?? 'Invalid code'),
-          backgroundColor: Colors.red,
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
     }
@@ -70,13 +70,6 @@ class _SignInPageState extends State<SignInPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Column(
-          children: [
-            const Padding(
-              padding: EdgeInsets.all(8.0),
-              child: ShipBanner(shipCount: 9, spacing: 8),
-            ),
-            Expanded(
               child: Center(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(16.0),
@@ -87,7 +80,7 @@ class _SignInPageState extends State<SignInPage> {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const Text(
-                          'STAR CITIES',
+                          'Star Cities',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 48,
@@ -142,9 +135,6 @@ class _SignInPageState extends State<SignInPage> {
                   ),
                 ),
               ),
-            ),
-          ],
-        ),
       ),
     );
   }
