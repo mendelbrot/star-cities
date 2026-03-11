@@ -3,11 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:star_cities/features/game/providers/gameplay_ui_state.dart';
 
 class ReplayPanel extends ConsumerWidget {
-  const ReplayPanel({super.key});
+  final String gameId;
+  const ReplayPanel({super.key, required this.gameId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final uiState = ref.watch(gameplayUiProvider);
+    final uiState = ref.watch(gameplayUiProvider(gameId));
     final theme = Theme.of(context);
 
     return Container(
@@ -34,7 +35,7 @@ class ReplayPanel extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: GestureDetector(
                   onTap: () =>
-                      ref.read(gameplayUiProvider.notifier).setReplayStep(step),
+                      ref.read(gameplayUiProvider(gameId).notifier).setReplayStep(step),
                   child: Container(
                     width: 40,
                     height: 40,

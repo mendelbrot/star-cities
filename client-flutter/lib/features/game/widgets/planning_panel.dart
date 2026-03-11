@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:collection/collection.dart';
 import 'package:star_cities/features/game/models/game_models.dart';
 import 'package:star_cities/features/game/models/game_actions.dart';
 import 'package:star_cities/features/game/providers/game_providers.dart';
@@ -27,7 +28,7 @@ class PlanningPanel extends ConsumerWidget {
     final theme = Theme.of(context);
     final playersAsync = ref.watch(gamePlayersWithProfilesProvider(game.id));
     final currentUser = ref.watch(currentUserProvider);
-    final uiState = ref.watch(gameplayUiProvider);
+    final uiState = ref.watch(gameplayUiProvider(game.id));
     final pendingActions = ref.watch(pendingActionsProvider(game.id));
     final controller = ref.read(gameControllerProvider);
 
@@ -45,11 +46,11 @@ class PlanningPanel extends ConsumerWidget {
 
         // Selection logic
         final selectedPiece = uiState.selectedPieceId != null
-            ? virtualPieces.firstWhere((p) => p.id == uiState.selectedPieceId)
+            ? virtualPieces.firstWhereOrNull((p) => p.id == uiState.selectedPieceId)
             : null;
             
         final placingPiece = uiState.placingPieceId != null
-            ? trayPieces.firstWhere((p) => p.id == uiState.placingPieceId)
+            ? trayPieces.firstWhereOrNull((p) => p.id == uiState.placingPieceId)
             : null;
 
         final actionButtons = [
@@ -82,7 +83,7 @@ class PlanningPanel extends ConsumerWidget {
             if (selectedPiece.type.requiresTether) ...[
               _ActionButton(
                 onPressed: () {
-                  ref.read(gameplayUiProvider.notifier).setRetethering(!uiState.isRetethering);
+                  ref.read(gameplayUiProvider(game.id).notifier).setRetethering(!uiState.isRetethering);
                 },
                 icon: Icons.link,
                 tooltip: uiState.isRetethering ? 'Cancel Re-tether' : 'Re-tether',
@@ -93,7 +94,7 @@ class PlanningPanel extends ConsumerWidget {
                   padding: const EdgeInsets.only(left: 8.0),
                   child: _ActionButton(
                     onPressed: () {
-                      ref.read(gameplayUiProvider.notifier).setBombarding(!uiState.isBombarding);
+                      ref.read(gameplayUiProvider(game.id).notifier).setBombarding(!uiState.isBombarding);
                     },
                     icon: Icons.gps_fixed,
                     tooltip: uiState.isBombarding ? 'Cancel Bombard' : 'Bombard',
@@ -163,9 +164,9 @@ class PlanningPanel extends ConsumerWidget {
                         return GestureDetector(
                           onTap: hasPlaceAction ? null : () {
                             if (isPlacing) {
-                              ref.read(gameplayUiProvider.notifier).setPlacingPiece(null);
+                              ref.read(gameplayUiProvider(game.id).notifier).setPlacingPiece(null);
                             } else {
-                              ref.read(gameplayUiProvider.notifier).setPlacingPiece(piece.id);
+                              ref.read(gameplayUiProvider(game.id).notifier).setPlacingPiece(piece.id);
                             }
                           },
                           child: Opacity(

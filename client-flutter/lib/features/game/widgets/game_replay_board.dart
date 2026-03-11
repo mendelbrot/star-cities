@@ -37,7 +37,7 @@ class GameReplayBoard extends ConsumerWidget {
     final theme = Theme.of(context);
     final playersAsync = ref.watch(gamePlayersWithProfilesProvider(game.id));
     final currentUser = ref.watch(currentUserProvider);
-    final uiState = ref.watch(gameplayUiProvider);
+    final uiState = ref.watch(gameplayUiProvider(game.id));
 
     return playersAsync.when(
       data: (players) {
@@ -135,7 +135,7 @@ class GameReplayBoard extends ConsumerWidget {
                   Positioned.fill(
                     child: Center(
                       child: _buildEventOverlay(uiState.selectedEvent!, () {
-                        ref.read(gameplayUiProvider.notifier).selectEvent(null);
+                        ref.read(gameplayUiProvider(game.id).notifier).selectEvent(null);
                       }),
                     ),
                   ),
@@ -170,7 +170,7 @@ class GameReplayBoard extends ConsumerWidget {
     }).firstOrNull;
 
     if (eventAtSquare != null) {
-      ref.read(gameplayUiProvider.notifier).selectEvent(eventAtSquare);
+      ref.read(gameplayUiProvider(game.id).notifier).selectEvent(eventAtSquare);
     }
   }
 

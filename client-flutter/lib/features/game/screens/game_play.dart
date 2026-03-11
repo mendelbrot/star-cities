@@ -107,9 +107,9 @@ class GamePlay extends ConsumerWidget {
                             ),
                           ),
                         ),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16.0),
-                          child: ReplayPanel(),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: ReplayPanel(gameId: game.id),
                         ),
                       ],
                     ),
