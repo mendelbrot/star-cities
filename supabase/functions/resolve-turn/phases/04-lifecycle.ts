@@ -45,37 +45,41 @@ export async function resolveLifecycle(sql: postgres.Sql, context: TurnContext) 
   }
 
   const remainingPlayers = players.filter((p: Player) => !p.is_eliminated);
+  const starCounts = context.getFactionStarCounts();
 
   // 4b. Acquisition
   for (const p of remainingPlayers) {
     const faction = p.faction as Faction;
     const tray = factionTrayMap.get(faction) || [];
-    
-    if (tray.length < MAX_TRAY_SIZE) {
-      const type = weightedRoll([
-        { label: "NEUTRINO" as PieceType, weight: ACQUISITION_PROBABILITIES.NEUTRINO },
-        { label: "ECLIPSE" as PieceType, weight: ACQUISITION_PROBABILITIES.ECLIPSE },
-        { label: "PARALLAX" as PieceType, weight: ACQUISITION_PROBABILITIES.PARALLAX },
-        { label: "STAR_CITY" as PieceType, weight: ACQUISITION_PROBABILITIES.STAR_CITY },
-        { label: null, weight: ACQUISITION_PROBABILITIES.NOTHING },
-      ]);
+    const stars = starCounts.get(faction) || 0;
 
-      if (type) {
-        const id = crypto.randomUUID();
-        const piece: Piece = { 
-          id, 
-          faction, 
-          type, 
-          x: null, 
-          y: null, 
-          tether_id: null, 
-          is_anchored: false, 
-          is_visible: type !== "NEUTRINO", 
-          is_in_tray: true 
-        };
-        pieceMap.set(id, piece);
-        tray.push(id);
-        context.addEvent({ type: "PIECE_ACQUIRED", faction, piece_type: type, new_piece_id: id });
+    for (let i = 0; i < stars; i++) {
+      if (tray.length < MAX_TRAY_SIZE) {
+        const type = weightedRoll([
+          { label: "NEUTRINO" as PieceType, weight: ACQUISITION_PROBABILITIES.NEUTRINO },
+          { label: "ECLIPSE" as PieceType, weight: ACQUISITION_PROBABILITIES.ECLIPSE },
+          { label: "PARALLAX" as PieceType, weight: ACQUISITION_PROBABILITIES.PARALLAX },
+          { label: "STAR_CITY" as PieceType, weight: ACQUISITION_PROBABILITIES.STAR_CITY },
+          { label: null, weight: ACQUISITION_PROBABILITIES.NOTHING },
+        ]);
+
+        if (type) {
+          const id = crypto.randomUUID();
+          const piece: Piece = { 
+            id, 
+            faction, 
+            type, 
+            x: null, 
+            y: null, 
+            tether_id: null, 
+            is_anchored: false, 
+            is_visible: type !== "NEUTRINO", 
+            is_in_tray: true 
+          };
+          pieceMap.set(id, piece);
+          tray.push(id);
+          context.addEvent({ type: "PIECE_ACQUIRED", faction, piece_type: type, new_piece_id: id });
+        }
       }
     }
   }
