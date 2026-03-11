@@ -63,10 +63,15 @@ function getBestMoveTowardStar(
   city: Piece,
   target: Coordinate
 ): Coordinate | null {
-  const moves = context.getAdjacent(city as Coordinate);
-  return moves
-    .filter((m) => !context.isOccupied(m))
-    .sort((a, b) => {
-      return context.getDistance(a, target) - context.getDistance(b, target);
-    })[0] || null;
+  const moves = context.getAdjacent(city as Coordinate).filter((m) => !context.isOccupied(m));
+  if (moves.length === 0) return null;
+
+  // 10% chance to wander randomly
+  if (Math.random() < 0.1) {
+    return moves[Math.floor(Math.random() * moves.length)];
+  }
+
+  return moves.sort((a, b) => {
+    return context.getDistance(a, target) - context.getDistance(b, target);
+  })[0] || null;
 }

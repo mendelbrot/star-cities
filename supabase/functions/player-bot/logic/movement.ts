@@ -23,19 +23,39 @@ function planNeutrinoMove(context: BotContext, piece: Piece) {
     .map((id) => context.getPiece(id)!)
     .filter((p) => p !== undefined && p.type === "STAR_CITY");
 
-  const avoidanceTargets = friendlyCities;
+  let avoidanceTargets = friendlyCities;
+
+  // Fallback to enemy cities if no friendly cities exist
+  if (avoidanceTargets.length === 0) {
+    avoidanceTargets = Array.from(context.pieceMap.values()).filter(
+      (p) => p.faction !== context.currentFaction && p.type === "STAR_CITY"
+    );
+  }
 
   if (avoidanceTargets.length === 0) return;
 
   const nearestTarget = getNearest(context, piece as Coordinate, avoidanceTargets);
   const moves = context.getAdjacent(piece as Coordinate);
-  const bestMove = moves
-    .filter((m) => !context.isOccupied(m))
-    .sort((a, b) => {
-      const distA = context.getDistance(a, nearestTarget as Coordinate);
-      const distB = context.getDistance(b, nearestTarget as Coordinate);
-      return distB - distA; // Descending distance (farther is better)
-    })[0];
+  const validMoves = moves.filter((m) => !context.isOccupied(m));
+
+  if (validMoves.length === 0) return;
+
+  // 10% chance to just pick a random valid move for some unpredictability
+  if (Math.random() < 0.1) {
+    const randomMove = validMoves[Math.floor(Math.random() * validMoves.length)];
+    context.addAction({
+      type: "MOVE_ACT",
+      piece_id: piece.id,
+      to: randomMove,
+    });
+    return;
+  }
+
+  const bestMove = validMoves.sort((a, b) => {
+    const distA = context.getDistance(a, nearestTarget as Coordinate);
+    const distB = context.getDistance(b, nearestTarget as Coordinate);
+    return distB - distA; // Descending distance (farther is better)
+  })[0];
 
   if (bestMove) {
     context.addAction({
@@ -130,6 +150,11 @@ function getBestMoveToward(
   }
 
   if (possibleMoves.length === 0) return null;
+
+  // 10% chance to just pick a random valid move for some unpredictability
+  if (Math.random() < 0.1) {
+    return possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+  }
 
   return possibleMoves.sort((a, b) => {
     const distA = context.getDistance(a, target);
