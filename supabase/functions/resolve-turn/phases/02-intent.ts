@@ -21,10 +21,18 @@ export function resolveIntents(
         const piece = pieceMap.get(action.tray_piece_id);
         if (!piece || !piece.is_in_tray || piece.faction !== player.faction) continue;
 
+        const targetKey = `${action.target.x},${action.target.y}`;
         const isStar = stars.some((s: Coordinate) => isSameCoordinate(s, action.target));
-        const isOccupied = coordinateMap.has(`${action.target.x},${action.target.y}`);
-        const isMoveTarget = factionMoveTargetsMap.get(player.faction)?.has(`${action.target.x},${action.target.y}`);
-        if (isStar || isOccupied || isMoveTarget) continue;
+        const isOccupiedAtStart = coordinateMap.has(targetKey);
+        const isMoveTarget = factionMoveTargetsMap.get(player.faction)?.has(targetKey);
+        
+        // Block if star, occupied at start, or friendly move target
+        if (isStar || isOccupiedAtStart || isMoveTarget) continue;
+
+        // Block if another friendly piece is already being placed here
+        const existingPlacements = context.pendingPlacements.get(targetKey) || [];
+        const isFriendlyPlacing = existingPlacements.some(id => pieceMap.get(id)?.faction === player.faction);
+        if (isFriendlyPlacing) continue;
 
         let isNearValidCity = false;
         if (piece.type === "ECLIPSE" || piece.type === "PARALLAX") {
@@ -50,8 +58,14 @@ export function resolveIntents(
 
         if (!isNearValidCity) continue;
 
-        // Use context method to update position and maps
-        context.updatePiecePosition(piece.id, action.target);
+        // IMPORTANT: We do NOT update the coordinateMap yet.
+        // We only set the piece's coordinates and add to pending placements.
+        piece.x = action.target.x;
+        piece.y = action.target.y;
+        
+        const pending = context.pendingPlacements.get(targetKey) || [];
+        pending.push(piece.id);
+        context.pendingPlacements.set(targetKey, pending);
 
         if (piece.type === "ECLIPSE" || piece.type === "PARALLAX") {
           piece.tether_id = action.city_id;
@@ -72,7 +86,8 @@ export function resolveIntents(
       } 
       else if (action.type === "TETHER_ACT") {
         const ship = pieceMap.get(action.ship_id);
-        if (!ship || ship.is_in_tray || ship.faction !== player.faction) continue;
+        const ctx = pieceContexts.get(action.ship_id);
+        if (!ship || (ship.is_in_tray && !ctx?.wasJustPlaced) || ship.faction !== player.faction) continue;
         if (ship.type !== "ECLIPSE" && ship.type !== "PARALLAX") continue;
 
         const city = pieceMap.get(action.city_id);
@@ -100,10 +115,13 @@ export function resolveIntents(
           ship_id: action.ship_id,
           city_id: action.city_id,
         });
-      }
+      } 
       else if (action.type === "ANCHOR_ACT") {
         const city = pieceMap.get(action.piece_id);
         if (!city || city.type !== "STAR_CITY" || city.is_in_tray || city.faction !== player.faction) continue;
+
+        const ctx = pieceContexts.get(city.id) || {};
+        if (ctx.wasJustPlaced) continue; // CANNOT anchor on the same turn it was placed
 
         if (action.is_anchored) {
           const adj = getAdjacentCoordinates(city as Coordinate, size);

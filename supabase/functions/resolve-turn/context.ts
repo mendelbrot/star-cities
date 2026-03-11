@@ -21,6 +21,7 @@ export class TurnContext {
   factionTrayMap = new Map<string, string[]>(); // faction -> list of piece_ids
   tetherMap = new Map<string, string[]>(); // city_id -> list of ship_ids
   pieceContexts = new Map<string, PieceTurnContext>(); // piece_id -> PieceTurnContext
+  pendingPlacements = new Map<string, string[]>(); // coordKey -> list of piece_ids
   events: GameEvent[] = [];
   snapshots: Record<number, Piece[]> = {}; // replay_step -> list of Piece objects
   currentStep: number = 0;
