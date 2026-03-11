@@ -17,6 +17,7 @@ class GameBoardBase extends StatelessWidget {
   final String? selectedCityId;
   final Set<String> highlightPieceIds;
   final Set<String> dimmedPieceIds;
+  final bool showAvailableDots;
   final Function(int x, int y)? onSquareTap;
   final Function(Piece piece)? onPieceTap;
   final List<Widget> overlays;
@@ -35,6 +36,7 @@ class GameBoardBase extends StatelessWidget {
     this.selectedCityId,
     this.highlightPieceIds = const {},
     this.dimmedPieceIds = const {},
+    this.showAvailableDots = true,
     this.onSquareTap,
     this.onPieceTap,
     this.overlays = const [],
@@ -76,7 +78,7 @@ class GameBoardBase extends StatelessWidget {
               onTap: onSquareTap != null ? () => onSquareTap!(x, y) : null,
               child: Container(
                 color: Colors.transparent,
-                child: isAvailable 
+                child: (isAvailable && showAvailableDots)
                 ? Center(
                     child: Container(
                       width: cellSize * 0.3,

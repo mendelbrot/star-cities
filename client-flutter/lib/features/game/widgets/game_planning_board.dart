@@ -75,6 +75,7 @@ class GamePlanningBoard extends ConsumerWidget {
                   selectedCityId: uiState.selectedCityId,
                   highlightPieceIds: _calculateHighlightPieces(uiState, virtualPieces, currentPlayer.player.faction),
                   dimmedPieceIds: pendingActions.whereType<PlaceAction>().map((a) => a.trayPieceId).toSet(),
+                  showAvailableDots: !uiState.isBombarding,
                   onSquareTap: (x, y) => _handleSquareTap(ref, x, y, uiState, virtualPieces, currentPlayer.player.faction, pendingActions, availableSquares),
                   onPieceTap: (piece) => _handlePieceTap(ref, piece, uiState, virtualPieces, currentPlayer.player.faction, pendingActions, availableSquares),
                   overlays: [
@@ -245,7 +246,7 @@ class GamePlanningBoard extends ConsumerWidget {
     } else if (uiState.isBombarding && uiState.selectedPieceId != null) {
       final selectedPiece = pieces.firstWhereOrNull((p) => p.id == uiState.selectedPieceId);
       if (selectedPiece == null) return {};
-      return _calculateAvailableBombardSquares(selectedPiece, pieces, faction);
+      return _calculateAvailableBombardSquares(selectedPiece, pieces, faction, visibleSquares);
     } else if (uiState.isRetethering && uiState.selectedPieceId != null) {
       final piece = pieces.firstWhereOrNull((p) => p.id == uiState.selectedPieceId);
       if (piece == null) return {};
@@ -278,12 +279,14 @@ class GamePlanningBoard extends ConsumerWidget {
     return {};
   }
 
-  Set<math.Point<int>> _calculateAvailableBombardSquares(Piece piece, List<Piece> pieces, Faction faction) {
+  Set<math.Point<int>> _calculateAvailableBombardSquares(Piece piece, List<Piece> pieces, Faction faction, Set<math.Point<int>> visibleSquares) {
     final available = <math.Point<int>>{};
     const range = GameConstants.bombardRange;
     for (var other in pieces) {
       if (other.faction == faction) continue;
       if (other.x == null || other.y == null) continue;
+      if (!other.isVisible) continue;
+      if (!visibleSquares.contains(math.Point(other.x!, other.y!))) continue;
       int dist = _getTorusDist(piece.x!, piece.y!, other.x!, other.y!);
       if (dist <= range) {
         available.add(math.Point(other.x!, other.y!));
