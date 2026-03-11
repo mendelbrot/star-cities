@@ -76,6 +76,8 @@ Records the resolved outcomes that occurred during the transition between turns.
     - `game_id` UUID
     - `turn_number` Integer
     - `events` (JSONB)
+    - snapshots JSONB NOT NULL DEFAULT '{}', -- Step index -> List of Piece objects
+    - player_ranking NOT NULL DEFAULT '[]'  -- sorted list of { player_id, faction, star_count }
     - `created_at` TIMESTAMPTZ
 - **Constraints**:
     - `UNIQUE(game_id, turn_number)`: Only one set of events per turn.

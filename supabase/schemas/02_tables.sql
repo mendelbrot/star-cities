@@ -84,6 +84,7 @@ CREATE TABLE turn_events (
     turn_number INTEGER NOT NULL,
     events JSONB NOT NULL DEFAULT '[]', -- List of Event objects
     snapshots JSONB NOT NULL DEFAULT '{}', -- Step index -> List of Piece objects
+    player_ranking JSONB NOT NULL DEFAULT '[]',  -- sorted list of { player_id, faction, star_count }
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE(game_id, turn_number)
 );
