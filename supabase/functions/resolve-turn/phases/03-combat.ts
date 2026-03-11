@@ -72,14 +72,21 @@ export function resolveCombat(
     context.addEvent(event);
 
     const target = pieceMap.get(event.target.piece_id);
-    if (target && event.is_destroyed) {
-      context.addEvent({
-        type: "SHIP_DESTROYED_IN_BOMBARDMENT",
-        piece_id: target.id,
-        piece_type: target.type,
-        faction: target.faction,
-      });
-      context.removePiece(target.id);
+    if (target) {
+      if (event.is_destroyed) {
+        context.addEvent({
+          type: "SHIP_DESTROYED_IN_BOMBARDMENT",
+          piece_id: target.id,
+          piece_type: target.type,
+          faction: target.faction,
+        });
+        context.removePiece(target.id);
+      } else {
+        // Mark for surviving pieces to prevent movement
+        const ctx = pieceContexts.get(target.id) || {};
+        ctx.wasJustBombarded = true;
+        pieceContexts.set(target.id, ctx);
+      }
     }
   }
   context.captureSnapshot();
@@ -101,7 +108,7 @@ export function resolveCombat(
         if (context.isStarAt(action.to)) continue;
         
         const ctx = pieceContexts.get(piece.id);
-        if (ctx?.wasJustPlaced) continue;
+        if (ctx?.wasJustPlaced || ctx?.wasJustBombarded) continue;
         if (piece.type === "STAR_CITY" && (piece.is_anchored || ctx?.wasJustDeanchored)) continue;
 
         const occupantId = coordinateMap.get(`${action.to.x},${action.to.y}`);
@@ -183,13 +190,22 @@ export function resolveCombat(
     }
   }
 
+  // Combine moves and placements for battle detection
+  const allContestedKeys = new Set([...unappliedMovesByCoord.keys(), ...context.pendingPlacements.keys()]);
+
   const battleCoords = new Set<string>();
-  for (const [coordKey, moves] of unappliedMovesByCoord) {
+  for (const coordKey of allContestedKeys) {
     const occupantId = coordinateMap.get(coordKey);
     const occupant = occupantId ? pieceMap.get(occupantId) : null;
     
     const factions = new Set<Faction>();
+    
+    const moves = unappliedMovesByCoord.get(coordKey) || [];
     moves.forEach((m: ValidatedMove) => factions.add(m.faction));
+    
+    const placements = context.pendingPlacements.get(coordKey) || [];
+    placements.forEach((id: string) => factions.add(pieceMap.get(id)!.faction));
+
     if (occupant) factions.add(occupant.faction);
 
     if (factions.size > 1) {
@@ -202,23 +218,35 @@ export function resolveCombat(
   const battleEvents: BattleCollisionEvent[] = [];
   for (const coordKey of battleCoords) {
     const [x, y] = coordKey.split(',').map(Number);
-    const enteringCandidates = unappliedMovesByCoord.get(coordKey) || [];
+    const moves = unappliedMovesByCoord.get(coordKey) || [];
+    const placements = context.pendingPlacements.get(coordKey) || [];
     const occupantId = coordinateMap.get(coordKey);
     const occupant = occupantId ? pieceMap.get(occupantId) : null;
 
-    const entering = occupant 
-      ? enteringCandidates.filter((m: ValidatedMove) => m.faction !== occupant.faction)
-      : enteringCandidates;
+    // Movers and Placers are ALL entering participants
+    const enteringMoves = occupant 
+      ? moves.filter((m: ValidatedMove) => m.faction !== occupant.faction)
+      : moves;
+    
+    const enteringPlacements = occupant
+      ? placements.filter((id: string) => pieceMap.get(id)!.faction !== occupant.faction)
+      : placements;
 
-    if (entering.length === 0) continue;
+    if (enteringMoves.length === 0 && enteringPlacements.length === 0) continue;
 
     const battle: BattleCollisionEvent = {
       type: "BATTLE_COLLISION",
       coord: { x, y },
-      entering_participants: entering.map((m: ValidatedMove) => {
-        const p = pieceMap.get(m.piece_id)!;
-        return { piece_id: p.id, piece_type: p.type, faction: p.faction };
-      }),
+      entering_participants: [
+        ...enteringMoves.map((m: ValidatedMove) => {
+          const p = pieceMap.get(m.piece_id)!;
+          return { piece_id: p.id, piece_type: p.type, faction: p.faction };
+        }),
+        ...enteringPlacements.map((id: string) => {
+          const p = pieceMap.get(id)!;
+          return { piece_id: p.id, piece_type: p.type, faction: p.faction };
+        })
+      ],
       defending_participant: occupant ? { piece_id: occupant.id, piece_type: occupant.type, faction: occupant.faction } : null,
       supporting_participants: [],
       supporting_bombardments: bombardmentsByCoord.get(coordKey) || [],
@@ -230,20 +258,22 @@ export function resolveCombat(
     const adj = getAdjacentCoordinates({ x, y }, size);
     for (const a of adj) {
       const sId = coordinateMap.get(`${a.x},${a.y}`);
-      if (sId && sId !== occupantId) {
+      if (sId && sId !== occupantId && !battle.entering_participants.some((ship) => ship.piece_id === sId)) {
         const p = pieceMap.get(sId)!;
         battle.supporting_participants.push({ piece_id: p.id, piece_type: p.type, faction: p.faction });
       }
     }
 
     const factions = new Set<Faction>();
-    entering.forEach((m: ValidatedMove) => factions.add(m.faction));
+    enteringMoves.forEach((m: ValidatedMove) => factions.add(m.faction));
+    enteringPlacements.forEach((id: string) => factions.add(pieceMap.get(id)!.faction));
     if (occupant) factions.add(occupant.faction);
 
     const weights = new Map<Faction, number>();
     for (const f of factions) {
       let w = 0;
-      entering.filter((m: ValidatedMove) => m.faction === f).forEach((m: ValidatedMove) => w += UNIT_STRENGTH[pieceMap.get(m.piece_id)!.type]);
+      enteringMoves.filter((m: ValidatedMove) => m.faction === f).forEach((m: ValidatedMove) => w += UNIT_STRENGTH[pieceMap.get(m.piece_id)!.type]);
+      enteringPlacements.filter((id: string) => pieceMap.get(id)!.faction === f).forEach((id: string) => w += UNIT_STRENGTH[pieceMap.get(id)!.type]);
       if (occupant && occupant.faction === f) w += UNIT_STRENGTH[occupant.type];
       battle.supporting_participants.filter((p: { faction: Faction; piece_type: PieceType }) => p.faction === f).forEach((p: { piece_type: PieceType }) => w += SUPPORT_STRENGTH_FACTOR * UNIT_STRENGTH[p.piece_type]);
       battle.supporting_bombardments.filter((p: { faction: Faction }) => p.faction === f).forEach((_p: { piece_id: string }) => w += BOMBARD_SUPPORT_STRENGTH);
@@ -280,9 +310,13 @@ export function resolveCombat(
   }
   context.captureSnapshot();
 
-  // 3f. Apply Victor Moves and Capture Cities
+  // 3f. Apply Victor Moves and Placements and Capture Cities
   context.currentStep = 5;
   for (const b of battleEvents) {
+    const coord = { x: b.coord.x, y: b.coord.y };
+    const coordKey = `${coord.x},${coord.y}`;
+
+    // Apply winning move if any
     const winningMove = finalValidatedMoves.find((m: ValidatedMove) => 
       !m.applied && 
       m.faction === b.winning_faction && 
@@ -301,12 +335,26 @@ export function resolveCombat(
       winningMove.applied = true;
     }
 
+    // Apply winning placement if any
+    const winningPlacementId = (context.pendingPlacements.get(coordKey) || []).find(id => pieceMap.get(id)?.faction === b.winning_faction);
+    if (winningPlacementId) {
+      const p = pieceMap.get(winningPlacementId);
+      if (p) {
+        // Place on board (finally!)
+        context.updatePiecePosition(p.id, coord);
+      }
+      context.pendingPlacements.delete(coordKey);
+    }
+
     const loserMoves = finalValidatedMoves.filter((m: ValidatedMove) => 
       !m.applied && 
       m.to.x === b.coord.x && 
       m.to.y === b.coord.y
     );
     for (const m of loserMoves) m.applied = true;
+
+    // Clear losing placements
+    context.pendingPlacements.delete(coordKey);
   }
 
   for (const b of battleEvents) {
@@ -329,7 +377,17 @@ export function resolveCombat(
     }
   }
 
-  // 3g. Final Movement Application
+  // 3g. Final Movement and Placement Application
   applyNonConflictingMoves(finalValidatedMoves);
+
+  // Apply remaining non-conflicting placements
+  for (const [coordKey, pieceIds] of context.pendingPlacements) {
+    const [x, y] = coordKey.split(',').map(Number);
+    for (const id of pieceIds) {
+      context.updatePiecePosition(id, { x, y });
+    }
+  }
+  context.pendingPlacements.clear();
+
   context.captureSnapshot();
 }

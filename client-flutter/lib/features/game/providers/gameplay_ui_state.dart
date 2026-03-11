@@ -113,6 +113,6 @@ class GameplayUiNotifier extends StateNotifier<GameplayUiState> {
   }
 }
 
-final gameplayUiProvider = StateNotifierProvider<GameplayUiNotifier, GameplayUiState>((ref) {
+final gameplayUiProvider = StateNotifierProvider.autoDispose.family<GameplayUiNotifier, GameplayUiState, String>((ref, gameId) {
   return GameplayUiNotifier();
 });

@@ -14,18 +14,19 @@ class EventCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Card(
       margin: const EdgeInsets.all(16),
       elevation: 8,
       child: Container(
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.white, width: 2), // Outer border
+          border: Border.all(color: theme.colorScheme.primary, width: 2), // Outer border
           borderRadius: BorderRadius.circular(8),
         ),
         padding: const EdgeInsets.all(4), // Gap for double border
         child: Container(
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.white, width: 1), // Inner border
+            border: Border.all(color: theme.colorScheme.primary, width: 1), // Inner border
             borderRadius: BorderRadius.circular(4),
           ),
           padding: const EdgeInsets.all(16),
@@ -37,7 +38,7 @@ class EventCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   DefaultTextStyle(
-                    style: Theme.of(context).textTheme.displaySmall ?? const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                    style: theme.textTheme.displaySmall ?? const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                     child: title,
                   ),
                   IconButton(
@@ -48,7 +49,7 @@ class EventCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const Divider(color: Colors.white, height: 24),
+              Divider(color: theme.colorScheme.primary, height: 24),
               content,
             ],
           ),

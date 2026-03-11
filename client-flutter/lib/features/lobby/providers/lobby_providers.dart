@@ -1,40 +1,69 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:star_cities/features/lobby/models/game.dart';
+import 'package:star_cities/shared/models/player.dart';
 import 'package:star_cities/shared/providers/auth_providers.dart';
+import 'package:star_cities/shared/providers/robust_stream_provider.dart';
 
-/// Base stream for the games table.
-final gamesStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
-  final supabase = ref.watch(supabaseClientProvider);
-  return supabase.from('games').stream(primaryKey: ['id']);
+/// Robust notifier for all games (lobby).
+class AllGamesNotifier extends RobustSupabaseNotifier<Game, String> {
+  @override
+  String get tableName => 'games';
+
+  @override
+  ModelFactory<Game> get factory => Game.fromMap;
+
+  @override
+  String getId(Game item) => item.id;
+}
+
+final robustAllGamesProvider = AsyncNotifierProvider.family<AllGamesNotifier, List<Game>, String>(() {
+  return AllGamesNotifier();
 });
 
-/// Base stream for the players table.
-final playersStreamProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
-  final supabase = ref.watch(supabaseClientProvider);
-  return supabase.from('players').stream(primaryKey: ['id']);
+/// Robust notifier for all players (lobby).
+class AllPlayersNotifier extends RobustSupabaseNotifier<Player, String> {
+  @override
+  String get tableName => 'players';
+
+  @override
+  ModelFactory<Player> get factory => Player.fromMap;
+
+  @override
+  String getId(Player item) => item.id;
+}
+
+final robustAllPlayersProvider = AsyncNotifierProvider.family<AllPlayersNotifier, List<Player>, String>(() {
+  return AllPlayersNotifier();
 });
 
 /// Combined provider that performs a client-side join of games and players.
 /// This replaces the v_user_game_status view stream which doesn't support realtime updates correctly.
 final userGameStatusProvider = Provider<AsyncValue<List<Map<String, dynamic>>>>((ref) {
-  final gamesAsync = ref.watch(gamesStreamProvider);
-  final playersAsync = ref.watch(playersStreamProvider);
+  // Use empty string as arg for 'all'
+  final gamesAsync = ref.watch(robustAllGamesProvider(''));
+  final playersAsync = ref.watch(robustAllPlayersProvider(''));
 
   return gamesAsync.when(
     data: (games) => playersAsync.when(
       data: (players) {
         final result = <Map<String, dynamic>>[];
         for (var game in games) {
-          final gamePlayers = players.where((p) => p['game_id'] == game['id']).toList();
+          final gamePlayers = players.where((p) => p.gameId == game.id).toList();
           if (gamePlayers.isEmpty) {
             result.add({
-              'game_id': game['id'],
-              'game_status': game['status'],
-              'turn_number': game['turn_number'],
-              'player_count': game['player_count'],
-              'game_parameters': game['game_parameters'],
-              'stars': game['stars'],
-              'created_at': game['created_at'],
+              'game_id': game.id,
+              'game_status': game.status.value.toUpperCase(),
+              'turn_number': game.turnNumber,
+              'player_count': game.playerCount,
+              'game_parameters': {
+                'grid_size': game.gameParameters.gridSize,
+                'star_count': game.gameParameters.starCount,
+                'star_count_to_win': game.gameParameters.starCountToWin,
+                'max_ships_per_city': game.gameParameters.maxShipsPerCity,
+                'starting_ships': game.gameParameters.startingShips,
+              },
+              'stars': game.stars,
+              'created_at': game.createdAt.toIso8601String(),
               'user_id': null,
               'is_ready': null,
               'faction': null,
@@ -42,16 +71,22 @@ final userGameStatusProvider = Provider<AsyncValue<List<Map<String, dynamic>>>>(
           } else {
             for (var player in gamePlayers) {
               result.add({
-                'game_id': game['id'],
-                'game_status': game['status'],
-                'turn_number': game['turn_number'],
-                'player_count': game['player_count'],
-                'game_parameters': game['game_parameters'],
-                'stars': game['stars'],
-                'created_at': game['created_at'],
-                'user_id': player['user_id'],
-                'is_ready': player['is_ready'],
-                'faction': player['faction'],
+                'game_id': game.id,
+                'game_status': game.status.value.toUpperCase(),
+                'turn_number': game.turnNumber,
+                'player_count': game.playerCount,
+                'game_parameters': {
+                  'grid_size': game.gameParameters.gridSize,
+                  'star_count': game.gameParameters.starCount,
+                  'star_count_to_win': game.gameParameters.starCountToWin,
+                  'max_ships_per_city': game.gameParameters.maxShipsPerCity,
+                  'starting_ships': game.gameParameters.startingShips,
+                },
+                'stars': game.stars,
+                'created_at': game.createdAt.toIso8601String(),
+                'user_id': player.userId,
+                'is_ready': player.isReady,
+                'faction': player.faction.name.toUpperCase(),
               });
             }
           }
@@ -162,4 +197,3 @@ final openGamesProvider = Provider<AsyncValue<List<Game>>>((ref) {
         .toList();
   });
 });
-

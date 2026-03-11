@@ -7,8 +7,8 @@ import 'package:star_cities/features/game/providers/gameplay_ui_state.dart';
 import 'package:star_cities/features/game/providers/game_providers.dart';
 import 'package:star_cities/features/lobby/models/game.dart' as models;
 import 'package:star_cities/shared/providers/auth_providers.dart';
-import 'package:star_cities/features/game/icon_widgets/target_icon.dart';
-import 'package:star_cities/features/game/icon_widgets/battle_icon.dart';
+import 'package:star_cities/features/game/icon_widgets/bombard_event_icon.dart';
+import 'package:star_cities/features/game/icon_widgets/battle_event_icon.dart';
 import 'package:star_cities/features/game/widgets/game_board_base.dart';
 import 'package:star_cities/features/game/widgets/event_widgets/bombard_event_widget.dart';
 import 'package:star_cities/features/game/widgets/event_widgets/battle_collision_event_widget.dart';
@@ -37,7 +37,7 @@ class GameReplayBoard extends ConsumerWidget {
     final theme = Theme.of(context);
     final playersAsync = ref.watch(gamePlayersWithProfilesProvider(game.id));
     final currentUser = ref.watch(currentUserProvider);
-    final uiState = ref.watch(gameplayUiProvider);
+    final uiState = ref.watch(gameplayUiProvider(game.id));
 
     return playersAsync.when(
       data: (players) {
@@ -66,7 +66,7 @@ class GameReplayBoard extends ConsumerWidget {
                     width: size,
                     height: size,
                     decoration: BoxDecoration(
-                      color: Colors.black,
+                      color: theme.colorScheme.surface,
                       border: Border.all(color: theme.dividerColor),
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -91,6 +91,7 @@ class GameReplayBoard extends ConsumerWidget {
                                 centerY: centerY,
                                 cellSize: cellSize,
                                 visibleSquares: visibleSquares,
+                                color: theme.colorScheme.primary,
                               ),
                             ),
                           ),
@@ -98,15 +99,14 @@ class GameReplayBoard extends ConsumerWidget {
                            ...currentEvents.whereType<BombardEvent>().map((e) {
                              final pos = GameBoardBase.getRelativePosition(e.coord.x, e.coord.y, centerX, centerY);
                              return Positioned(
-                               left: pos.x * cellSize + cellSize * 0.1,
-                               top: pos.y * cellSize + cellSize * 0.1,
-                               width: cellSize * 0.8,
-                               height: cellSize * 0.8,
+                               left: pos.x * cellSize + cellSize * 0.025,
+                               top: pos.y * cellSize + cellSize * 0.025,
+                               width: cellSize * 0.95,
+                               height: cellSize * 0.95,
                                child: IgnorePointer(
                                  child: Center(
-                                   child: TargetIcon(
-                                     size: cellSize * 0.6,
-                                     color: Colors.white.withValues(alpha: 0.8),
+                                   child: BombardEventIcon(
+                                     size: cellSize * 0.9,
                                    ),
                                  ),
                                ),
@@ -116,13 +116,13 @@ class GameReplayBoard extends ConsumerWidget {
                            ...currentEvents.whereType<BattleCollisionEvent>().map((e) {
                              final pos = GameBoardBase.getRelativePosition(e.coord.x, e.coord.y, centerX, centerY);
                              return Positioned(
-                               left: pos.x * cellSize + cellSize * 0.1,
-                               top: pos.y * cellSize + cellSize * 0.1,
-                               width: cellSize * 0.8,
-                               height: cellSize * 0.8,
+                               left: pos.x * cellSize + cellSize * 0.025,
+                               top: pos.y * cellSize + cellSize * 0.025,
+                               width: cellSize * 0.95,
+                               height: cellSize * 0.95,
                                child: IgnorePointer(
                                  child: Center(
-                                   child: BattleIcon(size: cellSize * 0.7),
+                                   child: BattleEventIcon(size: cellSize * 0.9),
                                  ),
                                ),
                              );
@@ -135,7 +135,7 @@ class GameReplayBoard extends ConsumerWidget {
                   Positioned.fill(
                     child: Center(
                       child: _buildEventOverlay(uiState.selectedEvent!, () {
-                        ref.read(gameplayUiProvider.notifier).selectEvent(null);
+                        ref.read(gameplayUiProvider(game.id).notifier).selectEvent(null);
                       }),
                     ),
                   ),
@@ -170,7 +170,7 @@ class GameReplayBoard extends ConsumerWidget {
     }).firstOrNull;
 
     if (eventAtSquare != null) {
-      ref.read(gameplayUiProvider.notifier).selectEvent(eventAtSquare);
+      ref.read(gameplayUiProvider(game.id).notifier).selectEvent(eventAtSquare);
     }
   }
 
@@ -200,6 +200,7 @@ class ReplayArrowPainter extends CustomPainter {
   final int centerY;
   final double cellSize;
   final Set<math.Point<int>> visibleSquares;
+  final Color color;
 
   ReplayArrowPainter({
     required this.events,
@@ -207,6 +208,7 @@ class ReplayArrowPainter extends CustomPainter {
     required this.centerY,
     required this.cellSize,
     required this.visibleSquares,
+    required this.color,
   });
 
   @override
@@ -218,7 +220,7 @@ class ReplayArrowPainter extends CustomPainter {
         if (!isFromVisible && !isToVisible) continue;
 
         final paint = Paint()
-          ..color = Colors.white.withValues(alpha: 0.8)
+          ..color = color.withValues(alpha: 0.8)
           ..strokeWidth = 2.0
           ..style = PaintingStyle.stroke;
 

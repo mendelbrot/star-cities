@@ -1,10 +1,11 @@
 import { Coordinate, GameEvent, GameParameters, Piece, Player } from "../_shared/types.ts";
-import { isSameCoordinate } from "../_shared/map.ts";
+import { getAdjacentCoordinates, isSameCoordinate } from "../_shared/map.ts";
 
 export interface PieceTurnContext {
   wasJustPlaced?: boolean;
   wasJustDeanchored?: boolean;
   wasJustAnchored?: boolean;
+  wasJustBombarded?: boolean;
 }
 
 export class TurnContext {
@@ -20,6 +21,7 @@ export class TurnContext {
   factionTrayMap = new Map<string, string[]>(); // faction -> list of piece_ids
   tetherMap = new Map<string, string[]>(); // city_id -> list of ship_ids
   pieceContexts = new Map<string, PieceTurnContext>(); // piece_id -> PieceTurnContext
+  pendingPlacements = new Map<string, string[]>(); // coordKey -> list of piece_ids
   events: GameEvent[] = [];
   snapshots: Record<number, Piece[]> = {}; // replay_step -> list of Piece objects
   currentStep: number = 0;
@@ -62,6 +64,32 @@ export class TurnContext {
         }
       }
     });
+  }
+
+  getFactionStarCounts(): Map<string, number> {
+    const counts = new Map<string, number>();
+    const size = this.params.grid_size;
+
+    for (const p of this.players) {
+      if (p.is_eliminated) {
+        counts.set(p.faction, 0);
+        continue;
+      }
+      const f = p.faction;
+      const anchoredStars = new Set<string>();
+      (this.factionPlacedPiecesMap.get(f) || [])
+        .map((id: string) => this.pieceMap.get(id)!)
+        .filter((p: Piece) => p.type === "STAR_CITY" && p.is_anchored)
+        .forEach((city: Piece) => {
+          getAdjacentCoordinates(city as Coordinate, size).forEach((a: Coordinate) => {
+            if (this.isStarAt(a)) {
+              anchoredStars.add(`${a.x},${a.y}`);
+            }
+          });
+        });
+      counts.set(f, anchoredStars.size);
+    }
+    return counts;
   }
 
   addEvent(event: GameEvent) {

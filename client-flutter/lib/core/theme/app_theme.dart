@@ -8,27 +8,27 @@ class AppTheme {
     return ThemeData(
       brightness: Brightness.dark,
       scaffoldBackgroundColor: Colors.black,
-      primaryColor: Colors.white,
+      primaryColor: const Color(0xFFF5F5F5),
       disabledColor: const Color(0xFF666666),
       fontFamily: GoogleFonts.jetBrainsMono().fontFamily,
 
       colorScheme: const ColorScheme.dark(
-        primary: Colors.white,
+        primary: Color(0xFFF5F5F5),
         onPrimary: Colors.black,
         secondary: lightPurple,
         onSecondary: Colors.black,
         surface: Colors.black,
-        onSurface: Colors.white,
-        error: Colors.red,
+        onSurface: Color(0xFFF5F5F5),
+        error: Color(0xFFF2B8B5),
       ),
       
       // Text Theme
       textTheme: GoogleFonts.jetBrainsMonoTextTheme(
         const TextTheme(
-          displayLarge: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          displayMedium: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          bodyLarge: TextStyle(color: Colors.white),
-          bodyMedium: TextStyle(color: Colors.white),
+          displayLarge: TextStyle(color: Color(0xFFF5F5F5), fontWeight: FontWeight.bold),
+          displayMedium: TextStyle(color: Color(0xFFF5F5F5), fontWeight: FontWeight.bold),
+          bodyLarge: TextStyle(color: Color(0xFFF5F5F5)),
+          bodyMedium: TextStyle(color: Color(0xFFF5F5F5)),
           bodySmall: TextStyle(color: Color(0xFF666666)),
         ),
       ),
@@ -39,15 +39,15 @@ class AppTheme {
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
-          side: const BorderSide(color: Colors.white, width: 1),
+          side: const BorderSide(color: Color(0xFFF5F5F5), width: 1),
         ),
       ),
 
       // Button Theme (Rounded Corners, White Outlines)
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: Colors.white,
-          side: const BorderSide(color: Colors.white, width: 2),
+          foregroundColor: const Color(0xFFF5F5F5),
+          side: const BorderSide(color: Color(0xFFF5F5F5), width: 2),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
@@ -58,7 +58,7 @@ class AppTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           foregroundColor: Colors.black,
-          backgroundColor: Colors.white,
+          backgroundColor: const Color(0xFFF5F5F5),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
@@ -72,24 +72,24 @@ class AppTheme {
         fillColor: Colors.black,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Colors.white, width: 2),
+          borderSide: const BorderSide(color: Color(0xFFF5F5F5), width: 2),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: Colors.white, width: 3),
+          borderSide: const BorderSide(color: Color(0xFFF5F5F5), width: 3),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: Colors.red, width: 2),
         ),
-        labelStyle: const TextStyle(color: Colors.white),
+        labelStyle: const TextStyle(color: Color(0xFFF5F5F5)),
         hintStyle: const TextStyle(color: Color(0xFF666666)),
       ),
 
       // TabBar Theme
       tabBarTheme: const TabBarThemeData(
-        indicatorColor: Colors.white,
-        labelColor: Colors.white,
+        indicatorColor: Color(0xFFF5F5F5),
+        labelColor: Color(0xFFF5F5F5),
         unselectedLabelColor: Color(0xFF666666),
         indicatorSize: TabBarIndicatorSize.tab,
       ),

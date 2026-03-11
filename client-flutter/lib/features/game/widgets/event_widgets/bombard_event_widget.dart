@@ -57,10 +57,9 @@ class BombardEventWidget extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  border: Border.all(color: Colors.white),
+                  border: Border.all(color: Theme.of(context).colorScheme.primary),
                   borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
+                ),                child: Text(
                   event.isDestroyed ? 'DESTROYED' : 'SURVIVED',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),

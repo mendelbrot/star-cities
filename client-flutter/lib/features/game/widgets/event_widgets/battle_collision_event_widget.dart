@@ -71,7 +71,7 @@ class BattleCollisionEventWidget extends StatelessWidget {
             const SizedBox(height: 12),
           ],
 
-          const Divider(color: Colors.white24),
+          Divider(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.24)),
           const Text('Final Strengths:', style: TextStyle(fontWeight: FontWeight.bold)),
           ...event.calculatedStrengths.map((s) => Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -86,7 +86,7 @@ class BattleCollisionEventWidget extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.white, width: 2),
+                border: Border.all(color: Theme.of(context).colorScheme.primary, width: 2),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Column(

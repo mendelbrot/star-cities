@@ -3,23 +3,25 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:star_cities/features/game/providers/gameplay_ui_state.dart';
 
 class ReplayPanel extends ConsumerWidget {
-  const ReplayPanel({super.key});
+  final String gameId;
+  const ReplayPanel({super.key, required this.gameId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final uiState = ref.watch(gameplayUiProvider);
+    final uiState = ref.watch(gameplayUiProvider(gameId));
+    final theme = Theme.of(context);
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
+          Text(
             'REPLAY STEPS',
             style: TextStyle(
               fontSize: 10,
               letterSpacing: 2,
-              color: Color(0xFF666666),
+              color: theme.disabledColor,
             ),
           ),
           const SizedBox(height: 12),
@@ -32,20 +34,21 @@ class ReplayPanel extends ConsumerWidget {
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: GestureDetector(
-                  onTap: () => ref.read(gameplayUiProvider.notifier).setReplayStep(step),
+                  onTap: () =>
+                      ref.read(gameplayUiProvider(gameId).notifier).setReplayStep(step),
                   child: Container(
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: isSelected ? Colors.white : Colors.black,
-                      border: Border.all(color: Colors.white, width: 2),
+                      color: isSelected ? theme.colorScheme.primary : theme.colorScheme.surface,
+                      border: Border.all(color: theme.colorScheme.primary, width: 2),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Center(
                       child: Text(
                         '$step',
                         style: TextStyle(
-                          color: isSelected ? Colors.black : Colors.white,
+                          color: isSelected ? theme.colorScheme.onPrimary : theme.colorScheme.primary,
                           fontWeight: FontWeight.bold,
                           fontSize: 18,
                         ),
@@ -57,13 +60,14 @@ class ReplayPanel extends ConsumerWidget {
             }),
           ),
           const SizedBox(height: 12),
-          _getStepLabel(uiState.currentReplayStep),
+          _getStepLabel(context, uiState.currentReplayStep),
         ],
       ),
     );
   }
 
-  Widget _getStepLabel(int step) {
+  Widget _getStepLabel(BuildContext context, int step) {
+    final theme = Theme.of(context);
     final labels = [
       'Structural (Place/Tether/Anchor)',
       'Bombardment',
@@ -76,7 +80,7 @@ class ReplayPanel extends ConsumerWidget {
 
     return Text(
       labels[step - 1].toUpperCase(),
-      style: const TextStyle(
+      style: theme.textTheme.bodyMedium?.copyWith(
         fontSize: 12,
         fontWeight: FontWeight.bold,
         letterSpacing: 1,

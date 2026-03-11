@@ -38,7 +38,11 @@ class CityCapturedEventWidget extends StatelessWidget {
                   ),
                 ],
               ),
-              const Icon(Icons.arrow_forward, color: Colors.white, size: 32),
+              Icon(
+                Icons.arrow_forward,
+                color: Theme.of(context).colorScheme.primary,
+                size: 32,
+              ),
               Column(
                 children: [
                   const Text('TO', style: TextStyle(fontSize: 10)),

@@ -89,7 +89,7 @@ class GamePlay extends ConsumerWidget {
                   ),
                 ),
 
-                // Tab 2: Replay
+                // Tab 2: Events
                 Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 1000),
@@ -107,9 +107,9 @@ class GamePlay extends ConsumerWidget {
                             ),
                           ),
                         ),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 16.0),
-                          child: ReplayPanel(),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: ReplayPanel(gameId: game.id),
                         ),
                       ],
                     ),

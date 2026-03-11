@@ -41,14 +41,14 @@ class GameController {
 
     // Clear local state
     _ref.read(pendingActionsProvider(gameId).notifier).reset();
-    _ref.read(gameplayUiProvider.notifier).selectPiece(null);
-    _ref.read(gameplayUiProvider.notifier).resetPlacement();
+    _ref.read(gameplayUiProvider(gameId).notifier).selectPiece(null);
+    _ref.read(gameplayUiProvider(gameId).notifier).resetPlacement();
   }
 
   Future<void> resetActions(String gameId) async {
     _ref.read(pendingActionsProvider(gameId).notifier).reset();
-    _ref.read(gameplayUiProvider.notifier).selectPiece(null);
-    _ref.read(gameplayUiProvider.notifier).resetPlacement();
+    _ref.read(gameplayUiProvider(gameId).notifier).selectPiece(null);
+    _ref.read(gameplayUiProvider(gameId).notifier).resetPlacement();
   }
 
 

@@ -22,7 +22,7 @@ class _LobbyState extends ConsumerState<Lobby> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Star Cities Lobby', style: TextStyle(letterSpacing: 1.2, fontWeight: FontWeight.bold)),
+        title: const Text('Star Cities', style: TextStyle(letterSpacing: 1.2, fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
             icon: const Icon(LucideIcons.user),
@@ -39,7 +39,7 @@ class _LobbyState extends ConsumerState<Lobby> {
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1000),
+            constraints: const BoxConstraints(maxWidth: 800),
             child: RefreshIndicator(
               onRefresh: () async {
                 ref.invalidate(userGameStatusProvider);
@@ -79,11 +79,11 @@ class _LobbyState extends ConsumerState<Lobby> {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        foregroundColor: Theme.of(context).primaryColor,
+        backgroundColor: Theme.of(context).colorScheme.onSecondary,
+        foregroundColor: Theme.of(context).colorScheme.secondary,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
-          side: BorderSide(color: Theme.of(context).primaryColor, width: 2),
+          side: BorderSide(color: Theme.of(context).colorScheme.secondary, width: 2),
         ),
         onPressed: () => context.push('/game-setup'),
         label: const Text('Create New Game'),
@@ -129,7 +129,7 @@ class _LobbyState extends ConsumerState<Lobby> {
           fontSize: 10,
           fontWeight: FontWeight.bold,
           letterSpacing: 1.5,
-          color: Theme.of(context).disabledColor,
+          color: Theme.of(context).colorScheme.secondary,
         ),
       ),
     );
