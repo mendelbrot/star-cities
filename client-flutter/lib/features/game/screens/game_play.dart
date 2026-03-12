@@ -5,6 +5,7 @@ import 'package:star_cities/features/lobby/models/game.dart';
 import 'package:star_cities/features/game/widgets/game_board.dart';
 import 'package:star_cities/shared/widgets/section_title.dart';
 import 'package:star_cities/features/game/providers/gameplay_providers.dart';
+import 'package:star_cities/features/game/providers/game_providers.dart';
 import 'package:star_cities/features/game/providers/vision_provider.dart';
 import 'package:star_cities/shared/widgets/grid_loading_indicator.dart';
 import 'package:star_cities/features/game/models/game_models.dart';
@@ -13,6 +14,8 @@ import 'package:star_cities/shared/widgets/responsive_game_header.dart';
 
 import 'package:star_cities/features/game/widgets/planning_panel.dart';
 import 'package:star_cities/features/game/widgets/replay_panel.dart';
+import 'package:star_cities/features/game/widgets/game_over.dart';
+import 'package:collection/collection.dart';
 
 class GamePlay extends ConsumerWidget {
   final Game game;
@@ -23,6 +26,7 @@ class GamePlay extends ConsumerWidget {
     final turnStatesAsync = ref.watch(gameplayTurnStateProvider(game.id));
     final visionAsync = ref.watch(visionProvider(game.id));
     final eventsAsync = ref.watch(gameplayTurnEventsProvider(game.id));
+    final playersWithProfilesAsync = ref.watch(gamePlayersWithProfilesProvider(game.id));
 
     return turnStatesAsync.when(
       data: (turnStates) => visionAsync.when(
@@ -116,9 +120,17 @@ class GamePlay extends ConsumerWidget {
                   ),
                 ),
 
-                // Tab 3: Planning
+                // Tab 3: Planning / Game Over
                 LayoutBuilder(
                   builder: (context, constraints) {
+                    if (game.status == GameStatus.finished) {
+                      final winner = playersWithProfilesAsync.maybeWhen(
+                        data: (players) => players.firstWhereOrNull((p) => p.player.isWinner),
+                        orElse: () => null,
+                      );
+                      return GameOver(winner: winner);
+                    }
+
                     final bool isWide = constraints.maxWidth > 800;
 
                     final boardWidget = GameBoard(
