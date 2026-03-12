@@ -34,7 +34,7 @@ export function resolveCombat(
         if (!attacker || attacker.type !== "ECLIPSE" || attacker.faction !== player.faction || attacker.is_in_tray) continue;
 
         const target = pieceMap.get(action.target_id);
-        if (!target || target.faction === player.faction || target.is_in_tray) continue;
+        if (!target || target.faction === player.faction || target.is_in_tray || !target.is_visible) continue;
 
         const dist = getTorusDistance(attacker as Coordinate, target as Coordinate, size);
         if (dist > BOMBARD_RANGE) continue;
