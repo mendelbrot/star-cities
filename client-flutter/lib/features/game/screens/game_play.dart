@@ -12,6 +12,7 @@ import 'package:star_cities/features/game/models/game_models.dart';
 import 'package:star_cities/features/game/models/game_events.dart';
 import 'package:star_cities/shared/widgets/responsive_game_header.dart';
 
+import 'package:star_cities/features/game/providers/gameplay_ui_state.dart';
 import 'package:star_cities/features/game/widgets/planning_panel.dart';
 // import 'package:star_cities/features/game/widgets/replay_panel.dart';
 import 'package:star_cities/features/game/widgets/game_over.dart';
@@ -223,65 +224,128 @@ class GamePlay extends ConsumerWidget {
                                     : ref.watch(selectedEventTurnProvider(game.id));
                                 
                                 final historicalEventsAsync = ref.watch(historicalTurnEventsProvider((gameId: game.id, turnNumber: selectedTurn)));
+                                final historicalStateAsync = ref.watch(historicalTurnStateProvider((gameId: game.id, turnNumber: selectedTurn)));
+                                final historicalVisionAsync = ref.watch(historicalVisionProvider((gameId: game.id, turnNumber: selectedTurn)));
 
                                 return historicalEventsAsync.when(
-                                  data: (turnEvents) {
-                                    if (turnEvents == null) {
-                                      return const Center(child: Text('No events available for this turn.'));
-                                    }
-                                    
-                                    final category = ref.watch(selectedEventCategoryProvider(game.id));
-                                    final filteredEvents = turnEvents.events.where((e) {
-                                      switch (category) {
-                                        case EventCategory.bombardments:
-                                          return e is BombardEvent;
-                                        case EventCategory.maneuvers:
-                                          return e is MoveEvent && e.replayStep == 3;
-                                        case EventCategory.battles:
-                                          return e is BattleCollisionEvent;
-                                        case EventCategory.advances:
-                                          return e is MoveEvent && e.replayStep == 5;
-                                        case EventCategory.outcomes:
-                                          return e is CityCapturedEvent || 
-                                                 e is ShipDestroyedInBattleEvent || 
-                                                 e is ShipDestroyedInBombardmentEvent || 
-                                                 e is FactionEliminatedEvent || 
-                                                 e is GameOverEvent ||
-                                                 e is ShipLostTetherEvent;
-                                      }
-                                    }).toList();
-
-                                    if (filteredEvents.isEmpty) {
-                                      return const Center(child: Text('No events in this category.'));
-                                    }
-
-                                    return ListView.builder(
-                                      itemCount: filteredEvents.length,
-                                      itemBuilder: (context, index) {
-                                        final event = filteredEvents[index];
-                                        if (event is BombardEvent) {
-                                          return BombardEventWidget(event: event, onDismiss: () {});
-                                        } else if (event is BattleCollisionEvent) {
-                                          return BattleCollisionEventWidget(event: event, onDismiss: () {});
-                                        } else if (event is CityCapturedEvent) {
-                                          return CityCapturedEventWidget(event: event, onDismiss: () {});
-                                        } else if (event is FactionEliminatedEvent) {
-                                          return FactionEliminatedEventWidget(event: event, onDismiss: () {});
-                                        } else if (event is GameOverEvent) {
-                                          return GameOverEventWidget(event: event, onDismiss: () {});
-                                        } else if (event is MoveEvent && event.replayStep == 3) {
-                                          return ManeuverEventWidget(event: event, onDismiss: () {});
-                                        } else if (event is MoveEvent && event.replayStep == 5) {
-                                          return AdvanceEventWidget(event: event, onDismiss: () {});
-                                        } else if (event is ShipLostTetherEvent) {
-                                          return PieceLostTetherEventWidget(event: event, onDismiss: () {});
-                                        } else if (event is ShipDestroyedInBattleEvent || event is ShipDestroyedInBombardmentEvent) {
-                                          return PieceDestroyedEventWidget(event: event, onDismiss: () {});
+                                  data: (turnEvents) => historicalStateAsync.when(
+                                    data: (turnState) => historicalVisionAsync.when(
+                                      data: (vision) {
+                                        if (turnEvents == null || turnState == null) {
+                                          return const Center(child: Text('No historical data available for this turn.'));
                                         }
-                                        return const SizedBox.shrink();
+                                        
+                                        final category = ref.watch(selectedEventCategoryProvider(game.id));
+                                        final uiState = ref.watch(gameplayUiProvider(game.id));
+                                        
+                                        // Update replay step based on category
+                                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                                          int targetStep = 2; // Default to Bombardment
+                                          switch (category) {
+                                            case EventCategory.bombardments: targetStep = 2; break;
+                                            case EventCategory.maneuvers: targetStep = 3; break;
+                                            case EventCategory.battles: targetStep = 4; break;
+                                            case EventCategory.advances: targetStep = 5; break;
+                                            case EventCategory.outcomes: targetStep = 6; break;
+                                          }
+                                          if (uiState.currentReplayStep != targetStep) {
+                                            ref.read(gameplayUiProvider(game.id).notifier).setReplayStep(targetStep);
+                                          }
+                                        });
+
+                                        final filteredEvents = turnEvents.events.where((e) {
+                                          // Apply category filter
+                                          bool inCategory = false;
+                                          switch (category) {
+                                            case EventCategory.bombardments: inCategory = e is BombardEvent; break;
+                                            case EventCategory.maneuvers: inCategory = e is MoveEvent && e.replayStep == 3; break;
+                                            case EventCategory.battles: inCategory = e is BattleCollisionEvent; break;
+                                            case EventCategory.advances: inCategory = e is MoveEvent && e.replayStep == 5; break;
+                                            case EventCategory.outcomes:
+                                              inCategory = e is CityCapturedEvent || 
+                                                     e is ShipDestroyedInBattleEvent || 
+                                                     e is ShipDestroyedInBombardmentEvent || 
+                                                     e is FactionEliminatedEvent || 
+                                                     e is GameOverEvent ||
+                                                     e is ShipLostTetherEvent;
+                                              break;
+                                          }
+                                          if (!inCategory) return false;
+
+                                          // Apply board selection filter for Bombardments and Battles
+                                          if (uiState.selectedEvent != null && (category == EventCategory.bombardments || category == EventCategory.battles)) {
+                                            return e == uiState.selectedEvent;
+                                          }
+
+                                          return true;
+                                        }).toList();
+
+                                        final showBoard = category != EventCategory.outcomes;
+
+                                        return ListView(
+                                          padding: const EdgeInsets.only(bottom: 32),
+                                          children: [
+                                            if (showBoard) ...[
+                                              Center(
+                                                child: ConstrainedBox(
+                                                  constraints: const BoxConstraints(maxWidth: 600),
+                                                  child: AspectRatio(
+                                                    aspectRatio: 1,
+                                                    child: GameBoard(
+                                                      game: game,
+                                                      pieces: turnState.pieces,
+                                                      visibleSquares: vision,
+                                                      events: turnEvents.events,
+                                                      snapshots: turnEvents.snapshots,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(height: 16),
+                                            ],
+                                            if (filteredEvents.isEmpty)
+                                              const Padding(
+                                                padding: EdgeInsets.symmetric(vertical: 32.0),
+                                                child: Center(child: Text('No events in this category.')),
+                                              )
+                                            else
+                                              ...filteredEvents.map((event) {
+                                                if (event is BombardEvent) {
+                                                  return BombardEventWidget(
+                                                    event: event, 
+                                                    onDismiss: () => ref.read(gameplayUiProvider(game.id).notifier).selectEvent(null)
+                                                  );
+                                                } else if (event is BattleCollisionEvent) {
+                                                  return BattleCollisionEventWidget(
+                                                    event: event, 
+                                                    onDismiss: () => ref.read(gameplayUiProvider(game.id).notifier).selectEvent(null)
+                                                  );
+                                                } else if (event is CityCapturedEvent) {
+                                                  return CityCapturedEventWidget(event: event, onDismiss: () {});
+                                                } else if (event is FactionEliminatedEvent) {
+                                                  return FactionEliminatedEventWidget(event: event, onDismiss: () {});
+                                                } else if (event is GameOverEvent) {
+                                                  return GameOverEventWidget(event: event, onDismiss: () {});
+                                                } else if (event is MoveEvent && event.replayStep == 3) {
+                                                  return ManeuverEventWidget(event: event, onDismiss: () {});
+                                                } else if (event is MoveEvent && event.replayStep == 5) {
+                                                  return AdvanceEventWidget(event: event, onDismiss: () {});
+                                                } else if (event is ShipLostTetherEvent) {
+                                                  return PieceLostTetherEventWidget(event: event, onDismiss: () {});
+                                                } else if (event is ShipDestroyedInBattleEvent || event is ShipDestroyedInBombardmentEvent) {
+                                                  return PieceDestroyedEventWidget(event: event, onDismiss: () {});
+                                                }
+                                                return const SizedBox.shrink();
+                                              }),
+                                          ],
+                                        );
                                       },
-                                    );
-                                  },
+                                      loading: () => const Center(child: CircularProgressIndicator()),
+                                      error: (e, s) => Center(child: Text('Error loading vision: $e')),
+                                    ),
+                                    loading: () => const Center(child: CircularProgressIndicator()),
+                                    error: (e, s) => Center(child: Text('Error loading state: $e')),
+                                  ),
                                   loading: () => const Center(child: CircularProgressIndicator()),
                                   error: (e, s) => Center(child: Text('Error loading events: $e')),
                                 );
