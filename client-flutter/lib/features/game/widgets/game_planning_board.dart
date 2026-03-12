@@ -76,8 +76,12 @@ class GamePlanningBoard extends ConsumerWidget {
                   highlightPieceIds: _calculateHighlightPieces(uiState, virtualPieces, currentPlayer.player.faction),
                   dimmedPieceIds: pendingActions.whereType<PlaceAction>().map((a) => a.trayPieceId).toSet(),
                   showAvailableDots: !uiState.isBombarding,
-                  onSquareTap: (x, y) => _handleSquareTap(ref, x, y, uiState, virtualPieces, currentPlayer.player.faction, pendingActions, availableSquares),
-                  onPieceTap: (piece) => _handlePieceTap(ref, piece, uiState, virtualPieces, currentPlayer.player.faction, pendingActions, availableSquares),
+                  onSquareTap: game.status == models.GameStatus.planning 
+                      ? (x, y) => _handleSquareTap(ref, x, y, uiState, virtualPieces, currentPlayer.player.faction, pendingActions, availableSquares)
+                      : null,
+                  onPieceTap: game.status == models.GameStatus.planning
+                      ? (piece) => _handlePieceTap(ref, piece, uiState, virtualPieces, currentPlayer.player.faction, pendingActions, availableSquares)
+                      : null,
                   overlays: [
                      // Planned Bombardment Target Icons
                     ...virtualPieces.where((p) => p.x != null && p.y != null && visibleSquares.contains(math.Point(p.x!, p.y!)) && pendingActions.any((a) => a is BombardAction && a.targetId == p.id)).map((p) {

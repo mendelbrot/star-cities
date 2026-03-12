@@ -53,12 +53,14 @@ class PlanningPanel extends ConsumerWidget {
             ? trayPieces.firstWhereOrNull((p) => p.id == uiState.placingPieceId)
             : null;
 
+        final isPlanning = game.status == models.GameStatus.planning;
+
         final actionButtons = [
           if (selectedPiece != null) ...[
             if (selectedPiece.type == PieceType.starCity) ...[
               if (!selectedPiece.isAnchored)
                 _ActionButton(
-                  onPressed: pendingActions.any((a) => a is MoveAction && a.pieceId == selectedPiece.id)
+                  onPressed: !isPlanning || pendingActions.any((a) => a is MoveAction && a.pieceId == selectedPiece.id)
                       ? null
                       : () {
                           ref.read(pendingActionsProvider(game.id).notifier).addOrReplaceAction(
@@ -69,7 +71,7 @@ class PlanningPanel extends ConsumerWidget {
                 ),
               if (selectedPiece.isAnchored)
                 _ActionButton(
-                  onPressed: virtualPieces.any((p) => p.tetheredToId == selectedPiece.id) ||
+                  onPressed: !isPlanning || virtualPieces.any((p) => p.tetheredToId == selectedPiece.id) ||
                           pendingActions.any((a) => a is MoveAction && a.pieceId == selectedPiece.id)
                       ? null
                       : () {
@@ -82,7 +84,7 @@ class PlanningPanel extends ConsumerWidget {
             ],
             if (selectedPiece.type.requiresTether) ...[
               _ActionButton(
-                onPressed: () {
+                onPressed: !isPlanning ? null : () {
                   ref.read(gameplayUiProvider(game.id).notifier).setRetethering(!uiState.isRetethering);
                 },
                 icon: Icons.link,
@@ -93,7 +95,7 @@ class PlanningPanel extends ConsumerWidget {
                 Padding(
                   padding: const EdgeInsets.only(left: 8.0),
                   child: _ActionButton(
-                    onPressed: () {
+                    onPressed: !isPlanning ? null : () {
                       if (pendingActions.any((a) => a is BombardAction && a.pieceId == selectedPiece.id)) {
                         ref.read(pendingActionsProvider(game.id).notifier).removeBombardment(selectedPiece.id);
                         ref.read(gameplayUiProvider(game.id).notifier).setBombarding(false);
@@ -127,10 +129,10 @@ class PlanningPanel extends ConsumerWidget {
 
         final systemButtons = [
           TextButton(
-            onPressed: () => controller.resetActions(game.id),
+            onPressed: !isPlanning ? null : () => controller.resetActions(game.id),
             style: TextButton.styleFrom(
               foregroundColor: theme.colorScheme.secondary,
-              side: BorderSide(color: theme.colorScheme.secondary, width: 1),
+              side: BorderSide(color: isPlanning ? theme.colorScheme.secondary : theme.disabledColor, width: 1),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -139,7 +141,7 @@ class PlanningPanel extends ConsumerWidget {
           ),
           const SizedBox(width: 8),
           ElevatedButton(
-            onPressed: () => controller.submitActions(game.id),
+            onPressed: !isPlanning ? null : () => controller.submitActions(game.id),
             child: const Text('Done'),
           ),
         ];
@@ -171,7 +173,7 @@ class PlanningPanel extends ConsumerWidget {
                         final hasPlaceAction = pendingActions.any((a) => a is PlaceAction && a.trayPieceId == piece.id);
                         
                         return GestureDetector(
-                          onTap: () {
+                          onTap: !isPlanning ? null : () {
                             if (hasPlaceAction) {
                               // Cancel placement if already placed
                               ref.read(pendingActionsProvider(game.id).notifier).removePlacement(piece.id);
@@ -183,6 +185,7 @@ class PlanningPanel extends ConsumerWidget {
                               ref.read(gameplayUiProvider(game.id).notifier).setPlacingPiece(piece.id);
                             }
                           },
+
                           child: Opacity(
                             opacity: hasPlaceAction ? 0.3 : 1.0,
                             child: Container(
