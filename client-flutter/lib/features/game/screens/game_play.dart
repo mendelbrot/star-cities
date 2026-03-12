@@ -337,28 +337,47 @@ class GamePlay extends ConsumerWidget {
                                               );
 
                                         if (showBoard) {
-                                          return Padding(
-                                            padding: const EdgeInsets.only(top: 16.0),
-                                            child: Row(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                ConstrainedBox(
-                                                  constraints: const BoxConstraints(maxWidth: 300),
-                                                  child: AspectRatio(
-                                                    aspectRatio: 1,
-                                                    child: GameBoard(
-                                                      game: game,
-                                                      pieces: turnState.pieces,
-                                                      visibleSquares: vision,
-                                                      events: turnEvents.events,
-                                                      snapshots: turnEvents.snapshots,
-                                                    ),
+                                          return LayoutBuilder(
+                                            builder: (context, constraints) {
+                                              final bool isWide = constraints.maxWidth > 600;
+                                              
+                                              final boardWidget = ConstrainedBox(
+                                                constraints: const BoxConstraints(maxWidth: 300),
+                                                child: AspectRatio(
+                                                  aspectRatio: 1,
+                                                  child: GameBoard(
+                                                    game: game,
+                                                    pieces: turnState.pieces,
+                                                    visibleSquares: vision,
+                                                    events: turnEvents.events,
+                                                    snapshots: turnEvents.snapshots,
                                                   ),
                                                 ),
-                                                const SizedBox(width: 16),
-                                                Expanded(child: eventsListView),
-                                              ],
-                                            ),
+                                              );
+
+                                              if (isWide) {
+                                                return Padding(
+                                                  padding: const EdgeInsets.only(top: 16.0),
+                                                  child: Row(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      boardWidget,
+                                                      const SizedBox(width: 16),
+                                                      Expanded(child: eventsListView),
+                                                    ],
+                                                  ),
+                                                );
+                                              } else {
+                                                return Column(
+                                                  children: [
+                                                    const SizedBox(height: 16),
+                                                    Center(child: boardWidget),
+                                                    const SizedBox(height: 16),
+                                                    Expanded(child: eventsListView),
+                                                  ],
+                                                );
+                                              }
+                                            },
                                           );
                                         }
 
