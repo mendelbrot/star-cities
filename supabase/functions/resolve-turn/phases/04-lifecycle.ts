@@ -1,4 +1,4 @@
-import postgres from "https://deno.land/x/postgresjs@v3.3.3/mod.js";
+import postgres from "postgres";
 import { Faction, Piece, PieceType, Player } from "../../_shared/types.ts";
 import { TurnContext } from "../context.ts";
 import { ACQUISITION_PROBABILITIES, MAX_TRAY_SIZE } from "../constants.ts";

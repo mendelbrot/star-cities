@@ -1,4 +1,4 @@
-import postgres from "https://deno.land/x/postgresjs@v3.3.3/mod.js";
+import postgres from "postgres";
 import { ServerError } from "../../_shared/server-error.ts";
 import { Coordinate, Piece, PlannedAction, Player, GameParameters } from "../../_shared/types.ts";
 import { TurnContext } from "../context.ts";
