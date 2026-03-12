@@ -177,7 +177,6 @@ export function resolveCombat(
   const finalValidatedMoves = validatedMoves.filter((_, i) => !invalidMoveIndices.has(i));
 
   applyNonConflictingMoves(finalValidatedMoves);
-  context.captureSnapshot();
 
   // 3c. Identify Battles and Collisions
   const unappliedMovesByCoord = new Map<string, ValidatedMove[]>();
@@ -200,10 +199,10 @@ export function resolveCombat(
     
     const factions = new Set<Faction>();
     
-    const moves = (unappliedMovesByCoord.get(coordKey) || []).filter(m => pieceMap.has(m.piece_id));
+    const moves = unappliedMovesByCoord.get(coordKey) || [];
     moves.forEach((m: ValidatedMove) => factions.add(m.faction));
     
-    const placements = (context.pendingPlacements.get(coordKey) || []).filter(id => pieceMap.has(id));
+    const placements = context.pendingPlacements.get(coordKey) || [];
     placements.forEach((id: string) => factions.add(pieceMap.get(id)!.faction));
 
     if (occupant) factions.add(occupant.faction);
@@ -218,8 +217,8 @@ export function resolveCombat(
   const battleEvents: BattleCollisionEvent[] = [];
   for (const coordKey of battleCoords) {
     const [x, y] = coordKey.split(',').map(Number);
-    const moves = (unappliedMovesByCoord.get(coordKey) || []).filter(m => pieceMap.has(m.piece_id));
-    const placements = (context.pendingPlacements.get(coordKey) || []).filter(id => pieceMap.has(id));
+    const moves = unappliedMovesByCoord.get(coordKey) || [];
+    const placements = context.pendingPlacements.get(coordKey) || [];
     const occupantId = coordinateMap.get(coordKey);
     const occupant = occupantId ? pieceMap.get(occupantId) : null;
 
@@ -259,10 +258,8 @@ export function resolveCombat(
     for (const a of adj) {
       const sId = coordinateMap.get(`${a.x},${a.y}`);
       if (sId && sId !== occupantId && !battle.entering_participants.some((ship) => ship.piece_id === sId)) {
-        const p = pieceMap.get(sId);
-        if (p) {
-          battle.supporting_participants.push({ piece_id: p.id, piece_type: p.type, faction: p.faction });
-        }
+        const p = pieceMap.get(sId)!;
+        battle.supporting_participants.push({ piece_id: p.id, piece_type: p.type, faction: p.faction });
       }
     }
 
@@ -274,14 +271,8 @@ export function resolveCombat(
     const weights = new Map<Faction, number>();
     for (const f of factions) {
       let w = 0;
-      enteringMoves.filter((m: ValidatedMove) => m.faction === f).forEach((m: ValidatedMove) => {
-        const p = pieceMap.get(m.piece_id);
-        if (p) w += UNIT_STRENGTH[p.type];
-      });
-      enteringPlacements.filter((id: string) => pieceMap.get(id)!.faction === f).forEach((id: string) => {
-        const p = pieceMap.get(id);
-        if (p) w += UNIT_STRENGTH[p.type];
-      });
+      enteringMoves.filter((m: ValidatedMove) => m.faction === f).forEach((m: ValidatedMove) => w += UNIT_STRENGTH[pieceMap.get(m.piece_id)!.type]);
+      enteringPlacements.filter((id: string) => pieceMap.get(id)!.faction === f).forEach((id: string) => w += UNIT_STRENGTH[pieceMap.get(id)!.type]);
       if (occupant && occupant.faction === f) w += UNIT_STRENGTH[occupant.type];
       battle.supporting_participants.filter((p: { faction: Faction; piece_type: PieceType }) => p.faction === f).forEach((p: { piece_type: PieceType }) => w += SUPPORT_STRENGTH_FACTOR * UNIT_STRENGTH[p.piece_type]);
       battle.supporting_bombardments.filter((p: { faction: Faction }) => p.faction === f).forEach((_p: { piece_id: string }) => w += BOMBARD_SUPPORT_STRENGTH);
@@ -296,8 +287,10 @@ export function resolveCombat(
     battleEvents.push(battle);
   }
 
-  // 3e. Handle Piece Destruction
-  const piecesToDestroy = new Set<string>();
+  // 3e. Batch Piece Destruction and Tether Loss
+  const piecesToRemove = new Set<string>();
+  const starCitiesToHandleTetherLoss = new Set<string>();
+
   for (const b of battleEvents) {
     const all = [...b.entering_participants, ...b.supporting_participants, ...(b.defending_participant ? [b.defending_participant] : [])];
     for (const p of all) {
@@ -307,70 +300,47 @@ export function resolveCombat(
       }
     }
     
-    for (const p of b.entering_participants) if (p.faction !== b.winning_faction) piecesToDestroy.add(p.piece_id);
+    // Entering participants who didn't win are destroyed
+    for (const p of b.entering_participants) {
+      if (p.faction !== b.winning_faction) {
+        piecesToRemove.add(p.piece_id);
+        if (p.piece_type === "STAR_CITY") starCitiesToHandleTetherLoss.add(p.piece_id);
+      }
+    }
     
-    if (b.result === "DESTROY" && b.defending_participant && b.defending_participant.faction !== b.winning_faction) {
-      piecesToDestroy.add(b.defending_participant.piece_id);
+    // If a Star City was defending and lost, it is either captured or destroyed
+    if (b.defending_participant && b.defending_participant.faction !== b.winning_faction) {
+      if (b.result === "DESTROY") {
+        piecesToRemove.add(b.defending_participant.piece_id);
+        if (b.defending_participant.piece_type === "STAR_CITY") starCitiesToHandleTetherLoss.add(b.defending_participant.piece_id);
+      } else if (b.result === "CAPTURE") {
+        // Captures cause tether loss but the city remains (with a new owner)
+        starCitiesToHandleTetherLoss.add(b.defending_participant.piece_id);
+      }
     }
   }
 
-  for (const id of piecesToDestroy) {
+  for (const id of piecesToRemove) {
     const p = pieceMap.get(id);
     if (p) {
       context.addEvent({ type: "SHIP_DESTROYED_IN_BATTLE", piece_id: p.id, piece_type: p.type, faction: p.faction });
-      context.removePiece(id);
+      context.removePiece(id, true); // Skip immediate tether loss during batch removal
     }
   }
+
+  // Now process all tether losses simultaneously
+  for (const cityId of starCitiesToHandleTetherLoss) {
+    context.handleTetherLoss(cityId);
+  }
+
   context.captureSnapshot();
 
-  // 3f. Apply Victor Moves and Placements and Capture Cities
+  // 3f. Apply Victor Moves and Captures
   context.currentStep = 5;
   for (const b of battleEvents) {
     const coord = { x: b.coord.x, y: b.coord.y };
     const coordKey = `${coord.x},${coord.y}`;
 
-    // Apply winning move if any
-    const winningMove = finalValidatedMoves.find((m: ValidatedMove) => 
-      !m.applied && 
-      m.faction === b.winning_faction && 
-      m.to.x === b.coord.x && 
-      m.to.y === b.coord.y
-    );
-
-    if (winningMove) {
-      if (b.result === "DESTROY") {
-        const p = pieceMap.get(winningMove.piece_id);
-        if (p) {
-          context.updatePiecePosition(p.id, winningMove.to);
-          context.addEvent({ type: "MOVE", faction: winningMove.faction, piece_id: winningMove.piece_id, from: winningMove.from, to: winningMove.to });
-        }
-      }
-      winningMove.applied = true;
-    }
-
-    // Apply winning placement if any
-    const winningPlacementId = (context.pendingPlacements.get(coordKey) || []).find(id => pieceMap.get(id)?.faction === b.winning_faction);
-    if (winningPlacementId) {
-      const p = pieceMap.get(winningPlacementId);
-      if (p) {
-        // Place on board (finally!)
-        context.updatePiecePosition(p.id, coord);
-      }
-      context.pendingPlacements.delete(coordKey);
-    }
-
-    const loserMoves = finalValidatedMoves.filter((m: ValidatedMove) => 
-      !m.applied && 
-      m.to.x === b.coord.x && 
-      m.to.y === b.coord.y
-    );
-    for (const m of loserMoves) m.applied = true;
-
-    // Clear losing placements
-    context.pendingPlacements.delete(coordKey);
-  }
-
-  for (const b of battleEvents) {
     if (b.result === "CAPTURE" && b.defending_participant) {
       const city = pieceMap.get(b.defending_participant.piece_id);
       if (city) {
@@ -383,12 +353,47 @@ export function resolveCombat(
         context.factionPlacedPiecesMap.set(oldF, oldList.filter((id: string) => id !== city.id));
         context.factionPlacedPiecesMap.get(newF)?.push(city.id);
         city.faction = newF;
-        
-        // Cities keep their anchored status but lose tethers upon capture
-        context.handleTetherLoss(city.id);
+        // Tether loss already handled in Phase 3e
       }
     }
+
+    // Apply winning move if any
+    const winningMove = finalValidatedMoves.find((m: ValidatedMove) => 
+      !m.applied && 
+      m.faction === b.winning_faction && 
+      m.to.x === b.coord.x && 
+      m.to.y === b.coord.y
+    );
+
+    if (winningMove) {
+      const p = pieceMap.get(winningMove.piece_id);
+      if (p) {
+        context.updatePiecePosition(p.id, winningMove.to);
+        context.addEvent({ type: "MOVE", faction: winningMove.faction, piece_id: winningMove.piece_id, from: winningMove.from, to: winningMove.to });
+      }
+      winningMove.applied = true;
+    }
+
+    // Apply winning placement if any
+    const winningPlacementId = (context.pendingPlacements.get(coordKey) || []).find(id => pieceMap.get(id)?.faction === b.winning_faction);
+    if (winningPlacementId) {
+      const p = pieceMap.get(winningPlacementId);
+      if (p) {
+        context.updatePiecePosition(p.id, coord);
+      }
+      context.pendingPlacements.delete(coordKey);
+    }
+
+    // Mark losing moves/placements as resolved
+    const loserMoves = finalValidatedMoves.filter((m: ValidatedMove) => 
+      !m.applied && 
+      m.to.x === b.coord.x && 
+      m.to.y === b.coord.y
+    );
+    for (const m of loserMoves) m.applied = true;
+    context.pendingPlacements.delete(coordKey);
   }
+
 
   // 3g. Final Movement and Placement Application
   applyNonConflictingMoves(finalValidatedMoves);

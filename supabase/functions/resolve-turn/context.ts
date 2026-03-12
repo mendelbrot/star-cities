@@ -142,7 +142,7 @@ export class TurnContext {
     }
   }
 
-  removePiece(pieceId: string) {
+  removePiece(pieceId: string, skipTetherLoss = false) {
     const piece = this.pieceMap.get(pieceId);
     if (!piece) return;
 
@@ -167,7 +167,9 @@ export class TurnContext {
     this.factionTrayMap.set(piece.faction, tray.filter(id => id !== pieceId));
 
     if (piece.type === "STAR_CITY") {
-      this.handleTetherLoss(pieceId);
+      if (!skipTetherLoss) {
+        this.handleTetherLoss(pieceId);
+      }
     } else if (piece.tether_id) {
       const ships = this.tetherMap.get(piece.tether_id) || [];
       this.tetherMap.set(piece.tether_id, ships.filter(id => id !== pieceId));
