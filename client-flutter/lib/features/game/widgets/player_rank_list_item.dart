@@ -6,12 +6,12 @@ import 'package:star_cities/features/game/providers/game_providers.dart';
 
 class PlayerRankListItem extends StatelessWidget {
   final PlayerWithProfile playerWithProfile;
-  final int starCount;
+  final int? starCount;
 
   const PlayerRankListItem({
     super.key,
     required this.playerWithProfile,
-    required this.starCount,
+    this.starCount,
   });
 
   @override
@@ -44,7 +44,9 @@ class PlayerRankListItem extends StatelessWidget {
                             child: Text(
                               p.displayName,
                               overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.titleMedium,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                color: theme.colorScheme.onSurface,
+                              ),
                             ),
                           ),
                           if (p.player.isBot) ...[
@@ -61,23 +63,25 @@ class PlayerRankListItem extends StatelessWidget {
                   ],
                 ),
               ),
-              // Right: Star count
-              Row(
-                children: [
-                  Icon(
-                    LucideIcons.star,
-                    size: 18,
-                    color: Colors.amber[600],
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '$starCount',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
+              // Right: Star count (Optional)
+              if (starCount != null)
+                Row(
+                  children: [
+                    Icon(
+                      LucideIcons.star,
+                      size: 18,
+                      color: theme.colorScheme.onSurface,
                     ),
-                  ),
-                ],
-              ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '$starCount',
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                  ],
+                ),
             ],
           ),
         ),

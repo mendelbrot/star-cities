@@ -85,30 +85,40 @@ class GamePlay extends ConsumerWidget {
                           const SectionTitle('scoreboard'),
                           const SizedBox(height: 16),
                           Expanded(
-                            child: turnEventList == null || turnEventList.playerRanking.isEmpty
-                                ? const Center(child: Text('No ranking data available yet.'))
-                                : playersWithProfilesAsync.when(
-                                    data: (players) {
-                                      return ListView.builder(
-                                        itemCount: turnEventList.playerRanking.length,
-                                        itemBuilder: (context, index) {
-                                          final ranking = turnEventList.playerRanking[index];
-                                          final playerWithProfile = players.firstWhereOrNull(
-                                            (p) => p.player.id == ranking.playerId,
-                                          );
-                                          
-                                          if (playerWithProfile == null) return const SizedBox.shrink();
-                                          
-                                          return PlayerRankListItem(
-                                            playerWithProfile: playerWithProfile,
-                                            starCount: ranking.starCount,
-                                          );
-                                        },
-                                      );
-                                    },
-                                    loading: () => const Center(child: CircularProgressIndicator()),
-                                    error: (e, s) => Center(child: Text('Error loading players: $e')),
-                                  ),
+                            child: playersWithProfilesAsync.when(
+                              data: (players) {
+                                if (turnEventList == null || turnEventList.playerRanking.isEmpty) {
+                                  // Fallback: Display all players sorted by faction
+                                  final sortedPlayers = [...players]..sort((a, b) => a.player.faction.index.compareTo(b.player.faction.index));
+                                  return ListView.builder(
+                                    itemCount: sortedPlayers.length,
+                                    itemBuilder: (context, index) => PlayerRankListItem(
+                                      playerWithProfile: sortedPlayers[index],
+                                    ),
+                                  );
+                                }
+
+                                // Display ranked players
+                                return ListView.builder(
+                                  itemCount: turnEventList.playerRanking.length,
+                                  itemBuilder: (context, index) {
+                                    final ranking = turnEventList.playerRanking[index];
+                                    final playerWithProfile = players.firstWhereOrNull(
+                                      (p) => p.player.id == ranking.playerId,
+                                    );
+                                    
+                                    if (playerWithProfile == null) return const SizedBox.shrink();
+                                    
+                                    return PlayerRankListItem(
+                                      playerWithProfile: playerWithProfile,
+                                      starCount: ranking.starCount,
+                                    );
+                                  },
+                                );
+                              },
+                              loading: () => const Center(child: CircularProgressIndicator()),
+                              error: (e, s) => Center(child: Text('Error loading players: $e')),
+                            ),
                           ),
                         ],
                       ),
