@@ -84,6 +84,20 @@ final gameplayTurnEventsProvider = Provider.family<AsyncValue<TurnEventList?>, S
   return asyncValue.whenData((list) => list.isNotEmpty ? list.first : null);
 });
 
+/// Fetches events for a specific turn.
+final historicalTurnEventsProvider = FutureProvider.family<TurnEventList?, ({String gameId, int turnNumber})>((ref, arg) async {
+  final supabase = Supabase.instance.client;
+  final response = await supabase
+      .from('turn_events')
+      .select()
+      .eq('game_id', arg.gameId)
+      .eq('turn_number', arg.turnNumber)
+      .maybeSingle();
+
+  if (response == null) return null;
+  return TurnEventList.fromMap(response);
+});
+
 class PendingActionsNotifier extends FamilyNotifier<List<GameAction>, String> {
   @override
   List<GameAction> build(String arg) => [];

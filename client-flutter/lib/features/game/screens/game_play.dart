@@ -13,10 +13,34 @@ import 'package:star_cities/features/game/models/game_events.dart';
 import 'package:star_cities/shared/widgets/responsive_game_header.dart';
 
 import 'package:star_cities/features/game/widgets/planning_panel.dart';
-import 'package:star_cities/features/game/widgets/replay_panel.dart';
+// import 'package:star_cities/features/game/widgets/replay_panel.dart';
 import 'package:star_cities/features/game/widgets/game_over.dart';
 import 'package:star_cities/features/game/widgets/player_rank_list_item.dart';
 import 'package:collection/collection.dart';
+
+import 'package:star_cities/features/game/widgets/event_widgets/bombard_event_widget.dart';
+import 'package:star_cities/features/game/widgets/event_widgets/battle_collision_event_widget.dart';
+import 'package:star_cities/features/game/widgets/event_widgets/city_captured_event_widget.dart';
+import 'package:star_cities/features/game/widgets/event_widgets/faction_eliminated_event_widget.dart';
+import 'package:star_cities/features/game/widgets/event_widgets/game_over_event_widget.dart';
+import 'package:star_cities/features/game/widgets/event_widgets/maneuver_event_widget.dart';
+import 'package:star_cities/features/game/widgets/event_widgets/advance_event_widget.dart';
+import 'package:star_cities/features/game/widgets/event_widgets/piece_lost_tether_event_widget.dart';
+import 'package:star_cities/features/game/widgets/event_widgets/piece_destroyed_event_widget.dart';
+
+enum EventCategory {
+  bombardments('Bombardments'),
+  maneuvers('Maneuvers'),
+  battles('Battles'),
+  advances('Advances'),
+  outcomes('Outcomes');
+
+  final String label;
+  const EventCategory(this.label);
+}
+
+final selectedEventTurnProvider = StateProvider.autoDispose.family<int, String>((ref, gameId) => 0);
+final selectedEventCategoryProvider = StateProvider.autoDispose.family<EventCategory, String>((ref, gameId) => EventCategory.bombardments);
 
 class GamePlay extends ConsumerWidget {
   final Game game;
@@ -40,6 +64,7 @@ class GamePlay extends ConsumerWidget {
                 ? visions.first
                 : <math.Point<int>>{};
 
+            /*
             final previousPieces = turnStates.length > 1
                 ? turnStates[1].pieces
                 : <Piece>[];
@@ -49,6 +74,7 @@ class GamePlay extends ConsumerWidget {
             
             final events = turnEventList?.events ?? <GameEvent>[];
             final snapshots = turnEventList?.snapshots ?? <int, List<Piece>>{};
+            */
 
             return TabBarView(
               children: [
@@ -130,25 +156,159 @@ class GamePlay extends ConsumerWidget {
                 Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 1000),
-                    child: Column(
-                      children: [
-                        Expanded(
-                          child: Align(
-                            alignment: Alignment.topCenter,
-                            child: GameBoard(
-                              game: game,
-                              pieces: previousPieces,
-                              visibleSquares: previousVision,
-                              events: events,
-                              snapshots: snapshots,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 16),
+                          // Selectors
+                          Row(
+                            children: [
+                              // Turn Selector
+                              Expanded(
+                                child: DropdownButtonFormField<int>(
+                                  key: ValueKey('turn_${ref.watch(selectedEventTurnProvider(game.id))}'),
+                                  decoration: const InputDecoration(
+                                    labelText: 'Turn',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  initialValue: ref.watch(selectedEventTurnProvider(game.id)) == 0 
+                                      ? (game.turnNumber - 1).clamp(1, 999) 
+                                      : ref.watch(selectedEventTurnProvider(game.id)),
+                                  items: List.generate(
+                                    game.turnNumber, 
+                                    (i) => i + 1
+                                  ).where((t) => t < game.turnNumber).map((t) => DropdownMenuItem(
+                                    value: t,
+                                    child: Text('Turn $t'),
+                                  )).toList().reversed.toList(),
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      ref.read(selectedEventTurnProvider(game.id).notifier).state = val;
+                                    }
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              // Category Selector
+                              Expanded(
+                                flex: 2,
+                                child: DropdownButtonFormField<EventCategory>(
+                                  key: ValueKey('category_${ref.watch(selectedEventCategoryProvider(game.id))}'),
+                                  decoration: const InputDecoration(
+                                    labelText: 'Category',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  initialValue: ref.watch(selectedEventCategoryProvider(game.id)),
+                                  items: EventCategory.values.map((c) => DropdownMenuItem(
+                                    value: c,
+                                    child: Text(c.label),
+                                  )).toList(),
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      ref.read(selectedEventCategoryProvider(game.id).notifier).state = val;
+                                    }
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          // Events List
+                          Expanded(
+                            child: Consumer(
+                              builder: (context, ref, child) {
+                                final selectedTurn = ref.watch(selectedEventTurnProvider(game.id)) == 0
+                                    ? (game.turnNumber - 1).clamp(1, 999)
+                                    : ref.watch(selectedEventTurnProvider(game.id));
+                                
+                                final historicalEventsAsync = ref.watch(historicalTurnEventsProvider((gameId: game.id, turnNumber: selectedTurn)));
+
+                                return historicalEventsAsync.when(
+                                  data: (turnEvents) {
+                                    if (turnEvents == null) {
+                                      return const Center(child: Text('No events available for this turn.'));
+                                    }
+                                    
+                                    final category = ref.watch(selectedEventCategoryProvider(game.id));
+                                    final filteredEvents = turnEvents.events.where((e) {
+                                      switch (category) {
+                                        case EventCategory.bombardments:
+                                          return e is BombardEvent;
+                                        case EventCategory.maneuvers:
+                                          return e is MoveEvent && e.replayStep == 3;
+                                        case EventCategory.battles:
+                                          return e is BattleCollisionEvent;
+                                        case EventCategory.advances:
+                                          return e is MoveEvent && e.replayStep == 5;
+                                        case EventCategory.outcomes:
+                                          return e is CityCapturedEvent || 
+                                                 e is ShipDestroyedInBattleEvent || 
+                                                 e is ShipDestroyedInBombardmentEvent || 
+                                                 e is FactionEliminatedEvent || 
+                                                 e is GameOverEvent ||
+                                                 e is ShipLostTetherEvent;
+                                      }
+                                    }).toList();
+
+                                    if (filteredEvents.isEmpty) {
+                                      return const Center(child: Text('No events in this category.'));
+                                    }
+
+                                    return ListView.builder(
+                                      itemCount: filteredEvents.length,
+                                      itemBuilder: (context, index) {
+                                        final event = filteredEvents[index];
+                                        if (event is BombardEvent) {
+                                          return BombardEventWidget(event: event, onDismiss: () {});
+                                        } else if (event is BattleCollisionEvent) {
+                                          return BattleCollisionEventWidget(event: event, onDismiss: () {});
+                                        } else if (event is CityCapturedEvent) {
+                                          return CityCapturedEventWidget(event: event, onDismiss: () {});
+                                        } else if (event is FactionEliminatedEvent) {
+                                          return FactionEliminatedEventWidget(event: event, onDismiss: () {});
+                                        } else if (event is GameOverEvent) {
+                                          return GameOverEventWidget(event: event, onDismiss: () {});
+                                        } else if (event is MoveEvent && event.replayStep == 3) {
+                                          return ManeuverEventWidget(event: event, onDismiss: () {});
+                                        } else if (event is MoveEvent && event.replayStep == 5) {
+                                          return AdvanceEventWidget(event: event, onDismiss: () {});
+                                        } else if (event is ShipLostTetherEvent) {
+                                          return PieceLostTetherEventWidget(event: event, onDismiss: () {});
+                                        } else if (event is ShipDestroyedInBattleEvent || event is ShipDestroyedInBombardmentEvent) {
+                                          return PieceDestroyedEventWidget(event: event, onDismiss: () {});
+                                        }
+                                        return const SizedBox.shrink();
+                                      },
+                                    );
+                                  },
+                                  loading: () => const Center(child: CircularProgressIndicator()),
+                                  error: (e, s) => Center(child: Text('Error loading events: $e')),
+                                );
+                              }
                             ),
                           ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          child: ReplayPanel(gameId: game.id),
-                        ),
-                      ],
+                          /* 
+                          // Replay board hidden for now but preserved
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.topCenter,
+                              child: GameBoard(
+                                game: game,
+                                pieces: previousPieces,
+                                visibleSquares: previousVision,
+                                events: events,
+                                snapshots: snapshots,
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                            child: ReplayPanel(gameId: game.id),
+                          ),
+                          */
+                        ],
+                      ),
                     ),
                   ),
                 ),

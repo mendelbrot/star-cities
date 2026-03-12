@@ -16,7 +16,6 @@ class EventCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Card(
-      margin: const EdgeInsets.all(16),
       elevation: 8,
       child: Container(
         decoration: BoxDecoration(
