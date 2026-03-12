@@ -14,10 +14,12 @@ class PieceLostTetherEventWidget extends StatelessWidget {
     this.onDismiss,
   });
 
+  String _capitalize(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1).toLowerCase();
+
   @override
   Widget build(BuildContext context) {
     return EventCard(
-      title: const Text('TETHER LOST'),
+      title: const Text('Tether Lost'),
       onDismiss: onDismiss,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -28,7 +30,7 @@ class PieceLostTetherEventWidget extends StatelessWidget {
               PieceInfoRow(
                 type: PieceType.starCity, // This is a limitation, ShipLostTetherEvent doesn't have PieceType
                 faction: event.faction,
-                label: event.faction.name,
+                label: _capitalize(event.faction.name),
               ),
             ],
           ),

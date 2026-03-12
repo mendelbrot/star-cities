@@ -43,9 +43,6 @@ class GameBoard extends StatelessWidget {
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: board,
-    );
+    return board;
   }
 }

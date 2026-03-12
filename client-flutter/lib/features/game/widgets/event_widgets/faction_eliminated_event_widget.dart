@@ -12,10 +12,12 @@ class FactionEliminatedEventWidget extends StatelessWidget {
     this.onDismiss,
   });
 
+  String _capitalize(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1).toLowerCase();
+
   @override
   Widget build(BuildContext context) {
     return EventCard(
-      title: const Text('FACTION ELIMINATED'),
+      title: const Text('Faction Eliminated'),
       onDismiss: onDismiss,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -26,7 +28,7 @@ class FactionEliminatedEventWidget extends StatelessWidget {
               const SizedBox(width: 16),
               Expanded(
                 child: Text(
-                  'The ${event.faction.name} faction has been eliminated from the game.',
+                  'The ${_capitalize(event.faction.name)} faction has been eliminated from the game.',
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
               ),

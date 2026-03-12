@@ -16,7 +16,7 @@ class BombardEventWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return EventCard(
-      title: const Text('BOMBARDMENT'),
+      title: const Text('Bombardment'),
       onDismiss: onDismiss,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -59,8 +59,9 @@ class BombardEventWidget extends StatelessWidget {
                 decoration: BoxDecoration(
                   border: Border.all(color: Theme.of(context).colorScheme.primary),
                   borderRadius: BorderRadius.circular(4),
-                ),                child: Text(
-                  event.isDestroyed ? 'DESTROYED' : 'SURVIVED',
+                ),
+                child: Text(
+                  event.isDestroyed ? 'Destroyed' : 'Survived',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),

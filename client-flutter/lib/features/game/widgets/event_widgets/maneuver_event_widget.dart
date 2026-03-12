@@ -17,7 +17,7 @@ class ManeuverEventWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return EventCard(
-      title: const Text('MANEUVER'),
+      title: const Text('Maneuver'),
       onDismiss: onDismiss,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -14,10 +14,12 @@ class CityCapturedEventWidget extends StatelessWidget {
     this.onDismiss,
   });
 
+  String _capitalize(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1).toLowerCase();
+
   @override
   Widget build(BuildContext context) {
     return EventCard(
-      title: const Text('CITY CAPTURED'),
+      title: const Text('City Captured'),
       onDismiss: onDismiss,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -29,12 +31,12 @@ class CityCapturedEventWidget extends StatelessWidget {
             children: [
               Column(
                 children: [
-                  const Text('FROM', style: TextStyle(fontSize: 10)),
+                  const Text('From', style: TextStyle(fontSize: 10)),
                   const SizedBox(height: 8),
                   PieceInfoRow(
                     type: PieceType.starCity,
                     faction: event.fromFaction,
-                    label: event.fromFaction.name,
+                    label: _capitalize(event.fromFaction.name),
                   ),
                 ],
               ),
@@ -45,12 +47,12 @@ class CityCapturedEventWidget extends StatelessWidget {
               ),
               Column(
                 children: [
-                  const Text('TO', style: TextStyle(fontSize: 10)),
+                  const Text('To', style: TextStyle(fontSize: 10)),
                   const SizedBox(height: 8),
                   PieceInfoRow(
                     type: PieceType.starCity,
                     faction: event.toFaction,
-                    label: event.toFaction.name,
+                    label: _capitalize(event.toFaction.name),
                   ),
                 ],
               ),

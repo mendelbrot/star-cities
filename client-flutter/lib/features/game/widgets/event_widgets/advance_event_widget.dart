@@ -17,7 +17,7 @@ class AdvanceEventWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return EventCard(
-      title: const Text('ADVANCE'),
+      title: const Text('Advance'),
       onDismiss: onDismiss,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

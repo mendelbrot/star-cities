@@ -15,18 +15,18 @@ class PieceDestroyedEventWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    String title = 'UNIT DESTROYED';
+    String title = 'Unit Destroyed';
     String description = 'A unit has been destroyed.';
     String pieceTypeLabel = 'Unknown';
     var faction = (event is ShipDestroyedInBattleEvent) ? (event as ShipDestroyedInBattleEvent).faction : (event as ShipDestroyedInBombardmentEvent).faction;
     var pieceType = (event is ShipDestroyedInBattleEvent) ? (event as ShipDestroyedInBattleEvent).pieceType : (event as ShipDestroyedInBombardmentEvent).pieceType;
 
     if (event is ShipDestroyedInBattleEvent) {
-      title = 'BATTLE LOSS';
+      title = 'Battle Loss';
       description = 'This unit was lost in combat.';
       pieceTypeLabel = pieceType.name;
     } else if (event is ShipDestroyedInBombardmentEvent) {
-      title = 'BOMBARDMENT LOSS';
+      title = 'Bombardment Loss';
       description = 'This unit was destroyed by orbital fire.';
       pieceTypeLabel = pieceType.name;
     }
