@@ -54,6 +54,21 @@ class GamePlay extends ConsumerWidget {
     final eventsAsync = ref.watch(gameplayTurnEventsProvider(game.id));
     final playersWithProfilesAsync = ref.watch(gamePlayersWithProfilesProvider(game.id));
 
+    // Clear selection on turn or category change
+    ref.listen(selectedEventTurnProvider(game.id), (_, _) {
+      ref.read(gameplayUiProvider(game.id).notifier).selectEvent(null);
+    });
+    ref.listen(selectedEventCategoryProvider(game.id), (_, _) {
+      ref.read(gameplayUiProvider(game.id).notifier).selectEvent(null);
+    });
+    ref.listen(gameProvider(game.id), (previous, next) {
+      final prevGame = previous?.value;
+      final nextGame = next.value;
+      if (prevGame?.status != nextGame?.status || prevGame?.turnNumber != nextGame?.turnNumber) {
+        ref.read(gameplayUiProvider(game.id).notifier).selectEvent(null);
+      }
+    });
+
     return turnStatesAsync.when(
       data: (turnStates) => visionAsync.when(
         data: (visions) => eventsAsync.when(
@@ -310,30 +325,33 @@ class GamePlay extends ConsumerWidget {
                                               )
                                             else
                                               ...filteredEvents.map((event) {
+                                                final bool isFiltered = uiState.selectedEvent != null;
+                                                final onDismiss = isFiltered ? () => ref.read(gameplayUiProvider(game.id).notifier).selectEvent(null) : null;
+
                                                 if (event is BombardEvent) {
                                                   return BombardEventWidget(
                                                     event: event, 
-                                                    onDismiss: () => ref.read(gameplayUiProvider(game.id).notifier).selectEvent(null)
+                                                    onDismiss: onDismiss
                                                   );
                                                 } else if (event is BattleCollisionEvent) {
                                                   return BattleCollisionEventWidget(
                                                     event: event, 
-                                                    onDismiss: () => ref.read(gameplayUiProvider(game.id).notifier).selectEvent(null)
+                                                    onDismiss: onDismiss
                                                   );
                                                 } else if (event is CityCapturedEvent) {
-                                                  return CityCapturedEventWidget(event: event, onDismiss: () {});
+                                                  return CityCapturedEventWidget(event: event);
                                                 } else if (event is FactionEliminatedEvent) {
-                                                  return FactionEliminatedEventWidget(event: event, onDismiss: () {});
+                                                  return FactionEliminatedEventWidget(event: event);
                                                 } else if (event is GameOverEvent) {
-                                                  return GameOverEventWidget(event: event, onDismiss: () {});
+                                                  return GameOverEventWidget(event: event);
                                                 } else if (event is MoveEvent && event.replayStep == 3) {
-                                                  return ManeuverEventWidget(event: event, onDismiss: () {});
+                                                  return ManeuverEventWidget(event: event);
                                                 } else if (event is MoveEvent && event.replayStep == 5) {
-                                                  return AdvanceEventWidget(event: event, onDismiss: () {});
+                                                  return AdvanceEventWidget(event: event);
                                                 } else if (event is ShipLostTetherEvent) {
-                                                  return PieceLostTetherEventWidget(event: event, onDismiss: () {});
+                                                  return PieceLostTetherEventWidget(event: event);
                                                 } else if (event is ShipDestroyedInBattleEvent || event is ShipDestroyedInBombardmentEvent) {
-                                                  return PieceDestroyedEventWidget(event: event, onDismiss: () {});
+                                                  return PieceDestroyedEventWidget(event: event);
                                                 }
                                                 return const SizedBox.shrink();
                                               }),

@@ -6,12 +6,12 @@ import 'package:star_cities/features/game/models/game_models.dart';
 
 class AdvanceEventWidget extends StatelessWidget {
   final MoveEvent event;
-  final VoidCallback onDismiss;
+  final VoidCallback? onDismiss;
 
   const AdvanceEventWidget({
     super.key,
     required this.event,
-    required this.onDismiss,
+    this.onDismiss,
   });
 
   @override

@@ -86,6 +86,7 @@ class GameBoardBase extends StatelessWidget {
                     color: isHighlighted ? theme.colorScheme.primary : Colors.transparent,
                     width: isHighlighted ? 2 : 0,
                   ),
+                  borderRadius: BorderRadius.circular(cellSize * 0.1),
                 ),
                 child: (isAvailable && showAvailableDots)
                 ? Center(

@@ -6,12 +6,12 @@ import 'package:star_cities/features/game/models/game_models.dart';
 
 class ManeuverEventWidget extends StatelessWidget {
   final MoveEvent event;
-  final VoidCallback onDismiss;
+  final VoidCallback? onDismiss;
 
   const ManeuverEventWidget({
     super.key,
     required this.event,
-    required this.onDismiss,
+    this.onDismiss,
   });
 
   @override

@@ -6,12 +6,12 @@ import 'package:star_cities/features/game/models/game_models.dart';
 
 class PieceLostTetherEventWidget extends StatelessWidget {
   final ShipLostTetherEvent event;
-  final VoidCallback onDismiss;
+  final VoidCallback? onDismiss;
 
   const PieceLostTetherEventWidget({
     super.key,
     required this.event,
-    required this.onDismiss,
+    this.onDismiss,
   });
 
   @override

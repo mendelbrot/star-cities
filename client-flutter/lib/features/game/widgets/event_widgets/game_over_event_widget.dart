@@ -4,12 +4,12 @@ import 'package:star_cities/features/game/widgets/event_widgets/event_card.dart'
 
 class GameOverEventWidget extends StatelessWidget {
   final GameOverEvent event;
-  final VoidCallback onDismiss;
+  final VoidCallback? onDismiss;
 
   const GameOverEventWidget({
     super.key,
     required this.event,
-    required this.onDismiss,
+    this.onDismiss,
   });
 
   @override
@@ -42,11 +42,13 @@ class GameOverEventWidget extends StatelessWidget {
             const SizedBox(height: 8),
             const Text('The battle for the stars continues...'),
           ],
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: onDismiss,
-            child: const Text('CLOSE'),
-          ),
+          if (onDismiss != null) ...[
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: onDismiss,
+              child: const Text('CLOSE'),
+            ),
+          ],
         ],
       ),
     );

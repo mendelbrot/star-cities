@@ -5,12 +5,12 @@ import 'package:star_cities/features/game/widgets/event_widgets/piece_info_row.d
 
 class BombardEventWidget extends StatelessWidget {
   final BombardEvent event;
-  final VoidCallback onDismiss;
+  final VoidCallback? onDismiss;
 
   const BombardEventWidget({
     super.key,
     required this.event,
-    required this.onDismiss,
+    this.onDismiss,
   });
 
   @override

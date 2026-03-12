@@ -5,12 +5,12 @@ import 'package:star_cities/features/game/widgets/event_widgets/piece_info_row.d
 
 class BattleCollisionEventWidget extends StatelessWidget {
   final BattleCollisionEvent event;
-  final VoidCallback onDismiss;
+  final VoidCallback? onDismiss;
 
   const BattleCollisionEventWidget({
     super.key,
     required this.event,
-    required this.onDismiss,
+    this.onDismiss,
   });
 
   @override

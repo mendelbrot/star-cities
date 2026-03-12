@@ -107,7 +107,11 @@ class GameplayUiNotifier extends StateNotifier<GameplayUiState> {
   }
 
   void selectEvent(GameEvent? event) {
-    state = state.copyWith(selectedEvent: event, clearSelectedEvent: event == null);
+    if (state.selectedEvent == event) {
+      state = state.copyWith(clearSelectedEvent: true);
+    } else {
+      state = state.copyWith(selectedEvent: event, clearSelectedEvent: event == null);
+    }
   }
 
   void resetPlacement() {

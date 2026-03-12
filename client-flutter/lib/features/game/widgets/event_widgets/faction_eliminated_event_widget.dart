@@ -4,12 +4,12 @@ import 'package:star_cities/features/game/widgets/event_widgets/event_card.dart'
 
 class FactionEliminatedEventWidget extends StatelessWidget {
   final FactionEliminatedEvent event;
-  final VoidCallback onDismiss;
+  final VoidCallback? onDismiss;
 
   const FactionEliminatedEventWidget({
     super.key,
     required this.event,
-    required this.onDismiss,
+    this.onDismiss,
   });
 
   @override

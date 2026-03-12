@@ -5,12 +5,12 @@ import 'package:star_cities/features/game/widgets/event_widgets/piece_info_row.d
 
 class PieceDestroyedEventWidget extends StatelessWidget {
   final GameEvent event;
-  final VoidCallback onDismiss;
+  final VoidCallback? onDismiss;
 
   const PieceDestroyedEventWidget({
     super.key,
     required this.event,
-    required this.onDismiss,
+    this.onDismiss,
   });
 
   @override
