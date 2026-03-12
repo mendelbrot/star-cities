@@ -147,7 +147,17 @@ export class TurnContext {
     if (!piece) return;
 
     if (piece.x !== null && piece.y !== null) {
-      this.coordinateMap.delete(`${piece.x},${piece.y}`);
+      const key = `${piece.x},${piece.y}`;
+      this.coordinateMap.delete(key);
+      
+      // Also remove from pendingPlacements if present
+      const pending = this.pendingPlacements.get(key) || [];
+      if (pending.includes(pieceId)) {
+        this.pendingPlacements.set(key, pending.filter(id => id !== pieceId));
+        if (this.pendingPlacements.get(key)?.length === 0) {
+          this.pendingPlacements.delete(key);
+        }
+      }
     }
 
     const placed = this.factionPlacedPiecesMap.get(piece.faction) || [];
@@ -182,15 +192,7 @@ export class TurnContext {
           faction: ship.faction,
           piece_id: ship.id,
         });
-
-        if (ship.x !== null && ship.y !== null) {
-          this.coordinateMap.delete(`${ship.x},${ship.y}`);
-        }
-        const factionPlaced = this.factionPlacedPiecesMap.get(ship.faction) || [];
-        this.factionPlacedPiecesMap.set(ship.faction, factionPlaced.filter((id) => id !== ship.id));
-
-        this.pieceMap.delete(shipId);
-        this.pieceContexts.delete(shipId);
+        this.removePiece(shipId);
       }
     }
     this.tetherMap.delete(lostCityId);

@@ -200,10 +200,10 @@ export function resolveCombat(
     
     const factions = new Set<Faction>();
     
-    const moves = unappliedMovesByCoord.get(coordKey) || [];
+    const moves = (unappliedMovesByCoord.get(coordKey) || []).filter(m => pieceMap.has(m.piece_id));
     moves.forEach((m: ValidatedMove) => factions.add(m.faction));
     
-    const placements = context.pendingPlacements.get(coordKey) || [];
+    const placements = (context.pendingPlacements.get(coordKey) || []).filter(id => pieceMap.has(id));
     placements.forEach((id: string) => factions.add(pieceMap.get(id)!.faction));
 
     if (occupant) factions.add(occupant.faction);
@@ -218,8 +218,8 @@ export function resolveCombat(
   const battleEvents: BattleCollisionEvent[] = [];
   for (const coordKey of battleCoords) {
     const [x, y] = coordKey.split(',').map(Number);
-    const moves = unappliedMovesByCoord.get(coordKey) || [];
-    const placements = context.pendingPlacements.get(coordKey) || [];
+    const moves = (unappliedMovesByCoord.get(coordKey) || []).filter(m => pieceMap.has(m.piece_id));
+    const placements = (context.pendingPlacements.get(coordKey) || []).filter(id => pieceMap.has(id));
     const occupantId = coordinateMap.get(coordKey);
     const occupant = occupantId ? pieceMap.get(occupantId) : null;
 
@@ -259,8 +259,10 @@ export function resolveCombat(
     for (const a of adj) {
       const sId = coordinateMap.get(`${a.x},${a.y}`);
       if (sId && sId !== occupantId && !battle.entering_participants.some((ship) => ship.piece_id === sId)) {
-        const p = pieceMap.get(sId)!;
-        battle.supporting_participants.push({ piece_id: p.id, piece_type: p.type, faction: p.faction });
+        const p = pieceMap.get(sId);
+        if (p) {
+          battle.supporting_participants.push({ piece_id: p.id, piece_type: p.type, faction: p.faction });
+        }
       }
     }
 
@@ -272,8 +274,14 @@ export function resolveCombat(
     const weights = new Map<Faction, number>();
     for (const f of factions) {
       let w = 0;
-      enteringMoves.filter((m: ValidatedMove) => m.faction === f).forEach((m: ValidatedMove) => w += UNIT_STRENGTH[pieceMap.get(m.piece_id)!.type]);
-      enteringPlacements.filter((id: string) => pieceMap.get(id)!.faction === f).forEach((id: string) => w += UNIT_STRENGTH[pieceMap.get(id)!.type]);
+      enteringMoves.filter((m: ValidatedMove) => m.faction === f).forEach((m: ValidatedMove) => {
+        const p = pieceMap.get(m.piece_id);
+        if (p) w += UNIT_STRENGTH[p.type];
+      });
+      enteringPlacements.filter((id: string) => pieceMap.get(id)!.faction === f).forEach((id: string) => {
+        const p = pieceMap.get(id);
+        if (p) w += UNIT_STRENGTH[p.type];
+      });
       if (occupant && occupant.faction === f) w += UNIT_STRENGTH[occupant.type];
       battle.supporting_participants.filter((p: { faction: Faction; piece_type: PieceType }) => p.faction === f).forEach((p: { piece_type: PieceType }) => w += SUPPORT_STRENGTH_FACTOR * UNIT_STRENGTH[p.piece_type]);
       battle.supporting_bombardments.filter((p: { faction: Faction }) => p.faction === f).forEach((_p: { piece_id: string }) => w += BOMBARD_SUPPORT_STRENGTH);
@@ -292,7 +300,12 @@ export function resolveCombat(
   const piecesToDestroy = new Set<string>();
   for (const b of battleEvents) {
     const all = [...b.entering_participants, ...b.supporting_participants, ...(b.defending_participant ? [b.defending_participant] : [])];
-    for (const p of all) if (p.piece_type === "NEUTRINO") pieceMap.get(p.piece_id)!.is_visible = true;
+    for (const p of all) {
+      if (p.piece_type === "NEUTRINO") {
+        const piece = pieceMap.get(p.piece_id);
+        if (piece) piece.is_visible = true;
+      }
+    }
     
     for (const p of b.entering_participants) if (p.faction !== b.winning_faction) piecesToDestroy.add(p.piece_id);
     
