@@ -1,4 +1,4 @@
-import { Coordinate, GameEvent, GameParameters, Piece, Player } from "../_shared/types.ts";
+import { Coordinate, Faction, GameEvent, GameParameters, Piece, Player } from "../_shared/types.ts";
 import { getAdjacentCoordinates, isSameCoordinate } from "../_shared/map.ts";
 
 export interface PieceTurnContext {
@@ -202,5 +202,26 @@ export class TurnContext {
 
   isStarAt(coord: Coordinate): boolean {
     return this.stars.some(s => isSameCoordinate(s, coord));
+  }
+
+  getWinner(): Faction | null {
+    const remainingPlayers = this.players.filter((p: Player) => !p.is_eliminated);
+    if (remainingPlayers.length === 0) return null;
+    if (remainingPlayers.length === 1) return remainingPlayers[0].faction as Faction;
+
+    const starCounts = this.getFactionStarCounts();
+    const sorted = Array.from(starCounts.entries())
+      .filter(([f]) => this.players.some(p => p.faction === f && !p.is_eliminated))
+      .sort((a, b) => b[1] - a[1]);
+
+    if (
+      sorted.length > 0 && 
+      sorted[0][1] >= this.params.star_count_to_win && 
+      (sorted.length === 1 || sorted[0][1] > sorted[1][1])
+    ) {
+      return sorted[0][0] as Faction;
+    }
+
+    return null;
   }
 }
