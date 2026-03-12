@@ -368,8 +368,10 @@ export function resolveCombat(
     if (winningMove) {
       const p = pieceMap.get(winningMove.piece_id);
       if (p) {
-        context.updatePiecePosition(p.id, winningMove.to);
-        context.addEvent({ type: "MOVE", faction: winningMove.faction, piece_id: winningMove.piece_id, from: winningMove.from, to: winningMove.to });
+        if (b.result !== "CAPTURE") {
+          context.updatePiecePosition(p.id, winningMove.to);
+          context.addEvent({ type: "MOVE", faction: winningMove.faction, piece_id: winningMove.piece_id, from: winningMove.from, to: winningMove.to });
+        }
       }
       winningMove.applied = true;
     }
