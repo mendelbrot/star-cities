@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:math' as math;
 import 'package:star_cities/features/game/models/game_events.dart';
+import 'package:star_cities/features/game/providers/game_providers.dart';
+import 'package:star_cities/features/lobby/models/game.dart';
 
 class GameplayUiState {
   final String? selectedPieceId;
@@ -105,14 +107,40 @@ class GameplayUiNotifier extends StateNotifier<GameplayUiState> {
   }
 
   void selectEvent(GameEvent? event) {
-    state = state.copyWith(selectedEvent: event, clearSelectedEvent: event == null);
+    if (state.selectedEvent == event) {
+      state = state.copyWith(clearSelectedEvent: true);
+    } else {
+      state = state.copyWith(selectedEvent: event, clearSelectedEvent: event == null);
+    }
   }
 
   void resetPlacement() {
     state = state.copyWith(clearPlacingPiece: true, clearSelectedCity: true);
   }
+
+  void clearSelection() {
+    state = state.copyWith(
+      clearSelectedPiece: true,
+      clearPlacingPiece: true,
+      clearSelectedCity: true,
+      isBombarding: false,
+      isRetethering: false,
+    );
+  }
 }
 
 final gameplayUiProvider = StateNotifierProvider.autoDispose.family<GameplayUiNotifier, GameplayUiState, String>((ref, gameId) {
-  return GameplayUiNotifier();
+  final notifier = GameplayUiNotifier();
+
+  // Reset selection when game status is not planning
+  ref.listen(gameProvider(gameId), (previous, next) {
+    next.whenData((game) {
+      if (game?.status != GameStatus.planning) {
+        notifier.clearSelection();
+      }
+    });
+  });
+
+  return notifier;
 });
+

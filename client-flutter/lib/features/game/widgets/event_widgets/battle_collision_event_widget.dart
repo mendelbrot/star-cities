@@ -5,18 +5,22 @@ import 'package:star_cities/features/game/widgets/event_widgets/piece_info_row.d
 
 class BattleCollisionEventWidget extends StatelessWidget {
   final BattleCollisionEvent event;
-  final VoidCallback onDismiss;
+  final VoidCallback? onDismiss;
 
   const BattleCollisionEventWidget({
     super.key,
     required this.event,
-    required this.onDismiss,
+    this.onDismiss,
   });
 
   @override
   Widget build(BuildContext context) {
+    final String winnerText = event.result.toLowerCase() == 'capture' 
+        ? '${_capitalize(event.winningFaction.name)} (Capture)'
+        : _capitalize(event.winningFaction.name);
+
     return EventCard(
-      title: const Text('BATTLE / COLLISION'),
+      title: const Text('Battle'),
       onDismiss: onDismiss,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -29,7 +33,7 @@ class BattleCollisionEventWidget extends StatelessWidget {
             PieceInfoRow(
               type: event.defendingParticipant!.pieceType,
               faction: event.defendingParticipant!.faction,
-              label: '${event.defendingParticipant!.faction.name} ${event.defendingParticipant!.pieceType.name}',
+              label: '${_capitalize(event.defendingParticipant!.faction.name)} ${event.defendingParticipant!.pieceType.name}',
             ),
             const SizedBox(height: 12),
           ],
@@ -40,7 +44,7 @@ class BattleCollisionEventWidget extends StatelessWidget {
             children: event.enteringParticipants.map((p) => PieceInfoRow(
               type: p.pieceType,
               faction: p.faction,
-              label: '${p.faction.name} ${p.pieceType.name}',
+              label: '${_capitalize(p.faction.name)} ${p.pieceType.name}',
             )).toList(),
           ),
           const SizedBox(height: 12),
@@ -52,7 +56,7 @@ class BattleCollisionEventWidget extends StatelessWidget {
               children: event.supportingParticipants.map((p) => PieceInfoRow(
                 type: p.pieceType,
                 faction: p.faction,
-                label: '${p.faction.name} ${p.pieceType.name}',
+                label: '${_capitalize(p.faction.name)} ${p.pieceType.name}',
               )).toList(),
             ),
             const SizedBox(height: 12),
@@ -65,7 +69,7 @@ class BattleCollisionEventWidget extends StatelessWidget {
               children: event.supportingBombardments.map((p) => PieceInfoRow(
                 type: p.pieceType,
                 faction: p.faction,
-                label: '${p.faction.name} ${p.pieceType.name}',
+                label: '${_capitalize(p.faction.name)} ${p.pieceType.name}',
               )).toList(),
             ),
             const SizedBox(height: 12),
@@ -76,7 +80,7 @@ class BattleCollisionEventWidget extends StatelessWidget {
           ...event.calculatedStrengths.map((s) => Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(s.faction.name),
+              Text(_capitalize(s.faction.name)),
               Text(s.strength.toStringAsFixed(1)),
             ],
           )),
@@ -91,9 +95,9 @@ class BattleCollisionEventWidget extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  const Text('WINNER', style: TextStyle(fontSize: 10, letterSpacing: 2)),
+                  const Text('Winner', style: TextStyle(fontSize: 10, letterSpacing: 2)),
                   Text(
-                    '${event.winningFaction.name} (${event.result})',
+                    winnerText,
                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                   ),
                 ],
@@ -104,4 +108,6 @@ class BattleCollisionEventWidget extends StatelessWidget {
       ),
     );
   }
+
+  String _capitalize(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1).toLowerCase();
 }

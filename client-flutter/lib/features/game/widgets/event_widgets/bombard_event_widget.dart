@@ -5,18 +5,18 @@ import 'package:star_cities/features/game/widgets/event_widgets/piece_info_row.d
 
 class BombardEventWidget extends StatelessWidget {
   final BombardEvent event;
-  final VoidCallback onDismiss;
+  final VoidCallback? onDismiss;
 
   const BombardEventWidget({
     super.key,
     required this.event,
-    required this.onDismiss,
+    this.onDismiss,
   });
 
   @override
   Widget build(BuildContext context) {
     return EventCard(
-      title: const Text('BOMBARDMENT'),
+      title: const Text('Bombardment'),
       onDismiss: onDismiss,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -59,8 +59,9 @@ class BombardEventWidget extends StatelessWidget {
                 decoration: BoxDecoration(
                   border: Border.all(color: Theme.of(context).colorScheme.primary),
                   borderRadius: BorderRadius.circular(4),
-                ),                child: Text(
-                  event.isDestroyed ? 'DESTROYED' : 'SURVIVED',
+                ),
+                child: Text(
+                  event.isDestroyed ? 'Destroyed' : 'Survived',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ),

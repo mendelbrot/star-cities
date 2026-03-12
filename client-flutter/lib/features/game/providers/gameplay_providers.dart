@@ -4,6 +4,11 @@ import 'package:star_cities/features/game/models/game_events.dart';
 import 'package:star_cities/features/game/models/game_actions.dart';
 import 'package:star_cities/shared/providers/robust_stream_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:star_cities/features/game/utils/vision_logic.dart';
+import 'package:star_cities/shared/providers/auth_providers.dart';
+import 'package:star_cities/features/game/providers/game_providers.dart';
+import 'dart:math' as math;
+import 'package:collection/collection.dart';
 
 /// Robust notifier for turn states.
 class TurnStatesNotifier extends RobustSupabaseNotifier<TurnState, String> {
@@ -82,6 +87,61 @@ final robustTurnEventsProvider = AsyncNotifierProvider.family<TurnEventsNotifier
 final gameplayTurnEventsProvider = Provider.family<AsyncValue<TurnEventList?>, String>((ref, gameId) {
   final asyncValue = ref.watch(robustTurnEventsProvider(gameId));
   return asyncValue.whenData((list) => list.isNotEmpty ? list.first : null);
+});
+
+/// Fetches events for a specific turn.
+final historicalTurnEventsProvider = FutureProvider.family<TurnEventList?, ({String gameId, int turnNumber})>((ref, arg) async {
+  final supabase = Supabase.instance.client;
+  final response = await supabase
+      .from('turn_events')
+      .select()
+      .eq('game_id', arg.gameId)
+      .eq('turn_number', arg.turnNumber)
+      .maybeSingle();
+
+  if (response == null) return null;
+  return TurnEventList.fromMap(response);
+});
+
+/// Fetches turn state for a specific turn.
+final historicalTurnStateProvider = FutureProvider.family<TurnState?, ({String gameId, int turnNumber})>((ref, arg) async {
+  final supabase = Supabase.instance.client;
+  final response = await supabase
+      .from('turn_states')
+      .select()
+      .eq('game_id', arg.gameId)
+      .eq('turn_number', arg.turnNumber)
+      .maybeSingle();
+
+  if (response == null) return null;
+  return TurnState.fromMap(response);
+});
+
+/// Fetches vision for a specific turn.
+final historicalVisionProvider = FutureProvider.family<Set<math.Point<int>>, ({String gameId, int turnNumber})>((ref, arg) async {
+  final turnStateAsync = ref.watch(historicalTurnStateProvider(arg));
+  final playersAsync = ref.watch(gamePlayersWithProfilesProvider(arg.gameId));
+  final currentUser = ref.watch(currentUserProvider);
+
+  return turnStateAsync.when(
+    data: (state) => playersAsync.when(
+      data: (players) {
+        if (state == null) return <math.Point<int>>{};
+        
+        final currentPlayer = players.firstWhereOrNull(
+          (p) => p.player.userId == currentUser?.id,
+        ) ?? players.firstOrNull;
+
+        if (currentPlayer == null) return <math.Point<int>>{};
+
+        return calculateVisibleSquares(state.pieces, currentPlayer.player.faction);
+      },
+      loading: () => <math.Point<int>>{},
+      error: (e, s) => <math.Point<int>>{},
+    ),
+    loading: () => <math.Point<int>>{},
+    error: (e, s) => <math.Point<int>>{},
+  );
 });
 
 class PendingActionsNotifier extends FamilyNotifier<List<GameAction>, String> {

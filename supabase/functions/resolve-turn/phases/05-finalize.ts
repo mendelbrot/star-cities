@@ -1,33 +1,23 @@
-import postgres from "https://deno.land/x/postgresjs@v3.3.3/mod.js";
-import { Faction, Player } from "../../_shared/types.ts";
+import postgres from "postgres";
+import { Player } from "../../_shared/types.ts";
 import { TurnContext } from "../context.ts";
 
 export async function finalize(sql: postgres.Sql, context: TurnContext) {
   context.currentStep = 7;
-  const { game_id, turn_number, params, players, pieceMap } = context;
+  const { game_id, turn_number, players, pieceMap } = context;
 
   const remainingPlayers = players.filter((p: Player) => !p.is_eliminated);
-  let winnerF: Faction | null = null;
+  const remainingHumans = remainingPlayers.filter((p: Player) => !p.is_bot);
   
-  const starCounts = context.getFactionStarCounts();
-
-  if (remainingPlayers.length === 1) {
-    winnerF = remainingPlayers[0].faction as Faction;
-  } else if (remainingPlayers.length > 0) {
-    const sorted = Array.from(starCounts.entries())
-      .filter(([f]) => players.some(p => p.faction === f && !p.is_eliminated))
-      .sort((a, b) => b[1] - a[1]);
-
-    if (sorted.length > 0 && sorted[0][1] >= params.star_count_to_win && (sorted.length === 1 || sorted[0][1] > sorted[1][1])) {
-      winnerF = sorted[0][0] as Faction;
-    }
-  } else {
-    context.addEvent({ type: "GAME_OVER", winner: null, did_someone_win: false });
-  }
+  const winnerF = context.getWinner();
 
   if (winnerF) {
     context.addEvent({ type: "GAME_OVER", winner: winnerF, did_someone_win: true });
+  } else if (remainingHumans.length === 0) {
+    context.addEvent({ type: "GAME_OVER", winner: null, did_someone_win: false });
   }
+
+  const starCounts = context.getFactionStarCounts();
 
   // Create player ranking
   const playerRanking = players.map(p => ({
@@ -59,7 +49,7 @@ export async function finalize(sql: postgres.Sql, context: TurnContext) {
     ON CONFLICT (game_id, turn_number) DO UPDATE SET state = EXCLUDED.state
   `;
   
-  const gameStatus = (winnerF || remainingPlayers.length <= 1) ? "FINISHED" : "PLANNING";
+  const gameStatus = (winnerF || remainingPlayers.length <= 1 || remainingHumans.length === 0) ? "FINISHED" : "PLANNING";
   if (winnerF) {
     const winP = remainingPlayers.find((p: Player) => p.faction === winnerF);
     if (winP) {

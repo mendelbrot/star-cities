@@ -1,4 +1,4 @@
-import postgres from "https://deno.land/x/postgresjs@v3.3.3/mod.js";
+import postgres from "postgres";
 
 const dbUrl = Deno.env.get("SUPABASE_DB_URL")!;
 

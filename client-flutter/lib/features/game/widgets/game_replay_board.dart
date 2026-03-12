@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:star_cities/features/game/models/game_models.dart';
 import 'package:star_cities/features/game/models/game_events.dart';
+import 'package:collection/collection.dart';
 import 'package:star_cities/features/game/providers/gameplay_ui_state.dart';
 import 'package:star_cities/features/game/providers/game_providers.dart';
 import 'package:star_cities/features/lobby/models/game.dart' as models;
@@ -10,11 +11,6 @@ import 'package:star_cities/shared/providers/auth_providers.dart';
 import 'package:star_cities/features/game/icon_widgets/bombard_event_icon.dart';
 import 'package:star_cities/features/game/icon_widgets/battle_event_icon.dart';
 import 'package:star_cities/features/game/widgets/game_board_base.dart';
-import 'package:star_cities/features/game/widgets/event_widgets/bombard_event_widget.dart';
-import 'package:star_cities/features/game/widgets/event_widgets/battle_collision_event_widget.dart';
-import 'package:star_cities/features/game/widgets/event_widgets/city_captured_event_widget.dart';
-import 'package:star_cities/features/game/widgets/event_widgets/faction_eliminated_event_widget.dart';
-import 'package:star_cities/features/game/widgets/event_widgets/game_over_event_widget.dart';
 
 class GameReplayBoard extends ConsumerWidget {
   final models.Game game;
@@ -50,6 +46,18 @@ class GameReplayBoard extends ConsumerWidget {
         final centerY = homeStar?['y'] ?? 4;
 
         final replayPieces = _getReplayPieces(uiState.currentReplayStep);
+        final highlightSquares = <math.Point<int>>{};
+        if (uiState.selectedEvent != null) {
+          final e = uiState.selectedEvent!;
+          if (e is BombardEvent) highlightSquares.add(e.coord);
+          if (e is BattleCollisionEvent) highlightSquares.add(e.coord);
+          if (e is CityCapturedEvent) {
+            final city = pieces.firstWhereOrNull((p) => p.id == e.cityId);
+            if (city != null && city.x != null && city.y != null) {
+              highlightSquares.add(math.Point(city.x!, city.y!));
+            }
+          }
+        }
 
         return LayoutBuilder(
           builder: (context, constraints) {
@@ -78,6 +86,7 @@ class GameReplayBoard extends ConsumerWidget {
                       centerX: centerX,
                       centerY: centerY,
                       cellSize: cellSize,
+                      highlightSquares: highlightSquares,
                       onSquareTap: (x, y) => _handleReplayTap(ref, x, y, currentEvents, replayPieces),
                       onPieceTap: (piece) => _handleReplayTap(ref, piece.x!, piece.y!, currentEvents, replayPieces),
                       overlays: [
@@ -131,14 +140,6 @@ class GameReplayBoard extends ConsumerWidget {
                     ),
                   ),
                 ),
-                if (uiState.selectedEvent != null)
-                  Positioned.fill(
-                    child: Center(
-                      child: _buildEventOverlay(uiState.selectedEvent!, () {
-                        ref.read(gameplayUiProvider(game.id).notifier).selectEvent(null);
-                      }),
-                    ),
-                  ),
               ],
             );
           },
@@ -172,25 +173,6 @@ class GameReplayBoard extends ConsumerWidget {
     if (eventAtSquare != null) {
       ref.read(gameplayUiProvider(game.id).notifier).selectEvent(eventAtSquare);
     }
-  }
-
-  Widget _buildEventOverlay(GameEvent event, VoidCallback onDismiss) {
-    if (event is BombardEvent) {
-      return BombardEventWidget(event: event, onDismiss: onDismiss);
-    }
-    if (event is BattleCollisionEvent) {
-      return BattleCollisionEventWidget(event: event, onDismiss: onDismiss);
-    }
-    if (event is CityCapturedEvent) {
-      return CityCapturedEventWidget(event: event, onDismiss: onDismiss);
-    }
-    if (event is FactionEliminatedEvent) {
-      return FactionEliminatedEventWidget(event: event, onDismiss: onDismiss);
-    }
-    if (event is GameOverEvent) {
-      return GameOverEventWidget(event: event, onDismiss: onDismiss);
-    }
-    return Container();
   }
 }
 

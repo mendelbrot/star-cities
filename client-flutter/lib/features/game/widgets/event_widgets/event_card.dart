@@ -3,20 +3,19 @@ import 'package:flutter/material.dart';
 class EventCard extends StatelessWidget {
   final Widget title;
   final Widget content;
-  final VoidCallback onDismiss;
+  final VoidCallback? onDismiss;
 
   const EventCard({
     super.key,
     required this.title,
     required this.content,
-    required this.onDismiss,
+    this.onDismiss,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Card(
-      margin: const EdgeInsets.all(16),
       elevation: 8,
       child: Container(
         decoration: BoxDecoration(
@@ -41,12 +40,14 @@ class EventCard extends StatelessWidget {
                     style: theme.textTheme.displaySmall ?? const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                     child: title,
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: onDismiss,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
+                  if (onDismiss != null)
+                    IconButton(
+                      icon: const Icon(Icons.filter_alt_off, size: 20),
+                      onPressed: onDismiss,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      tooltip: 'Clear filter',
+                    ),
                 ],
               ),
               Divider(color: theme.colorScheme.primary, height: 24),

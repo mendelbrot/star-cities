@@ -1,4 +1,4 @@
-import { Coordinate, GameEvent, GameParameters, Piece, Player } from "../_shared/types.ts";
+import { Coordinate, Faction, GameEvent, GameParameters, Piece, Player } from "../_shared/types.ts";
 import { getAdjacentCoordinates, isSameCoordinate } from "../_shared/map.ts";
 
 export interface PieceTurnContext {
@@ -142,12 +142,22 @@ export class TurnContext {
     }
   }
 
-  removePiece(pieceId: string) {
+  removePiece(pieceId: string, skipTetherLoss = false) {
     const piece = this.pieceMap.get(pieceId);
     if (!piece) return;
 
     if (piece.x !== null && piece.y !== null) {
-      this.coordinateMap.delete(`${piece.x},${piece.y}`);
+      const key = `${piece.x},${piece.y}`;
+      this.coordinateMap.delete(key);
+      
+      // Also remove from pendingPlacements if present
+      const pending = this.pendingPlacements.get(key) || [];
+      if (pending.includes(pieceId)) {
+        this.pendingPlacements.set(key, pending.filter(id => id !== pieceId));
+        if (this.pendingPlacements.get(key)?.length === 0) {
+          this.pendingPlacements.delete(key);
+        }
+      }
     }
 
     const placed = this.factionPlacedPiecesMap.get(piece.faction) || [];
@@ -157,7 +167,9 @@ export class TurnContext {
     this.factionTrayMap.set(piece.faction, tray.filter(id => id !== pieceId));
 
     if (piece.type === "STAR_CITY") {
-      this.handleTetherLoss(pieceId);
+      if (!skipTetherLoss) {
+        this.handleTetherLoss(pieceId);
+      }
     } else if (piece.tether_id) {
       const ships = this.tetherMap.get(piece.tether_id) || [];
       this.tetherMap.set(piece.tether_id, ships.filter(id => id !== pieceId));
@@ -182,15 +194,7 @@ export class TurnContext {
           faction: ship.faction,
           piece_id: ship.id,
         });
-
-        if (ship.x !== null && ship.y !== null) {
-          this.coordinateMap.delete(`${ship.x},${ship.y}`);
-        }
-        const factionPlaced = this.factionPlacedPiecesMap.get(ship.faction) || [];
-        this.factionPlacedPiecesMap.set(ship.faction, factionPlaced.filter((id) => id !== ship.id));
-
-        this.pieceMap.delete(shipId);
-        this.pieceContexts.delete(shipId);
+        this.removePiece(shipId);
       }
     }
     this.tetherMap.delete(lostCityId);
@@ -198,5 +202,26 @@ export class TurnContext {
 
   isStarAt(coord: Coordinate): boolean {
     return this.stars.some(s => isSameCoordinate(s, coord));
+  }
+
+  getWinner(): Faction | null {
+    const remainingPlayers = this.players.filter((p: Player) => !p.is_eliminated);
+    if (remainingPlayers.length === 0) return null;
+    if (remainingPlayers.length === 1) return remainingPlayers[0].faction as Faction;
+
+    const starCounts = this.getFactionStarCounts();
+    const sorted = Array.from(starCounts.entries())
+      .filter(([f]) => this.players.some(p => p.faction === f && !p.is_eliminated))
+      .sort((a, b) => b[1] - a[1]);
+
+    if (
+      sorted.length > 0 && 
+      sorted[0][1] >= this.params.star_count_to_win && 
+      (sorted.length === 1 || sorted[0][1] > sorted[1][1])
+    ) {
+      return sorted[0][0] as Faction;
+    }
+
+    return null;
   }
 }

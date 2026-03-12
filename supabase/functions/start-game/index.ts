@@ -1,4 +1,4 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "std/http/server.ts";
 import { sql } from "../_shared/db.ts";
 import { Coordinate, Faction, GameParameters, Piece } from "../_shared/types.ts";
 import { generateStars, getAdjacentCoordinates } from "./map.ts";

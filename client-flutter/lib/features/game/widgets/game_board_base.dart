@@ -13,6 +13,7 @@ class GameBoardBase extends StatelessWidget {
   final int centerY;
   final double cellSize;
   final Set<math.Point<int>> availableSquares;
+  final Set<math.Point<int>> highlightSquares;
   final String? selectedPieceId;
   final String? selectedCityId;
   final Set<String> highlightPieceIds;
@@ -32,6 +33,7 @@ class GameBoardBase extends StatelessWidget {
     required this.centerY,
     required this.cellSize,
     this.availableSquares = const {},
+    this.highlightSquares = const {},
     this.selectedPieceId,
     this.selectedCityId,
     this.highlightPieceIds = const {},
@@ -62,12 +64,13 @@ class GameBoardBase extends StatelessWidget {
           child: IgnorePointer(child: Container(height: 1, color: theme.dividerColor.withValues(alpha: 0.1))),
         )),
 
-        // 2. Clickable Grid Squares (with selection dots)
+        // 2. Clickable Grid Squares (with selection dots and highlight border)
         ...List.generate(81, (i) {
           final x = i % 9;
           final y = i ~/ 9;
           final pos = getRelativePosition(x, y, centerX, centerY);
           final isAvailable = availableSquares.contains(math.Point(x, y));
+          final isHighlighted = highlightSquares.contains(math.Point(x, y));
 
           return Positioned(
             left: pos.x * cellSize,
@@ -77,7 +80,14 @@ class GameBoardBase extends StatelessWidget {
             child: GestureDetector(
               onTap: onSquareTap != null ? () => onSquareTap!(x, y) : null,
               child: Container(
-                color: Colors.transparent,
+                decoration: BoxDecoration(
+                  color: Colors.transparent,
+                  border: Border.all(
+                    color: isHighlighted ? theme.colorScheme.primary : Colors.transparent,
+                    width: isHighlighted ? 2 : 0,
+                  ),
+                  borderRadius: BorderRadius.circular(cellSize * 0.1),
+                ),
                 child: (isAvailable && showAvailableDots)
                 ? Center(
                     child: Container(

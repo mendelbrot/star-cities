@@ -87,7 +87,7 @@ export function resolveIntents(
       else if (action.type === "TETHER_ACT") {
         const ship = pieceMap.get(action.ship_id);
         const ctx = pieceContexts.get(action.ship_id);
-        if (!ship || (ship.is_in_tray && !ctx?.wasJustPlaced) || ship.faction !== player.faction) continue;
+        if (!ship || ship.is_in_tray || ctx?.wasJustPlaced || ship.faction !== player.faction) continue;
         if (ship.type !== "ECLIPSE" && ship.type !== "PARALLAX") continue;
 
         const city = pieceMap.get(action.city_id);
@@ -159,6 +159,4 @@ export function resolveIntents(
       }
     }
   }
-
-  context.captureSnapshot();
 }

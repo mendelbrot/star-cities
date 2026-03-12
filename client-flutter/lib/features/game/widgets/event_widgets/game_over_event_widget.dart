@@ -4,18 +4,20 @@ import 'package:star_cities/features/game/widgets/event_widgets/event_card.dart'
 
 class GameOverEventWidget extends StatelessWidget {
   final GameOverEvent event;
-  final VoidCallback onDismiss;
+  final VoidCallback? onDismiss;
 
   const GameOverEventWidget({
     super.key,
     required this.event,
-    required this.onDismiss,
+    this.onDismiss,
   });
+
+  String _capitalize(String s) => s.isEmpty ? s : s[0].toUpperCase() + s.substring(1).toLowerCase();
 
   @override
   Widget build(BuildContext context) {
     return EventCard(
-      title: const Text('GAME OVER'),
+      title: const Text('Game Over'),
       onDismiss: onDismiss,
       content: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -24,29 +26,31 @@ class GameOverEventWidget extends StatelessWidget {
           const SizedBox(height: 16),
           if (event.didSomeoneWin && event.winner != null) ...[
             Text(
-              '${event.winner!.name} IS VICTORIOUS!',
+              '${_capitalize(event.winner!.name)} is Victorious!',
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24, letterSpacing: 2),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
-              'The ${event.winner!.name} faction has secured control of the sector.',
+              'The ${_capitalize(event.winner!.name)} faction has secured control of the sector.',
               textAlign: TextAlign.center,
               style: const TextStyle(fontStyle: FontStyle.italic),
             ),
           ] else ...[
             const Text(
-              'NO VICTOR',
+              'No Victor',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24, letterSpacing: 2),
             ),
             const SizedBox(height: 8),
             const Text('The battle for the stars continues...'),
           ],
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: onDismiss,
-            child: const Text('CLOSE'),
-          ),
+          if (onDismiss != null) ...[
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: onDismiss,
+              child: const Text('Close'),
+            ),
+          ],
         ],
       ),
     );
