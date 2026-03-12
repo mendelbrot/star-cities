@@ -379,12 +379,38 @@ class GameOverEvent extends GameEvent {
   }
 }
 
+class PlayerRanking {
+  final String playerId;
+  final Faction faction;
+  final int starCount;
+
+  PlayerRanking({
+    required this.playerId,
+    required this.faction,
+    required this.starCount,
+  });
+
+  factory PlayerRanking.fromMap(Map<String, dynamic> map) {
+    return PlayerRanking(
+      playerId: map['player_id'],
+      faction: Faction.fromString(map['faction']),
+      starCount: map['star_count'],
+    );
+  }
+}
+
 class TurnEventList {
   final int turnNumber;
   final List<GameEvent> events;
   final Map<int, List<Piece>> snapshots;
+  final List<PlayerRanking> playerRanking;
 
-  TurnEventList({required this.turnNumber, required this.events, required this.snapshots});
+  TurnEventList({
+    required this.turnNumber,
+    required this.events,
+    required this.snapshots,
+    required this.playerRanking,
+  });
 
   factory TurnEventList.fromMap(Map<String, dynamic> map) {
     final snapshotsMap = (map['snapshots'] as Map<String, dynamic>?)?.map(
@@ -400,6 +426,9 @@ class TurnEventList {
           .map((e) => GameEvent.fromMap(e as Map<String, dynamic>))
           .toList(),
       snapshots: snapshotsMap,
+      playerRanking: (map['player_ranking'] as List? ?? [])
+          .map((r) => PlayerRanking.fromMap(r as Map<String, dynamic>))
+          .toList(),
     );
   }
 }

@@ -15,6 +15,7 @@ import 'package:star_cities/shared/widgets/responsive_game_header.dart';
 import 'package:star_cities/features/game/widgets/planning_panel.dart';
 import 'package:star_cities/features/game/widgets/replay_panel.dart';
 import 'package:star_cities/features/game/widgets/game_over.dart';
+import 'package:star_cities/features/game/widgets/player_rank_list_item.dart';
 import 'package:collection/collection.dart';
 
 class GamePlay extends ConsumerWidget {
@@ -82,10 +83,32 @@ class GamePlay extends ConsumerWidget {
                           ),
                           const SizedBox(height: 32),
                           const SectionTitle('scoreboard'),
-                          const Expanded(
-                            child: Center(
-                              child: Text('Scoreboard content will go here'),
-                            ),
+                          const SizedBox(height: 16),
+                          Expanded(
+                            child: turnEventList == null || turnEventList.playerRanking.isEmpty
+                                ? const Center(child: Text('No ranking data available yet.'))
+                                : playersWithProfilesAsync.when(
+                                    data: (players) {
+                                      return ListView.builder(
+                                        itemCount: turnEventList.playerRanking.length,
+                                        itemBuilder: (context, index) {
+                                          final ranking = turnEventList.playerRanking[index];
+                                          final playerWithProfile = players.firstWhereOrNull(
+                                            (p) => p.player.id == ranking.playerId,
+                                          );
+                                          
+                                          if (playerWithProfile == null) return const SizedBox.shrink();
+                                          
+                                          return PlayerRankListItem(
+                                            playerWithProfile: playerWithProfile,
+                                            starCount: ranking.starCount,
+                                          );
+                                        },
+                                      );
+                                    },
+                                    loading: () => const Center(child: CircularProgressIndicator()),
+                                    error: (e, s) => Center(child: Text('Error loading players: $e')),
+                                  ),
                           ),
                         ],
                       ),
