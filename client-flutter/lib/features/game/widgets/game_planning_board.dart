@@ -40,6 +40,8 @@ class GamePlanningBoard extends ConsumerWidget {
           (p) => p.player.userId == currentUser?.id,
         ) ?? players.first;
         
+        final isPlanningMode = game.status == models.GameStatus.planning && !currentPlayer.player.isReady;
+
         final homeStar = currentPlayer.player.homeStar;
         final centerX = homeStar?['x'] ?? 4;
         final centerY = homeStar?['y'] ?? 4;
@@ -76,10 +78,10 @@ class GamePlanningBoard extends ConsumerWidget {
                   highlightPieceIds: _calculateHighlightPieces(uiState, virtualPieces, currentPlayer.player.faction),
                   dimmedPieceIds: pendingActions.whereType<PlaceAction>().map((a) => a.trayPieceId).toSet(),
                   showAvailableDots: !uiState.isBombarding,
-                  onSquareTap: game.status == models.GameStatus.planning 
+                  onSquareTap: isPlanningMode 
                       ? (x, y) => _handleSquareTap(ref, x, y, uiState, virtualPieces, currentPlayer.player.faction, pendingActions, availableSquares)
                       : null,
-                  onPieceTap: game.status == models.GameStatus.planning
+                  onPieceTap: isPlanningMode
                       ? (piece) => _handlePieceTap(ref, piece, uiState, virtualPieces, currentPlayer.player.faction, pendingActions, availableSquares)
                       : null,
                   overlays: [

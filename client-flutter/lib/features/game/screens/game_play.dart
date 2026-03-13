@@ -24,8 +24,6 @@ import 'package:star_cities/features/game/widgets/event_widgets/battle_collision
 import 'package:star_cities/features/game/widgets/event_widgets/city_captured_event_widget.dart';
 import 'package:star_cities/features/game/widgets/event_widgets/faction_eliminated_event_widget.dart';
 import 'package:star_cities/features/game/widgets/event_widgets/game_over_event_widget.dart';
-import 'package:star_cities/features/game/widgets/event_widgets/maneuver_event_widget.dart';
-import 'package:star_cities/features/game/widgets/event_widgets/advance_event_widget.dart';
 import 'package:star_cities/features/game/widgets/event_widgets/piece_lost_tether_event_widget.dart';
 import 'package:star_cities/features/game/widgets/event_widgets/piece_destroyed_event_widget.dart';
 
@@ -66,6 +64,8 @@ class GamePlay extends ConsumerWidget {
       final nextGame = next.value;
       if (prevGame?.status != nextGame?.status || prevGame?.turnNumber != nextGame?.turnNumber) {
         ref.read(gameplayUiProvider(game.id).notifier).selectEvent(null);
+        ref.read(selectedEventTurnProvider(game.id).notifier).state = 0;
+        ref.read(selectedEventCategoryProvider(game.id).notifier).state = EventCategory.bombardments;
       }
     });
 
@@ -296,64 +296,63 @@ class GamePlay extends ConsumerWidget {
                                         }).toList();
 
                                         final showBoard = category != EventCategory.outcomes;
-
-                                        final eventsListView = filteredEvents.isEmpty
-                                            ? const Center(child: Text('No events in this category.'))
-                                            : ListView.builder(
-                                                padding: const EdgeInsets.only(bottom: 32),
-                                                itemCount: filteredEvents.length,
-                                                itemBuilder: (context, index) {
-                                                  final event = filteredEvents[index];
-                                                  final bool isFiltered = uiState.selectedEvent != null;
-                                                  final onDismiss = isFiltered ? () => ref.read(gameplayUiProvider(game.id).notifier).selectEvent(null) : null;
-
-                                                  if (event is BombardEvent) {
-                                                    return BombardEventWidget(
-                                                      event: event, 
-                                                      onDismiss: onDismiss
-                                                    );
-                                                  } else if (event is BattleCollisionEvent) {
-                                                    return BattleCollisionEventWidget(
-                                                      event: event, 
-                                                      onDismiss: onDismiss
-                                                    );
-                                                  } else if (event is CityCapturedEvent) {
-                                                    return CityCapturedEventWidget(event: event);
-                                                  } else if (event is FactionEliminatedEvent) {
-                                                    return FactionEliminatedEventWidget(event: event);
-                                                  } else if (event is GameOverEvent) {
-                                                    return GameOverEventWidget(event: event);
-                                                  } else if (event is MoveEvent && event.replayStep == 3) {
-                                                    return ManeuverEventWidget(event: event);
-                                                  } else if (event is MoveEvent && event.replayStep == 5) {
-                                                    return AdvanceEventWidget(event: event);
-                                                  } else if (event is ShipLostTetherEvent) {
-                                                    return PieceLostTetherEventWidget(event: event);
-                                                  } else if (event is ShipDestroyedInBattleEvent || event is ShipDestroyedInBombardmentEvent) {
-                                                    return PieceDestroyedEventWidget(event: event);
-                                                  }
-                                                  return const SizedBox.shrink();
-                                                },
-                                              );
+                                        final showEventsList = category != EventCategory.maneuvers && category != EventCategory.advances;
 
                                         if (showBoard) {
                                           return LayoutBuilder(
                                             builder: (context, constraints) {
                                               final bool isWide = constraints.maxWidth > 600;
                                               
-                                              final boardWidget = ConstrainedBox(
-                                                constraints: const BoxConstraints(maxWidth: 300),
-                                                child: AspectRatio(
-                                                  aspectRatio: 1,
-                                                  child: GameBoard(
-                                                    game: game,
-                                                    pieces: turnState.pieces,
-                                                    visibleSquares: vision,
-                                                    events: turnEvents.events,
-                                                    snapshots: turnEvents.snapshots,
-                                                  ),
+                                              final boardWidget = AspectRatio(
+                                                aspectRatio: 1,
+                                                child: GameBoard(
+                                                  game: game,
+                                                  pieces: turnState.pieces,
+                                                  visibleSquares: vision,
+                                                  events: turnEvents.events,
+                                                  snapshots: turnEvents.snapshots,
                                                 ),
                                               );
+
+                                              if (!showEventsList) {
+                                                return Center(
+                                                  child: Padding(
+                                                    padding: const EdgeInsets.all(16.0),
+                                                    child: boardWidget,
+                                                  ),
+                                                );
+                                              }
+
+                                              // For Bombardments and Battles
+                                              final constrainedBoard = ConstrainedBox(
+                                                constraints: const BoxConstraints(maxWidth: 300),
+                                                child: boardWidget,
+                                              );
+
+                                              final eventsListView = filteredEvents.isEmpty
+                                                  ? const Center(child: Text('No events in this category.'))
+                                                  : ListView.builder(
+                                                      padding: const EdgeInsets.only(bottom: 32),
+                                                      itemCount: filteredEvents.length,
+                                                      itemBuilder: (context, index) {
+                                                        final event = filteredEvents[index];
+                                                        final bool isFiltered = uiState.selectedEvent != null;
+                                                        final onDismiss = isFiltered ? () => ref.read(gameplayUiProvider(game.id).notifier).selectEvent(null) : null;
+
+                                                        if (event is BombardEvent) {
+                                                          return BombardEventWidget(
+                                                            event: event, 
+                                                            onDismiss: onDismiss
+                                                          );
+                                                        } else if (event is BattleCollisionEvent) {
+                                                          return BattleCollisionEventWidget(
+                                                            event: event, 
+                                                            onDismiss: onDismiss
+                                                          );
+                                                        }
+                                                        return const SizedBox.shrink();
+                                                      },
+                                                    );
 
                                               if (isWide) {
                                                 return Padding(
@@ -361,7 +360,7 @@ class GamePlay extends ConsumerWidget {
                                                   child: Row(
                                                     crossAxisAlignment: CrossAxisAlignment.start,
                                                     children: [
-                                                      boardWidget,
+                                                      constrainedBoard,
                                                       const SizedBox(width: 16),
                                                       Expanded(child: eventsListView),
                                                     ],
@@ -371,7 +370,7 @@ class GamePlay extends ConsumerWidget {
                                                 return Column(
                                                   children: [
                                                     const SizedBox(height: 16),
-                                                    Center(child: boardWidget),
+                                                    Center(child: constrainedBoard),
                                                     const SizedBox(height: 16),
                                                     Expanded(child: eventsListView),
                                                   ],
@@ -381,7 +380,28 @@ class GamePlay extends ConsumerWidget {
                                           );
                                         }
 
-                                        return eventsListView;
+                                        // Outcomes (no board)
+                                        return filteredEvents.isEmpty
+                                            ? const Center(child: Text('No events in this category.'))
+                                            : ListView.builder(
+                                                padding: const EdgeInsets.only(bottom: 32),
+                                                itemCount: filteredEvents.length,
+                                                itemBuilder: (context, index) {
+                                                  final event = filteredEvents[index];
+                                                  if (event is CityCapturedEvent) {
+                                                    return CityCapturedEventWidget(event: event);
+                                                  } else if (event is FactionEliminatedEvent) {
+                                                    return FactionEliminatedEventWidget(event: event);
+                                                  } else if (event is GameOverEvent) {
+                                                    return GameOverEventWidget(event: event);
+                                                  } else if (event is ShipLostTetherEvent) {
+                                                    return PieceLostTetherEventWidget(event: event);
+                                                  } else if (event is ShipDestroyedInBattleEvent || event is ShipDestroyedInBombardmentEvent) {
+                                                    return PieceDestroyedEventWidget(event: event);
+                                                  }
+                                                  return const SizedBox.shrink();
+                                                },
+                                              );
                                       },
                                       loading: () => const Center(child: CircularProgressIndicator()),
                                       error: (e, s) => Center(child: Text('Error loading vision: $e')),
@@ -453,12 +473,15 @@ class GamePlay extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Flexible(
-                            child: AspectRatio(
-                              aspectRatio: 1,
-                              child: boardWidget,
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: AspectRatio(
+                                aspectRatio: 1,
+                                child: boardWidget,
+                              ),
                             ),
                           ),
-                          // Gap is provided by GameBoard's internal 16px padding
+                          // Gap between board and panel
                           Padding(
                             padding: const EdgeInsets.fromLTRB(0, 16, 16, 0),
                             child: SizedBox(
@@ -473,9 +496,12 @@ class GamePlay extends ConsumerWidget {
                         children: [
                           Expanded(
                             flex: 3,
-                            child: Align(
-                              alignment: Alignment.topCenter,
-                              child: boardWidget,
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Align(
+                                alignment: Alignment.topCenter,
+                                child: boardWidget,
+                              ),
                             ),
                           ),
                           Padding(
