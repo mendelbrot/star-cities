@@ -34,7 +34,7 @@ Links users or bots to games and assigns their faction.
     - `bot_name`: TEXT (Friendly name for the bot, null for human players)
     - `faction`: `faction` (`RED | YELLOW | GREEN | CYAN | BLUE | MAGENTA`)
     - `home_star`: JSONB (`{x, y}` coordinates)
-    - `is_ready`: Boolean (Default FALSE)
+    - `is_ready`: Boolean (Default FALSE) (has the player submitted their turn)
     - `is_eliminated`: Boolean (Default FALSE)
     - `eliminated_on_turn`: Integer (Null if not eliminated)
     - `is_winner`: Boolean (Default FALSE)
