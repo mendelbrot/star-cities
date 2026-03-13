@@ -3,6 +3,7 @@ import 'app_state_manager.dart';
 import 'package:star_cities/features/auth/screens/sign_in.dart';
 import 'package:star_cities/features/profile/screens/profile_setup.dart';
 import 'package:star_cities/features/lobby/screens/lobby.dart';
+import 'package:star_cities/features/lobby/screens/rules_page.dart';
 import 'package:star_cities/features/lobby/screens/game_setup.dart';
 import 'package:star_cities/features/game/screens/game_screen.dart';
 
@@ -18,6 +19,10 @@ GoRouter createRouter(AppStateManager appStateManager) {
       GoRoute(
         path: '/profile',
         builder: (context, state) => const ProfileSetupPage(),
+      ),
+      GoRoute(
+        path: '/rules',
+        builder: (context, state) => const RulesPage(),
       ),
       GoRoute(
         path: '/',
