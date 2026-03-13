@@ -40,12 +40,12 @@ class TurnStatesNotifier extends RobustSupabaseNotifier<TurnState, String> {
   String getId(TurnState item) => '${item.turnNumber}'; // Composite ID isn't used for deletion here, but we need something unique.
 }
 
-final robustTurnStatesProvider = AsyncNotifierProvider.family<TurnStatesNotifier, List<TurnState>, String>(() {
+final robustTurnStatesProvider = AsyncNotifierProvider.autoDispose.family<TurnStatesNotifier, List<TurnState>, String>(() {
   return TurnStatesNotifier();
 });
 
 /// Manages providing the current and previous turn states.
-final gameplayTurnStateProvider = Provider.family<AsyncValue<List<TurnState>>, String>((ref, gameId) {
+final gameplayTurnStateProvider = Provider.autoDispose.family<AsyncValue<List<TurnState>>, String>((ref, gameId) {
   return ref.watch(robustTurnStatesProvider(gameId));
 });
 
@@ -79,18 +79,18 @@ class TurnEventsNotifier extends RobustSupabaseNotifier<TurnEventList, String> {
   String getId(TurnEventList item) => '${item.turnNumber}';
 }
 
-final robustTurnEventsProvider = AsyncNotifierProvider.family<TurnEventsNotifier, List<TurnEventList>, String>(() {
+final robustTurnEventsProvider = AsyncNotifierProvider.autoDispose.family<TurnEventsNotifier, List<TurnEventList>, String>(() {
   return TurnEventsNotifier();
 });
 
 /// Provides the most recent turn events.
-final gameplayTurnEventsProvider = Provider.family<AsyncValue<TurnEventList?>, String>((ref, gameId) {
+final gameplayTurnEventsProvider = Provider.autoDispose.family<AsyncValue<TurnEventList?>, String>((ref, gameId) {
   final asyncValue = ref.watch(robustTurnEventsProvider(gameId));
   return asyncValue.whenData((list) => list.isNotEmpty ? list.first : null);
 });
 
 /// Fetches events for a specific turn.
-final historicalTurnEventsProvider = FutureProvider.family<TurnEventList?, ({String gameId, int turnNumber})>((ref, arg) async {
+final historicalTurnEventsProvider = FutureProvider.autoDispose.family<TurnEventList?, ({String gameId, int turnNumber})>((ref, arg) async {
   final supabase = Supabase.instance.client;
   final response = await supabase
       .from('turn_events')
@@ -104,7 +104,7 @@ final historicalTurnEventsProvider = FutureProvider.family<TurnEventList?, ({Str
 });
 
 /// Fetches turn state for a specific turn.
-final historicalTurnStateProvider = FutureProvider.family<TurnState?, ({String gameId, int turnNumber})>((ref, arg) async {
+final historicalTurnStateProvider = FutureProvider.autoDispose.family<TurnState?, ({String gameId, int turnNumber})>((ref, arg) async {
   final supabase = Supabase.instance.client;
   final response = await supabase
       .from('turn_states')
@@ -118,7 +118,7 @@ final historicalTurnStateProvider = FutureProvider.family<TurnState?, ({String g
 });
 
 /// Fetches vision for a specific turn.
-final historicalVisionProvider = FutureProvider.family<Set<math.Point<int>>, ({String gameId, int turnNumber})>((ref, arg) async {
+final historicalVisionProvider = FutureProvider.autoDispose.family<Set<math.Point<int>>, ({String gameId, int turnNumber})>((ref, arg) async {
   final turnStateAsync = ref.watch(historicalTurnStateProvider(arg));
   final playersAsync = ref.watch(gamePlayersWithProfilesProvider(arg.gameId));
   final currentUser = ref.watch(currentUserProvider);
@@ -237,12 +237,12 @@ class SubmittedActionsNotifier extends RobustSupabaseNotifier<SubmittedTurnActio
   String getId(SubmittedTurnActions item) => '${item.playerId}_${item.turnNumber}';
 }
 
-final robustSubmittedActionsProvider = AsyncNotifierProvider.family<SubmittedActionsNotifier, List<SubmittedTurnActions>, String>(() {
+final robustSubmittedActionsProvider = AsyncNotifierProvider.autoDispose.family<SubmittedActionsNotifier, List<SubmittedTurnActions>, String>(() {
   return SubmittedActionsNotifier();
 });
 
 /// Provides the submitted actions for the current user in the current game/turn.
-final currentSubmittedActionsProvider = Provider.family<AsyncValue<SubmittedTurnActions?>, String>((ref, gameId) {
+final currentSubmittedActionsProvider = Provider.autoDispose.family<AsyncValue<SubmittedTurnActions?>, String>((ref, gameId) {
   final gameAsync = ref.watch(gameProvider(gameId));
   final playersAsync = ref.watch(playersProvider(gameId));
   final currentUser = ref.watch(currentUserProvider);

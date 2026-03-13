@@ -7,7 +7,7 @@ import 'package:star_cities/shared/providers/auth_providers.dart';
 
 /// Provides the set of visible coordinates for the current turn state of a game.
 /// It returns a list of Sets: [CurrentTurnVision, PreviousTurnVision].
-final visionProvider = Provider.family<AsyncValue<List<Set<math.Point<int>>>>, String>((ref, gameId) {
+final visionProvider = Provider.autoDispose.family<AsyncValue<List<Set<math.Point<int>>>>, String>((ref, gameId) {
   final turnStatesAsync = ref.watch(gameplayTurnStateProvider(gameId));
   final playersAsync = ref.watch(gamePlayersWithProfilesProvider(gameId));
   final currentUser = ref.watch(currentUserProvider);

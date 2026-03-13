@@ -16,7 +16,7 @@ class AllGamesNotifier extends RobustSupabaseNotifier<Game, String> {
   String getId(Game item) => item.id;
 }
 
-final robustAllGamesProvider = AsyncNotifierProvider.family<AllGamesNotifier, List<Game>, String>(() {
+final robustAllGamesProvider = AsyncNotifierProvider.autoDispose.family<AllGamesNotifier, List<Game>, String>(() {
   return AllGamesNotifier();
 });
 
@@ -32,13 +32,13 @@ class AllPlayersNotifier extends RobustSupabaseNotifier<Player, String> {
   String getId(Player item) => item.id;
 }
 
-final robustAllPlayersProvider = AsyncNotifierProvider.family<AllPlayersNotifier, List<Player>, String>(() {
+final robustAllPlayersProvider = AsyncNotifierProvider.autoDispose.family<AllPlayersNotifier, List<Player>, String>(() {
   return AllPlayersNotifier();
 });
 
 /// Combined provider that performs a client-side join of games and players.
 /// This replaces the v_user_game_status view stream which doesn't support realtime updates correctly.
-final userGameStatusProvider = Provider<AsyncValue<List<Map<String, dynamic>>>>((ref) {
+final userGameStatusProvider = Provider.autoDispose<AsyncValue<List<Map<String, dynamic>>>>((ref) {
   // Use empty string as arg for 'all'
   final gamesAsync = ref.watch(robustAllGamesProvider(''));
   final playersAsync = ref.watch(robustAllPlayersProvider(''));
@@ -102,7 +102,7 @@ final userGameStatusProvider = Provider<AsyncValue<List<Map<String, dynamic>>>>(
 });
 
 /// TAP Required: Joined games, PLANNING status, is_ready == false
-final tapRequiredGamesProvider = Provider<AsyncValue<List<Game>>>((ref) {
+final tapRequiredGamesProvider = Provider.autoDispose<AsyncValue<List<Game>>>((ref) {
   final user = ref.watch(currentUserProvider);
   if (user == null) return const AsyncValue.data([]);
   
@@ -123,7 +123,7 @@ final tapRequiredGamesProvider = Provider<AsyncValue<List<Game>>>((ref) {
 });
 
 /// TAP Done: Joined games, PLANNING status, is_ready == true
-final tapDoneGamesProvider = Provider<AsyncValue<List<Game>>>((ref) {
+final tapDoneGamesProvider = Provider.autoDispose<AsyncValue<List<Game>>>((ref) {
   final user = ref.watch(currentUserProvider);
   if (user == null) return const AsyncValue.data([]);
 
@@ -144,7 +144,7 @@ final tapDoneGamesProvider = Provider<AsyncValue<List<Game>>>((ref) {
 });
 
 /// Waiting for Players to Join: Games user HAS joined, status == WAITING
-final waitingForPlayersGamesProvider = Provider<AsyncValue<List<Game>>>((ref) {
+final waitingForPlayersGamesProvider = Provider.autoDispose<AsyncValue<List<Game>>>((ref) {
   final user = ref.watch(currentUserProvider);
   if (user == null) return const AsyncValue.data([]);
 
@@ -165,7 +165,7 @@ final waitingForPlayersGamesProvider = Provider<AsyncValue<List<Game>>>((ref) {
 });
 
 /// Open Games: Games user has NOT joined, status == WAITING
-final openGamesProvider = Provider<AsyncValue<List<Game>>>((ref) {
+final openGamesProvider = Provider.autoDispose<AsyncValue<List<Game>>>((ref) {
   final user = ref.watch(currentUserProvider);
   if (user == null) return const AsyncValue.data([]);
 

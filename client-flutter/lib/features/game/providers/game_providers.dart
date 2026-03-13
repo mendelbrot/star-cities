@@ -30,12 +30,12 @@ class GameNotifier extends RobustSupabaseNotifier<Game, String> {
   String getId(Game item) => item.id;
 }
 
-final robustGameProvider = AsyncNotifierProvider.family<GameNotifier, List<Game>, String>(() {
+final robustGameProvider = AsyncNotifierProvider.autoDispose.family<GameNotifier, List<Game>, String>(() {
   return GameNotifier();
 });
 
 /// Provides a stream of a single game by its ID.
-final gameProvider = Provider.family<AsyncValue<Game?>, String>((ref, gameId) {
+final gameProvider = Provider.autoDispose.family<AsyncValue<Game?>, String>((ref, gameId) {
   final asyncValue = ref.watch(robustGameProvider(gameId));
   return asyncValue.whenData((list) => list.isNotEmpty ? list.first : null);
 });
@@ -64,12 +64,12 @@ class PlayersNotifier extends RobustSupabaseNotifier<Player, String> {
   String getId(Player item) => item.id;
 }
 
-final robustPlayersProvider = AsyncNotifierProvider.family<PlayersNotifier, List<Player>, String>(() {
+final robustPlayersProvider = AsyncNotifierProvider.autoDispose.family<PlayersNotifier, List<Player>, String>(() {
   return PlayersNotifier();
 });
 
 /// Provides a stream of all players in a specific game.
-final playersProvider = Provider.family<AsyncValue<List<Player>>, String>((ref, gameId) {
+final playersProvider = Provider.autoDispose.family<AsyncValue<List<Player>>, String>((ref, gameId) {
   return ref.watch(robustPlayersProvider(gameId));
 });
 
@@ -97,7 +97,7 @@ class PlayerWithProfile {
 }
 
 /// Provides a combined list of players and their profiles for a specific game.
-final gamePlayersWithProfilesProvider = Provider.family<AsyncValue<List<PlayerWithProfile>>, String>((ref, gameId) {
+final gamePlayersWithProfilesProvider = Provider.autoDispose.family<AsyncValue<List<PlayerWithProfile>>, String>((ref, gameId) {
   final playersAsync = ref.watch(playersProvider(gameId));
   final profilesAsync = ref.watch(allProfilesProvider);
 
