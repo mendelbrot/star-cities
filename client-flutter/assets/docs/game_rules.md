@@ -1,36 +1,44 @@
 # Star Cities - Game Rules
 
 ## Overview
-Star Cities is a simultaneous-move, turn-based strategy game played on a 9x9 grid with a topological torus structure (the edges wrap around). The game supports 2 to 6 players.
+Star Cities is a simultaneous-move, turn-based strategy game for 2 to 6 players.
 
 ## Objective & Victory
-A faction wins if it is anchored to 3 or more distinct stars AND has more stars than any other faction.
- If only one non-eliminated faction remains, that faction wins.
+A faction wins if it is anchored to the objective number of distinct stars AND has more stars than any other faction. If only one non-eliminated faction remains, that faction wins.
 
 ## The Board
 - **Grid:** 9x9 squares.
 - **Topology:** Torus (Left-to-right and Top-to-bottom wrapping).
 - **Stars:** Roughly 6 stars are randomly placed. 
-- **Occupancy:** Strictly one piece per square. Pieces cannot move onto squares occupied by stars.
+- **Occupancy:** Strictly one ship per square. Ships cannot move onto squares occupied by stars.
 
-## Pieces & Attributes
+## Ships & Attributes
 
-| Type | Strength | Movement | Vision | Tether Required | Visual | Special |
-| :--- | :---: | :---: | :---: | :---: | :---: | :--- |
-| **Star City** | 8 | 1 | 2 | No | ![Star City](assets/ships/star-city.svg) | Supports tethers/placement when anchored. |
-| **Neutrino** | 2 | 1 | 1 | No | ![Neutrino](assets/ships/neutrino.svg) | Cloaked; only visible if it won a battle last turn. |
-| **Eclipse** | 4 | 1 | 2 | Yes | ![Eclipse](assets/ships/eclipse.svg) | Laser Cannon: Range 2, Strength 2. |
-| **Parallax** | 6 | 2 | 2 | Yes | ![Parallax](assets/ships/parallax.svg) | High mobility. |
+### Ships Overview
+| Name | Icon | Description |
+| :--- | :---: | :--- |
+| **Star City** | ![Star City](assets/ships/star-city.svg) ![Star City Anchored](assets/ships/star-city-anchored.svg) | The core of your faction. Supports tethers and piece placement when anchored to a star. |
+| **Neutrino** | ![Neutrino](assets/ships/neutrino.svg) | A stealthy scout. Cloaked and independent of tethers. |
+| **Eclipse** | ![Eclipse](assets/ships/eclipse.svg) | A long-range fire support ship. Equipped with a laser cannon. |
+| **Parallax** | ![Parallax](assets/ships/parallax.svg) | A high-speed interceptor and mobile combatant. |
+
+### Ship Attribute Comparison
+| | Star City | Neutrino | Eclipse | Parallax |
+| :--- | :---: | :---: | :---: | :---: |
+| **Icon** | ![Star City](assets/ships/star-city.svg) ![Star City Anchored](assets/ships/star-city-anchored.svg) | ![Neutrino](assets/ships/neutrino.svg) | ![Eclipse](assets/ships/eclipse.svg) | ![Parallax](assets/ships/parallax.svg) |
+| **Strength, Movement Speed, Vision Range** | 8.1.2 | 2.1.1 | 4.1.2 | 6.2.2 |
+| **Tether Required** | No | No | Yes | Yes |
+| **Special** | Anchor to Star | Cloaked | Laser Cannon | High Mobility |
 
 ## Tethers & Placement
 - **Requirement:** Every Ship (except Neutrinos) must be tethered to a Star City.
-- **Anchoring:** A Star City must be **anchored** beside a star to support tethers and allow placement of new pieces.
+- **Anchoring:** A Star City must be **anchored** beside a star to support tethers and allow placement of new ships.
 - **Tether Range:** Eclipse and Parallax units must remain within a distance of 2 from their tethered Star City.
-- **Capacity:** A Star City can support up to 5 tethered pieces.
-- **Loss of Tether:** If a Star City is destroyed or captured, all pieces tethered to it are also lost.
+- **Capacity:** A Star City can support up to 5 tethered ships.
+- **Loss of Tether:** If a Star City is destroyed or captured, all ships tethered to it are also lost.
 - **Re-tethering:** Ships can re-tether to a different anchored Star City if one is within range.
 - **Placement Flow:**
-  1. Select a piece from the acquired tray.
+  1. Select a ship from the acquired tray.
   2. Select an anchored friendly Star City to tether to.
   3. Select an empty square adjacent (distance 1) to that Star City.
 
@@ -52,14 +60,14 @@ A faction wins if it is anchored to 3 or more distinct stars AND has more stars 
   - **Destruction:** If a Star City loses a battle due to bombardment, it is destroyed rather than captured.
 
 ## Visibility & Stealth
-- **Fog of War:** Players only see enemy units within the vision range of their own pieces.
+- **Fog of War:** Players only see enemy units within the vision range of their own ships.
 - **Neutrino Cloak:** Neutrinos are invisible unless they:
   - Won a battle on the previous turn.
   - Are collided with directly.
   - Act as support in a battle visible to the opponent.
 
 ## Economy (Random Acquisition)
-Each turn, a player has a probability of receiving a new piece in their tray:
+Each turn, a player has a probability of receiving a new ship in their tray:
 - **Neutrino:** 25%
 - **Eclipse:** 20%
 - **Parallax:** 20%
