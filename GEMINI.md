@@ -44,6 +44,6 @@ Think of these logs as a kind of memory. Read the most recent log files to get u
 ## Agent's initial instructions
 As the first thing that you do, please get up to speed on the project:
   - read the latest three dev log files in `notes-star-cities/dev-logs/`
-  - learn the game rules: `notes-star-cities/docs/game_rules.md`
+  - learn the game rules: `client-flutter/assets/docs/game_rules.md`
   - learn the data models and detailed game mechanics: `notes-star-cities/docs/data_models_and_game_logic.md`
 

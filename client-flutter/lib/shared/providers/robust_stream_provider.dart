@@ -8,7 +8,7 @@ typedef ModelFactory<T> = T Function(Map<String, dynamic> map);
 /// A generic notifier that implements a robust "REST -> Subscribe -> REST" fetching strategy.
 /// This ensures immediate data availability, real-time updates, and eventual consistency
 /// even during websocket connection fluctuations.
-abstract class RobustSupabaseNotifier<T, ID> extends FamilyAsyncNotifier<List<T>, String> {
+abstract class RobustSupabaseNotifier<T, ID> extends AutoDisposeFamilyAsyncNotifier<List<T>, String> {
   String get tableName;
   ModelFactory<T> get factory;
   String get primaryKey => 'id';
@@ -52,37 +52,50 @@ abstract class RobustSupabaseNotifier<T, ID> extends FamilyAsyncNotifier<List<T>
     return data.map((m) => factory(m as Map<String, dynamic>)).toList();
   }
 
-  void _subscribe(String arg) {
+  void _subscribe(String arg) async {
     if (_isDisposed) return;
     final supabase = ref.read(supabaseClientProvider);
     final channelName = 'robust_${tableName}_$arg';
     
-    // Cleanup old channel if it exists
-    _channel?.unsubscribe();
-
-    _channel = supabase.channel(channelName);
-    
-    _channel!.onPostgresChanges(
-      event: PostgresChangeEvent.all,
-      schema: 'public',
-      table: tableName,
-      filter: getRealtimeFilter(arg),
-      callback: (payload) {
-        if (_isDisposed) return;
-        _handleRealtimeEvent(payload);
-      },
-    ).subscribe((status, [error]) {
-      if (_isDisposed) return;
-      
-      if (status == RealtimeSubscribeStatus.timedOut || status == RealtimeSubscribeStatus.channelError) {
-        // If timed out or error, wait a bit and retry the whole cycle
-        Future.delayed(const Duration(seconds: 5), () {
-          if (!_isDisposed) {
-            _retryCycle(arg);
-          }
-        });
+    try {
+      // Cleanup old channel if it exists and wait for it
+      if (_channel != null) {
+        await _channel!.unsubscribe();
       }
-    });
+
+      if (_isDisposed) return;
+
+      _channel = supabase.channel(channelName);
+      
+      _channel!.onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: tableName,
+        filter: getRealtimeFilter(arg),
+        callback: (payload) {
+          if (_isDisposed) return;
+          _handleRealtimeEvent(payload);
+        },
+      ).subscribe((status, [error]) {
+        if (_isDisposed) return;
+        
+        if (status == RealtimeSubscribeStatus.timedOut || 
+            status == RealtimeSubscribeStatus.channelError ||
+            error != null) {
+          // If timed out, error, or exception, wait a bit and retry the whole cycle
+          Future.delayed(const Duration(seconds: 5), () {
+            if (!_isDisposed) {
+              _retryCycle(arg);
+            }
+          });
+        }
+      });
+    } catch (e) {
+      // If subscription itself throws (e.g. RealtimeSubscribeException), retry later
+      if (!_isDisposed) {
+        Future.delayed(const Duration(seconds: 10), () => _retryCycle(arg));
+      }
+    }
   }
 
   Future<void> _retryCycle(String arg) async {
