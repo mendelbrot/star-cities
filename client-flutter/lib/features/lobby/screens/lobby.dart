@@ -25,6 +25,11 @@ class _LobbyState extends ConsumerState<Lobby> {
         title: const Text('Star Cities', style: TextStyle(letterSpacing: 1.2, fontWeight: FontWeight.bold)),
         actions: [
           IconButton(
+            icon: const Icon(LucideIcons.scroll),
+            onPressed: () => context.go('/rules'),
+            tooltip: 'Rules',
+          ),
+          IconButton(
             icon: const Icon(LucideIcons.user),
             onPressed: () => context.go('/profile'),
             tooltip: 'Profile',

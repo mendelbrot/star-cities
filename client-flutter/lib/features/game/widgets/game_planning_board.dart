@@ -18,12 +18,14 @@ class GamePlanningBoard extends ConsumerWidget {
   final models.Game game;
   final List<Piece> pieces;
   final Set<math.Point<int>> visibleSquares;
+  final List<GameAction>? actionsOverride;
 
   const GamePlanningBoard({
     super.key,
     required this.game,
     required this.pieces,
     required this.visibleSquares,
+    this.actionsOverride,
   });
 
   @override
@@ -32,7 +34,9 @@ class GamePlanningBoard extends ConsumerWidget {
     final playersAsync = ref.watch(gamePlayersWithProfilesProvider(game.id));
     final currentUser = ref.watch(currentUserProvider);
     final uiState = ref.watch(gameplayUiProvider(game.id));
-    final pendingActions = ref.watch(pendingActionsProvider(game.id));
+    
+    // Use override actions if provided, otherwise local pending actions
+    final List<GameAction> pendingActions = actionsOverride ?? ref.watch(pendingActionsProvider(game.id));
 
     return playersAsync.when(
       data: (players) {
@@ -40,6 +44,9 @@ class GamePlanningBoard extends ConsumerWidget {
           (p) => p.player.userId == currentUser?.id,
         ) ?? players.first;
         
+        // Disable UI if we have an override (already submitted) or not in planning status
+        final isPlanningMode = actionsOverride == null && game.status == models.GameStatus.planning;
+
         final homeStar = currentPlayer.player.homeStar;
         final centerX = homeStar?['x'] ?? 4;
         final centerY = homeStar?['y'] ?? 4;
@@ -76,10 +83,10 @@ class GamePlanningBoard extends ConsumerWidget {
                   highlightPieceIds: _calculateHighlightPieces(uiState, virtualPieces, currentPlayer.player.faction),
                   dimmedPieceIds: pendingActions.whereType<PlaceAction>().map((a) => a.trayPieceId).toSet(),
                   showAvailableDots: !uiState.isBombarding,
-                  onSquareTap: game.status == models.GameStatus.planning 
+                  onSquareTap: isPlanningMode 
                       ? (x, y) => _handleSquareTap(ref, x, y, uiState, virtualPieces, currentPlayer.player.faction, pendingActions, availableSquares)
                       : null,
-                  onPieceTap: game.status == models.GameStatus.planning
+                  onPieceTap: isPlanningMode
                       ? (piece) => _handlePieceTap(ref, piece, uiState, virtualPieces, currentPlayer.player.faction, pendingActions, availableSquares)
                       : null,
                   overlays: [

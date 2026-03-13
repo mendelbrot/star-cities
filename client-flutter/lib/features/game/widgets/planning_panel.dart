@@ -15,12 +15,14 @@ class PlanningPanel extends ConsumerWidget {
   final models.Game game;
   final List<Piece> pieces;
   final bool flatten;
+  final List<GameAction>? actionsOverride;
 
   const PlanningPanel({
     super.key,
     required this.game,
     required this.pieces,
     this.flatten = false,
+    this.actionsOverride,
   });
 
   @override
@@ -29,7 +31,9 @@ class PlanningPanel extends ConsumerWidget {
     final playersAsync = ref.watch(gamePlayersWithProfilesProvider(game.id));
     final currentUser = ref.watch(currentUserProvider);
     final uiState = ref.watch(gameplayUiProvider(game.id));
-    final pendingActions = ref.watch(pendingActionsProvider(game.id));
+    
+    // Use override actions if provided, otherwise local pending actions
+    final List<GameAction> pendingActions = actionsOverride ?? ref.watch(pendingActionsProvider(game.id));
     final controller = ref.read(gameControllerProvider);
 
     return playersAsync.when(
@@ -38,6 +42,10 @@ class PlanningPanel extends ConsumerWidget {
           (p) => p.player.userId == currentUser?.id,
           orElse: () => players.first,
         );
+
+        // Disable UI if we have an override (already submitted) or not in planning status
+        final isReady = actionsOverride != null;
+        final isPlanningMode = !isReady && game.status == models.GameStatus.planning;
 
         final trayPieces = pieces.where((p) => p.x == null && p.y == null && p.faction == currentPlayer.player.faction).toList();
         
@@ -53,14 +61,12 @@ class PlanningPanel extends ConsumerWidget {
             ? trayPieces.firstWhereOrNull((p) => p.id == uiState.placingPieceId)
             : null;
 
-        final isPlanning = game.status == models.GameStatus.planning;
-
         final actionButtons = [
           if (selectedPiece != null) ...[
             if (selectedPiece.type == PieceType.starCity) ...[
               if (!selectedPiece.isAnchored)
                 _ActionButton(
-                  onPressed: !isPlanning || pendingActions.any((a) => a is MoveAction && a.pieceId == selectedPiece.id)
+                  onPressed: !isPlanningMode || pendingActions.any((a) => a is MoveAction && a.pieceId == selectedPiece.id)
                       ? null
                       : () {
                           ref.read(pendingActionsProvider(game.id).notifier).addOrReplaceAction(
@@ -71,7 +77,7 @@ class PlanningPanel extends ConsumerWidget {
                 ),
               if (selectedPiece.isAnchored)
                 _ActionButton(
-                  onPressed: !isPlanning || virtualPieces.any((p) => p.tetheredToId == selectedPiece.id) ||
+                  onPressed: !isPlanningMode || virtualPieces.any((p) => p.tetheredToId == selectedPiece.id) ||
                           pendingActions.any((a) => a is MoveAction && a.pieceId == selectedPiece.id)
                       ? null
                       : () {
@@ -84,7 +90,7 @@ class PlanningPanel extends ConsumerWidget {
             ],
             if (selectedPiece.type.requiresTether) ...[
               _ActionButton(
-                onPressed: !isPlanning ? null : () {
+                onPressed: !isPlanningMode ? null : () {
                   ref.read(gameplayUiProvider(game.id).notifier).setRetethering(!uiState.isRetethering);
                 },
                 icon: Icons.link,
@@ -95,7 +101,7 @@ class PlanningPanel extends ConsumerWidget {
                 Padding(
                   padding: const EdgeInsets.only(left: 8.0),
                   child: _ActionButton(
-                    onPressed: !isPlanning ? null : () {
+                    onPressed: !isPlanningMode ? null : () {
                       if (pendingActions.any((a) => a is BombardAction && a.pieceId == selectedPiece.id)) {
                         ref.read(pendingActionsProvider(game.id).notifier).removeBombardment(selectedPiece.id);
                         ref.read(gameplayUiProvider(game.id).notifier).setBombarding(false);
@@ -129,10 +135,10 @@ class PlanningPanel extends ConsumerWidget {
 
         final systemButtons = [
           TextButton(
-            onPressed: !isPlanning ? null : () => controller.resetActions(game.id),
+            onPressed: !isPlanningMode ? null : () => controller.resetActions(game.id),
             style: TextButton.styleFrom(
               foregroundColor: theme.colorScheme.secondary,
-              side: BorderSide(color: isPlanning ? theme.colorScheme.secondary : theme.disabledColor, width: 1),
+              side: BorderSide(color: isPlanningMode ? theme.colorScheme.secondary : theme.disabledColor, width: 1),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -141,7 +147,7 @@ class PlanningPanel extends ConsumerWidget {
           ),
           const SizedBox(width: 8),
           ElevatedButton(
-            onPressed: !isPlanning ? null : () => controller.submitActions(game.id),
+            onPressed: !isPlanningMode ? null : () => controller.submitActions(game.id),
             child: const Text('Done'),
           ),
         ];
@@ -173,7 +179,7 @@ class PlanningPanel extends ConsumerWidget {
                         final hasPlaceAction = pendingActions.any((a) => a is PlaceAction && a.trayPieceId == piece.id);
                         
                         return GestureDetector(
-                          onTap: !isPlanning ? null : () {
+                          onTap: !isPlanningMode ? null : () {
                             if (hasPlaceAction) {
                               // Cancel placement if already placed
                               ref.read(pendingActionsProvider(game.id).notifier).removePlacement(piece.id);
@@ -219,12 +225,14 @@ class PlanningPanel extends ConsumerWidget {
 
                   // Selection Status
                   Text(
-                    placingPiece != null
-                        ? 'Placing: ${placingPiece.type.label}'
-                        : (selectedPiece != null ? 'Selected: ${selectedPiece.type.label}' : 'No Selection'),
+                    isReady 
+                        ? 'Turn actions submitted'
+                        : (placingPiece != null
+                            ? 'Placing: ${placingPiece.type.label}'
+                            : (selectedPiece != null ? 'Selected: ${selectedPiece.type.label}' : 'No Selection')),
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: (placingPiece == null && selectedPiece == null) ? theme.disabledColor : null,
+                      color: (placingPiece == null && selectedPiece == null || isReady) ? theme.disabledColor : null,
                     ),
                   ),
                   const SizedBox(height: 8),

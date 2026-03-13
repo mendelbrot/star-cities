@@ -53,9 +53,13 @@ abstract class RobustSupabaseNotifier<T, ID> extends FamilyAsyncNotifier<List<T>
   }
 
   void _subscribe(String arg) {
+    if (_isDisposed) return;
     final supabase = ref.read(supabaseClientProvider);
     final channelName = 'robust_${tableName}_$arg';
     
+    // Cleanup old channel if it exists
+    _channel?.unsubscribe();
+
     _channel = supabase.channel(channelName);
     
     _channel!.onPostgresChanges(
@@ -67,7 +71,38 @@ abstract class RobustSupabaseNotifier<T, ID> extends FamilyAsyncNotifier<List<T>
         if (_isDisposed) return;
         _handleRealtimeEvent(payload);
       },
-    ).subscribe();
+    ).subscribe((status, [error]) {
+      if (_isDisposed) return;
+      
+      if (status == RealtimeSubscribeStatus.timedOut || status == RealtimeSubscribeStatus.channelError) {
+        // If timed out or error, wait a bit and retry the whole cycle
+        Future.delayed(const Duration(seconds: 5), () {
+          if (!_isDisposed) {
+            _retryCycle(arg);
+          }
+        });
+      }
+    });
+  }
+
+  Future<void> _retryCycle(String arg) async {
+    if (_isDisposed) return;
+    
+    try {
+      // 1. Fetch fresh data via REST
+      final data = await _fetch(arg);
+      if (_isDisposed) return;
+      state = AsyncValue.data(postProcess(data));
+
+      // 2. Re-subscribe
+      _subscribe(arg);
+
+      // 3. Sync again just to be sure
+      _sync(arg);
+    } catch (e) {
+      // If retry fails, wait and try again
+      Future.delayed(const Duration(seconds: 10), () => _retryCycle(arg));
+    }
   }
 
   Future<void> _sync(String arg) async {

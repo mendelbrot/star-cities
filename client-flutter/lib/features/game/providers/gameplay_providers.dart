@@ -212,3 +212,63 @@ class PendingActionsNotifier extends FamilyNotifier<List<GameAction>, String> {
 final pendingActionsProvider = NotifierProvider.family<PendingActionsNotifier, List<GameAction>, String>(() {
   return PendingActionsNotifier();
 });
+
+/// Robust notifier for submitted turn planned actions.
+class SubmittedActionsNotifier extends RobustSupabaseNotifier<SubmittedTurnActions, String> {
+  @override
+  String get tableName => 'turn_planned_actions';
+
+  @override
+  ModelFactory<SubmittedTurnActions> get factory => SubmittedTurnActions.fromMap;
+
+  @override
+  PostgrestTransformBuilder<PostgrestList> filter(PostgrestFilterBuilder<PostgrestList> query, String arg) {
+    return query.eq('game_id', arg);
+  }
+
+  @override
+  PostgresChangeFilter? getRealtimeFilter(String arg) => PostgresChangeFilter(
+    type: PostgresChangeFilterType.eq,
+    column: 'game_id',
+    value: arg,
+  );
+
+  @override
+  String getId(SubmittedTurnActions item) => '${item.playerId}_${item.turnNumber}';
+}
+
+final robustSubmittedActionsProvider = AsyncNotifierProvider.family<SubmittedActionsNotifier, List<SubmittedTurnActions>, String>(() {
+  return SubmittedActionsNotifier();
+});
+
+/// Provides the submitted actions for the current user in the current game/turn.
+final currentSubmittedActionsProvider = Provider.family<AsyncValue<SubmittedTurnActions?>, String>((ref, gameId) {
+  final gameAsync = ref.watch(gameProvider(gameId));
+  final playersAsync = ref.watch(playersProvider(gameId));
+  final currentUser = ref.watch(currentUserProvider);
+  final submittedActionsAsync = ref.watch(robustSubmittedActionsProvider(gameId));
+
+  return gameAsync.when(
+    data: (game) => playersAsync.when(
+      data: (players) => submittedActionsAsync.when(
+        data: (submittedList) {
+          if (game == null || currentUser == null) return const AsyncValue.data(null);
+          
+          final currentPlayer = players.firstWhereOrNull((p) => p.userId == currentUser.id);
+          if (currentPlayer == null) return const AsyncValue.data(null);
+
+          final actions = submittedList.firstWhereOrNull(
+            (a) => a.playerId == currentPlayer.id && a.turnNumber == game.turnNumber,
+          );
+          return AsyncValue.data(actions);
+        },
+        loading: () => const AsyncValue.loading(),
+        error: (e, s) => AsyncValue.error(e, s),
+      ),
+      loading: () => const AsyncValue.loading(),
+      error: (e, s) => AsyncValue.error(e, s),
+    ),
+    loading: () => const AsyncValue.loading(),
+    error: (e, s) => AsyncValue.error(e, s),
+  );
+});
