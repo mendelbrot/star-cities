@@ -136,3 +136,31 @@ class PlaceAction extends GameAction {
     'target': {'x': target.x, 'y': target.y},
   };
 }
+
+class SubmittedTurnActions {
+  final String gameId;
+  final int turnNumber;
+  final String playerId;
+  final List<GameAction> actions;
+  final DateTime submittedAt;
+
+  const SubmittedTurnActions({
+    required this.gameId,
+    required this.turnNumber,
+    required this.playerId,
+    required this.actions,
+    required this.submittedAt,
+  });
+
+  factory SubmittedTurnActions.fromMap(Map<String, dynamic> map) {
+    return SubmittedTurnActions(
+      gameId: map['game_id'],
+      turnNumber: map['turn_number'],
+      playerId: map['player_id'],
+      actions: (map['actions'] as List<dynamic>)
+          .map((a) => GameAction.fromMap(a as Map<String, dynamic>))
+          .toList(),
+      submittedAt: DateTime.parse(map['submitted_at']),
+    );
+  }
+}

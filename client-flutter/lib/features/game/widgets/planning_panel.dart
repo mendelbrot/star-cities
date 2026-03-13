@@ -15,12 +15,14 @@ class PlanningPanel extends ConsumerWidget {
   final models.Game game;
   final List<Piece> pieces;
   final bool flatten;
+  final List<GameAction>? actionsOverride;
 
   const PlanningPanel({
     super.key,
     required this.game,
     required this.pieces,
     this.flatten = false,
+    this.actionsOverride,
   });
 
   @override
@@ -29,7 +31,9 @@ class PlanningPanel extends ConsumerWidget {
     final playersAsync = ref.watch(gamePlayersWithProfilesProvider(game.id));
     final currentUser = ref.watch(currentUserProvider);
     final uiState = ref.watch(gameplayUiProvider(game.id));
-    final pendingActions = ref.watch(pendingActionsProvider(game.id));
+    
+    // Use override actions if provided, otherwise local pending actions
+    final List<GameAction> pendingActions = actionsOverride ?? ref.watch(pendingActionsProvider(game.id));
     final controller = ref.read(gameControllerProvider);
 
     return playersAsync.when(
@@ -39,8 +43,9 @@ class PlanningPanel extends ConsumerWidget {
           orElse: () => players.first,
         );
 
-        final isReady = currentPlayer.player.isReady;
-        final isPlanningMode = game.status == models.GameStatus.planning && !isReady;
+        // Disable UI if we have an override (already submitted) or not in planning status
+        final isReady = actionsOverride != null;
+        final isPlanningMode = !isReady && game.status == models.GameStatus.planning;
 
         final trayPieces = pieces.where((p) => p.x == null && p.y == null && p.faction == currentPlayer.player.faction).toList();
         

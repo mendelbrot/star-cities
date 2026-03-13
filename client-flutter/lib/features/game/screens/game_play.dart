@@ -51,6 +51,7 @@ class GamePlay extends ConsumerWidget {
     final visionAsync = ref.watch(visionProvider(game.id));
     final eventsAsync = ref.watch(gameplayTurnEventsProvider(game.id));
     final playersWithProfilesAsync = ref.watch(gamePlayersWithProfilesProvider(game.id));
+    final submittedActionsAsync = ref.watch(currentSubmittedActionsProvider(game.id));
 
     // Clear selection on turn or category change
     ref.listen(selectedEventTurnProvider(game.id), (_, _) {
@@ -66,6 +67,11 @@ class GamePlay extends ConsumerWidget {
         ref.read(gameplayUiProvider(game.id).notifier).selectEvent(null);
         ref.read(selectedEventTurnProvider(game.id).notifier).state = 0;
         ref.read(selectedEventCategoryProvider(game.id).notifier).state = EventCategory.bombardments;
+        
+        // Reset planned actions when turn number or status changes
+        ref.read(pendingActionsProvider(game.id).notifier).reset();
+        ref.read(gameplayUiProvider(game.id).notifier).selectPiece(null);
+        ref.read(gameplayUiProvider(game.id).notifier).resetPlacement();
       }
     });
 
@@ -441,84 +447,90 @@ class GamePlay extends ConsumerWidget {
                 ),
 
                 // Tab 3: Planning / Game Over
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    if (game.status == GameStatus.finished) {
-                      final winner = playersWithProfilesAsync.maybeWhen(
-                        data: (players) => players.firstWhereOrNull((p) => p.player.isWinner),
-                        orElse: () => null,
+                submittedActionsAsync.when(
+                  data: (submittedActions) => LayoutBuilder(
+                    builder: (context, constraints) {
+                      if (game.status == GameStatus.finished) {
+                        final winner = playersWithProfilesAsync.maybeWhen(
+                          data: (players) => players.firstWhereOrNull((p) => p.player.isWinner),
+                          orElse: () => null,
+                        );
+                        return GameOver(winner: winner);
+                      }
+
+                      final bool isWide = constraints.maxWidth > 800;
+
+                      final boardWidget = GameBoard(
+                        game: game,
+                        pieces: currentPieces,
+                        visibleSquares: currentVision,
+                        isPlanning: true,
+                        actionsOverride: submittedActions?.actions,
                       );
-                      return GameOver(winner: winner);
-                    }
 
-                    final bool isWide = constraints.maxWidth > 800;
+                      final panel = PlanningPanel(
+                        game: game,
+                        pieces: currentPieces,
+                        flatten: !isWide,
+                        actionsOverride: submittedActions?.actions,
+                      );
 
-                    final boardWidget = GameBoard(
-                      game: game,
-                      pieces: currentPieces,
-                      visibleSquares: currentVision,
-                      isPlanning: true,
-                    );
-
-                    final panel = PlanningPanel(
-                      game: game,
-                      pieces: currentPieces,
-                      flatten: !isWide,
-                    );
-
-                    Widget content;
-                    if (isWide) {
-                      content = Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Flexible(
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: AspectRatio(
-                                aspectRatio: 1,
-                                child: boardWidget,
+                      Widget content;
+                      if (isWide) {
+                        content = Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Flexible(
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: AspectRatio(
+                                  aspectRatio: 1,
+                                  child: boardWidget,
+                                ),
                               ),
                             ),
-                          ),
-                          // Gap between board and panel
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(0, 16, 16, 0),
-                            child: SizedBox(
-                              width: 370,
-                              child: SingleChildScrollView(child: panel),
-                            ),
-                          ),
-                        ],
-                      );
-                    } else {
-                      content = Column(
-                        children: [
-                          Expanded(
-                            flex: 3,
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Align(
-                                alignment: Alignment.topCenter,
-                                child: boardWidget,
+                            // Gap between board and panel
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(0, 16, 16, 0),
+                              child: SizedBox(
+                                width: 370,
+                                child: SingleChildScrollView(child: panel),
                               ),
                             ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 16.0),
-                            child: panel,
-                          ),
-                        ],
-                      );
-                    }
+                          ],
+                        );
+                      } else {
+                        content = Column(
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Align(
+                                  alignment: Alignment.topCenter,
+                                  child: boardWidget,
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 16.0),
+                              child: panel,
+                            ),
+                          ],
+                        );
+                      }
 
-                    return Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 1000),
-                        child: content,
-                      ),
-                    );
-                  },
+                      return Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 1000),
+                          child: content,
+                        ),
+                      );
+                    },
+                  ),
+                  loading: () => const Center(child: GridLoadingIndicator(size: 60)),
+                  error: (e, s) => Center(child: Text('Error loading submitted actions: $e')),
                 ),
               ],
             );

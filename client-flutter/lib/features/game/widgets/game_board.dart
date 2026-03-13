@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:star_cities/features/game/models/game_models.dart';
 import 'package:star_cities/features/game/models/game_events.dart';
+import 'package:star_cities/features/game/models/game_actions.dart';
 import 'package:star_cities/features/lobby/models/game.dart' as models;
 import 'package:star_cities/features/game/widgets/game_planning_board.dart';
 import 'package:star_cities/features/game/widgets/game_replay_board.dart';
@@ -13,6 +14,7 @@ class GameBoard extends StatelessWidget {
   final bool isPlanning;
   final List<GameEvent> events;
   final Map<int, List<Piece>> snapshots;
+  final List<GameAction>? actionsOverride;
 
   const GameBoard({
     super.key,
@@ -22,6 +24,7 @@ class GameBoard extends StatelessWidget {
     this.isPlanning = false,
     this.events = const [],
     this.snapshots = const {},
+    this.actionsOverride,
   });
 
   @override
@@ -32,6 +35,7 @@ class GameBoard extends StatelessWidget {
         game: game,
         pieces: pieces,
         visibleSquares: visibleSquares,
+        actionsOverride: actionsOverride,
       );
     } else {
       board = GameReplayBoard(

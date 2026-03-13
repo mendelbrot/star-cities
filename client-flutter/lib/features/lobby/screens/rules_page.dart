@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:go_router/go_router.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:star_cities/shared/widgets/grid_loading_indicator.dart';
 
 class RulesPage extends StatelessWidget {
@@ -11,6 +13,11 @@ class RulesPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(LucideIcons.arrowLeft),
+          onPressed: () => context.go('/'),
+          tooltip: 'Back to Lobby',
+        ),
         title: const Text('Game Rules', style: TextStyle(letterSpacing: 1.2, fontWeight: FontWeight.bold)),
       ),
       body: SafeArea(
